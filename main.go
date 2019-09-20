@@ -27,7 +27,7 @@ type AccountStorePluginImpl struct {
 }
 
 func (p *AccountStorePluginImpl) Init(ctx context.Context, req *proto.PluginInitialization_Request) (*proto.PluginInitialization_Response, error) {
-	p.status = "everything looks ok"
+	p.status = req.HostIdentity
 	return &proto.PluginInitialization_Response{}, nil
 }
 
