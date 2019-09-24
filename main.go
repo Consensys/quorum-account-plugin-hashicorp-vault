@@ -1,13 +1,9 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"github.com/hashicorp/go-plugin"
-	"google.golang.org/grpc"
 	"log"
-
-	"quorum-plugin-hashicorp-account-store/proto"
+	"quorum-plugin-hashicorp-account-store/internal"
 )
 
 const DefaultProtocolVersion = 1
@@ -21,36 +17,12 @@ var (
 	}
 )
 
-type AccountStorePluginImpl struct {
-	plugin.Plugin
-	status string
-}
-
-func (p *AccountStorePluginImpl) Init(ctx context.Context, req *proto.PluginInitialization_Request) (*proto.PluginInitialization_Response, error) {
-	p.status = req.HostIdentity
-	return &proto.PluginInitialization_Response{}, nil
-}
-
-func (p *AccountStorePluginImpl) Status(ctx context.Context, empty *proto.Empty) (*proto.StatusResponse, error) {
-	return &proto.StatusResponse{Status: p.status}, nil
-}
-
-func (p *AccountStorePluginImpl) GRPCServer(b *plugin.GRPCBroker, s *grpc.Server) error {
-	proto.RegisterPluginInitializerServer(s, p)
-	proto.RegisterBackendServer(s, p)
-	return nil
-}
-
-func (p *AccountStorePluginImpl) GRPCClient(ctx context.Context, b *plugin.GRPCBroker, cc *grpc.ClientConn) (interface{}, error) {
-	return nil, errors.New("not supported")
-}
-
 func main() {
 	log.SetFlags(0) // don't display time
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: DefaultHandshakeConfig,
 		Plugins: map[string]plugin.Plugin{
-			"impl": &AccountStorePluginImpl{},
+			"impl": &internal.SignerPluginImpl{},
 		},
 
 		GRPCServer: plugin.DefaultGRPCServer,
