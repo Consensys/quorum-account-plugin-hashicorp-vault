@@ -2,10 +2,19 @@ package internal
 
 import (
 	"context"
+	"quorum-plugin-hashicorp-account-store/internal/vault"
 	"quorum-plugin-hashicorp-account-store/proto"
 )
 
-type signer struct{}
+type signer struct {
+	*vault.VaultBackend
+}
+
+func (s *signer) init(config vault.HashicorpAccountStoreConfig) error {
+	s.VaultBackend = vault.NewHashicorpBackend(config.Wallets)
+
+	s.VaultBackend.Init()
+}
 
 func (s *signer) Status(context.Context, *proto.StatusRequest) (*proto.StatusResponse, error) {
 	panic("implement me")
