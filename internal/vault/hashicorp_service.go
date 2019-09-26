@@ -68,10 +68,10 @@ func newHashicorpService(config HashicorpWalletConfig, disableCache bool) *hashi
 		disableCache: disableCache,
 	}
 
-	// first thing we do is try to setup and authenticate the Vault client - no point continuing if the Vault config is incorrect
-	if err := h.setupClient(); err != nil {
-		return nil
-	}
+	//// first thing we do is try to setup and authenticate the Vault client - no point continuing if the Vault config is incorrect
+	//if err := h.setupClient(); err != nil {
+	//	return nil
+	//}
 
 	h.cache, h.changes = newAccountCache(h.config.AccountConfigDir, h)
 

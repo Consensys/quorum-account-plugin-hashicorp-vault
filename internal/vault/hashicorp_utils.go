@@ -21,11 +21,14 @@ func MakeWalletUrl(vaultUrl, authorizationID string) (accounts.URL, error) {
 }
 
 func ToUrl(strUrl string) (accounts.URL, error) {
-	var url accounts.URL
+	if strUrl == "" {
+		return accounts.URL{}, nil
+	}
 
 	//to parse a string url as an accounts.URL it must first be in json format
 	toParse := fmt.Sprintf("\"%v\"", strUrl)
 
+	var url accounts.URL
 	if err := url.UnmarshalJSON([]byte(toParse)); err != nil {
 		return accounts.URL{}, err
 	}

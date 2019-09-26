@@ -182,7 +182,7 @@ func (s *signer) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPa
 
 // TODO duplicated from quorum plugin/accounts/gateway.go
 func asAccount(pAcct *proto.Account) (accounts.Account, error) {
-	addr := strings.TrimSpace(string(pAcct.Address))
+	addr := strings.TrimSpace(common.Bytes2Hex(pAcct.Address))
 
 	if !common.IsHexAddress(addr) {
 		return accounts.Account{}, fmt.Errorf("invalid hex address: %v", addr)
