@@ -27,7 +27,7 @@ type VaultBackend struct {
 }
 
 // NewHashicorpBackend creates a VaultBackend containing Hashicorp Vault compatible vaultWallets for each of the provided walletConfigs
-func NewHashicorpBackend(walletConfigs []HashicorpWalletConfig) *VaultBackend {
+func NewHashicorpBackend(walletConfigs []HashicorpWalletConfig) (*VaultBackend, error) {
 	wallets := []accounts.Wallet{}
 
 	backend := &VaultBackend{}
@@ -45,7 +45,7 @@ func NewHashicorpBackend(walletConfigs []HashicorpWalletConfig) *VaultBackend {
 
 	backend.wallets = wallets
 
-	return backend
+	return backend, nil
 }
 
 // Wallets implements accounts.Backend returning a copy of the list of wallets managed by the VaultBackend
@@ -99,6 +99,26 @@ func (b *VaultBackend) findWalletByAcct(account accounts.Account) (*vaultWallet,
 }
 
 func (b *VaultBackend) findWalletByUrl(url accounts.URL) (*vaultWallet, error) {
+	for _, wallet := range b.wallets {
+		if wallet.URL() == url {
+			w, ok := wallet.(*vaultWallet)
+
+			if !ok {
+				continue
+			}
+
+			return w, nil
+		}
+	}
+	return nil, accounts.ErrUnknownWallet
+}
+
+func (b *VaultBackend) FindWalletByStrUrl(strUrl string) (*vaultWallet, error) {
+	url, err := parseURL(strUrl)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, wallet := range b.wallets {
 		if wallet.URL() == url {
 			w, ok := wallet.(*vaultWallet)

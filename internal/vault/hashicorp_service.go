@@ -47,6 +47,7 @@ type hashicorpService struct {
 // newHashicorpService creates a hashicorpService using the provided config
 func newHashicorpService(config HashicorpWalletConfig, disableCache bool) *hashicorpService {
 	// Add the list of accounts to be unlocked; they will be unlocked once the wallet is opened
+	// TODO require insecure unlock config option to be true
 	addrs := strings.Split(config.Unlock, ",")
 	var toUnlock []common.Address
 
@@ -65,6 +66,11 @@ func newHashicorpService(config HashicorpWalletConfig, disableCache bool) *hashi
 		toUnlock:     toUnlock,
 		unlocked:     make(map[common.Address]*unlocked),
 		disableCache: disableCache,
+	}
+
+	// first thing we do is try to setup and authenticate the Vault client - no point continuing if the Vault config is incorrect
+	if err := h.setupClient(); err != nil {
+		return nil
 	}
 
 	h.cache, h.changes = newAccountCache(h.config.AccountConfigDir, h)
