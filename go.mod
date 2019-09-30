@@ -1,4 +1,4 @@
-module quorum-plugin-hashicorp-account-store
+module github.com/goquorum/quorum-plugin-hashicorp-account-store
 
 require (
 	github.com/aristanetworks/goarista v0.0.0-20190924011532-60b7b74727fd // indirect
