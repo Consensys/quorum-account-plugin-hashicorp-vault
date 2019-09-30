@@ -5,14 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"time"
+
+	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
+	sproto "github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/proto"
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"log"
-	"time"
 )
 
 type SignerPluginImpl struct {
@@ -20,7 +22,7 @@ type SignerPluginImpl struct {
 	signer
 }
 
-func (p *SignerPluginImpl) Init(ctx context.Context, req *proto.PluginInitialization_Request) (*proto.PluginInitialization_Response, error) {
+func (p *SignerPluginImpl) Init(ctx context.Context, req *iproto.PluginInitialization_Request) (*iproto.PluginInitialization_Response, error) {
 	// read config and start signer
 	startTime := time.Now()
 	defer func() {
@@ -35,7 +37,7 @@ func (p *SignerPluginImpl) Init(ctx context.Context, req *proto.PluginInitializa
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
-	return &proto.PluginInitialization_Response{}, nil
+	return &iproto.PluginInitialization_Response{}, nil
 }
 
 func NewSignerConfiguration(rawJSON []byte) (vault.HashicorpAccountStoreConfig, error) {
@@ -51,8 +53,8 @@ func NewSignerConfiguration(rawJSON []byte) (vault.HashicorpAccountStoreConfig, 
 }
 
 func (p *SignerPluginImpl) GRPCServer(b *plugin.GRPCBroker, s *grpc.Server) error {
-	proto.RegisterPluginInitializerServer(s, p)
-	proto.RegisterSignerServer(s, p)
+	iproto.RegisterPluginInitializerServer(s, p)
+	sproto.RegisterSignerServer(s, p)
 	return nil
 }
 

@@ -3,15 +3,17 @@ package internal
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/rlp"
+	"math/big"
+	"strings"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"math/big"
-	"strings"
 )
 
 type signer struct {
@@ -128,15 +130,25 @@ func (s *signer) SignTx(_ context.Context, req *proto.SignTxRequest) (*proto.Sig
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	tx := new(types.Transaction)
+	if err := rlp.DecodeBytes(req.RlpTx, tx); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	chainID := &big.Int{}
 	chainID.SetBytes(req.ChainID)
 
-	result, err := w.SignTx(a, asTx(req.Tx), chainID)
+	result, err := w.SignTx(a, tx, chainID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return &proto.SignTxResponse{Tx: asProtoTx(result)}, nil
+	rlpTx, err := rlp.EncodeToBytes(result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &proto.SignTxResponse{RlpTx: rlpTx}, nil
 }
 
 func (s *signer) SignHashWithPassphrase(_ context.Context, req *proto.SignHashWithPassphraseRequest) (*proto.SignHashResponse, error) {
@@ -169,15 +181,25 @@ func (s *signer) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPa
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	tx := new(types.Transaction)
+	if err := rlp.DecodeBytes(req.RlpTx, tx); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	chainID := &big.Int{}
 	chainID.SetBytes(req.ChainID)
 
-	result, err := w.SignTxWithPassphrase(a, req.Passphrase, asTx(req.Tx), chainID)
+	result, err := w.SignTxWithPassphrase(a, req.Passphrase, tx, chainID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return &proto.SignTxResponse{Tx: asProtoTx(result)}, nil
+	rlpTx, err := rlp.EncodeToBytes(result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &proto.SignTxResponse{RlpTx: rlpTx}, nil
 }
 
 // TODO duplicated from quorum plugin/accounts/gateway.go
@@ -206,40 +228,6 @@ func asProtoAccount(acct accounts.Account) *proto.Account {
 		Address: acct.Address.Bytes(),
 		Url:     acct.URL.String(),
 	}
-}
-
-func asTx(protoTx *proto.Transaction) *types.Transaction {
-	txData := protoTx.TxData
-	addr := strings.TrimSpace(string(txData.Recipient))
-
-	return types.NewTransaction(
-		txData.AccountNonce,
-		common.HexToAddress(addr),
-		new(big.Int).SetBytes(txData.Amount),
-		txData.GasLimit,
-		new(big.Int).SetBytes(txData.Price),
-		txData.Payload,
-	)
-}
-
-func asProtoTx(tx *types.Transaction) *proto.Transaction {
-	v, r, s := tx.RawSignatureValues()
-
-	protoTx := &proto.Transaction{
-		TxData: &proto.TxData{
-			AccountNonce: tx.Nonce(),
-			Price:        tx.GasPrice().Bytes(),
-			GasLimit:     tx.Gas(),
-			Recipient:    tx.To().Bytes(),
-			Amount:       tx.Value().Bytes(),
-			Payload:      tx.Data(),
-			V:            v.Bytes(),
-			R:            r.Bytes(),
-			S:            s.Bytes(),
-		},
-	}
-
-	return protoTx
 }
 
 // TODO end duplication

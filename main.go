@@ -1,9 +1,10 @@
 package main
 
 import (
+	"log"
+
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal"
 	"github.com/hashicorp/go-plugin"
-	"log"
 )
 
 const DefaultProtocolVersion = 1
