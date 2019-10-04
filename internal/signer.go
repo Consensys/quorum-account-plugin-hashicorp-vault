@@ -17,7 +17,7 @@ import (
 )
 
 type signer struct {
-	*vault.VaultBackend
+	vault.PluginBackend
 }
 
 func (s *signer) init(config vault.HashicorpAccountStoreConfig) error {
@@ -26,12 +26,12 @@ func (s *signer) init(config vault.HashicorpAccountStoreConfig) error {
 		return err
 	}
 
-	s.VaultBackend = b
+	s.PluginBackend = b
 	return nil
 }
 
 func (s *signer) Status(_ context.Context, req *proto.StatusRequest) (*proto.StatusResponse, error) {
-	w, err := s.FindWalletByStrUrl(req.WalletUrl)
+	w, err := s.FindWalletByUrl(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -45,7 +45,7 @@ func (s *signer) Status(_ context.Context, req *proto.StatusRequest) (*proto.Sta
 }
 
 func (s *signer) Open(_ context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
-	w, err := s.FindWalletByStrUrl(req.WalletUrl)
+	w, err := s.FindWalletByUrl(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -58,7 +58,7 @@ func (s *signer) Open(_ context.Context, req *proto.OpenRequest) (*proto.OpenRes
 }
 
 func (s *signer) Close(_ context.Context, req *proto.CloseRequest) (*proto.CloseResponse, error) {
-	w, err := s.FindWalletByStrUrl(req.WalletUrl)
+	w, err := s.FindWalletByUrl(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -71,7 +71,7 @@ func (s *signer) Close(_ context.Context, req *proto.CloseRequest) (*proto.Close
 }
 
 func (s *signer) Accounts(_ context.Context, req *proto.AccountsRequest) (*proto.AccountsResponse, error) {
-	w, err := s.FindWalletByStrUrl(req.WalletUrl)
+	w, err := s.FindWalletByUrl(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -87,7 +87,7 @@ func (s *signer) Accounts(_ context.Context, req *proto.AccountsRequest) (*proto
 }
 
 func (s *signer) Contains(_ context.Context, req *proto.ContainsRequest) (*proto.ContainsResponse, error) {
-	w, err := s.FindWalletByStrUrl(req.WalletUrl)
+	w, err := s.FindWalletByUrl(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -101,7 +101,7 @@ func (s *signer) Contains(_ context.Context, req *proto.ContainsRequest) (*proto
 }
 
 func (s *signer) SignHash(_ context.Context, req *proto.SignHashRequest) (*proto.SignHashResponse, error) {
-	w, err := s.FindWalletByStrUrl(req.WalletUrl)
+	w, err := s.FindWalletByUrl(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -120,7 +120,7 @@ func (s *signer) SignHash(_ context.Context, req *proto.SignHashRequest) (*proto
 }
 
 func (s *signer) SignTx(_ context.Context, req *proto.SignTxRequest) (*proto.SignTxResponse, error) {
-	w, err := s.FindWalletByStrUrl(req.WalletUrl)
+	w, err := s.FindWalletByUrl(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -152,7 +152,7 @@ func (s *signer) SignTx(_ context.Context, req *proto.SignTxRequest) (*proto.Sig
 }
 
 func (s *signer) SignHashWithPassphrase(_ context.Context, req *proto.SignHashWithPassphraseRequest) (*proto.SignHashResponse, error) {
-	w, err := s.FindWalletByStrUrl(req.WalletUrl)
+	w, err := s.FindWalletByUrl(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -171,7 +171,7 @@ func (s *signer) SignHashWithPassphrase(_ context.Context, req *proto.SignHashWi
 }
 
 func (s *signer) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPassphraseRequest) (*proto.SignTxResponse, error) {
-	w, err := s.FindWalletByStrUrl(req.WalletUrl)
+	w, err := s.FindWalletByUrl(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

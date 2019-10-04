@@ -1,22 +1,22 @@
 package vault
 
 import (
-	"crypto/ecdsa"
 	"errors"
-	"github.com/ethereum/go-ethereum/common"
-	"reflect"
-	"sort"
-	"strings"
-	"sync"
-	"time"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"sort"
+	"strings"
+	"sync"
 )
 
-// BackendType is the reflect type of a vault backend.
-var BackendType = reflect.TypeOf(&VaultBackend{})
+//// BackendType is the reflect type of a vault backend.
+//var BackendType = reflect.TypeOf(&VaultBackend{})
+
+type PluginBackend interface {
+	accounts.Backend
+	FindWalletByUrl(url string) (accounts.Wallet, error)
+}
 
 // VaultBackend implements accounts.Backend to manage all wallets for a particular vendor's vault
 type VaultBackend struct {
@@ -60,109 +60,18 @@ func (b *VaultBackend) Subscribe(sink chan<- accounts.WalletEvent) event.Subscri
 	return b.updateScope.Track(b.updateFeed.Subscribe(sink))
 }
 
-func (b *VaultBackend) TimedUnlock(account accounts.Account, duration time.Duration) error {
-	w, err := b.findWalletByAcct(account)
-
-	if err != nil {
-		return err
-	}
-
-	return w.TimedUnlock(account, duration)
-}
-
-func (b *VaultBackend) Lock(account accounts.Account) error {
-	w, err := b.findWalletByAcct(account)
-
-	if err != nil {
-		return err
-	}
-
-	return w.Lock(account)
-}
-
-func (b *VaultBackend) findWalletByAcct(account accounts.Account) (*vaultWallet, error) {
-	b.mutex.RLock()
-	defer b.mutex.RUnlock()
-
-	for _, wallet := range b.wallets {
-		if wallet.Contains(account) {
-			w, ok := wallet.(*vaultWallet)
-
-			if !ok {
-				continue
-			}
-
-			return w, nil
-		}
-	}
-	return nil, accounts.ErrUnknownAccount
-}
-
-func (b *VaultBackend) findWalletByUrl(url accounts.URL) (*vaultWallet, error) {
-	for _, wallet := range b.wallets {
-		if wallet.URL() == url {
-			w, ok := wallet.(*vaultWallet)
-
-			if !ok {
-				continue
-			}
-
-			return w, nil
-		}
-	}
-	return nil, accounts.ErrUnknownWallet
-}
-
-func (b *VaultBackend) FindWalletByStrUrl(strUrl string) (*vaultWallet, error) {
-	url, err := parseURL(strUrl)
+func (b *VaultBackend) FindWalletByUrl(url string) (accounts.Wallet, error) {
+	u, err := parseURL(url)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, wallet := range b.wallets {
-		if wallet.URL() == url {
-			w, ok := wallet.(*vaultWallet)
-
-			if !ok {
-				continue
-			}
-
-			return w, nil
+	for _, wallet := range b.Wallets() {
+		if wallet.URL() == u {
+			return wallet, nil
 		}
 	}
 	return nil, accounts.ErrUnknownWallet
-}
-
-func (b *VaultBackend) NewAccount(walletUrl string, config interface{}) (common.Address, error) {
-	url, err := parseURL(walletUrl)
-
-	if err != nil {
-		return common.Address{}, err
-	}
-
-	w, err := b.findWalletByUrl(url)
-
-	if err != nil {
-		return common.Address{}, err
-	}
-
-	return w.NewAccount(config)
-}
-
-func (b *VaultBackend) ImportECDSA(key *ecdsa.PrivateKey, walletUrl string, config interface{}) (common.Address, error) {
-	url, err := parseURL(walletUrl)
-
-	if err != nil {
-		return common.Address{}, err
-	}
-
-	w, err := b.findWalletByUrl(url)
-
-	if err != nil {
-		return common.Address{}, err
-	}
-
-	return w.Import(key, config)
 }
 
 // parseURL converts a user supplied URL into the accounts specific structure.
@@ -176,6 +85,77 @@ func parseURL(url string) (accounts.URL, error) {
 		Path:   parts[1],
 	}, nil
 }
+
+//func (b *VaultBackend) TimedUnlock(account accounts.Account, duration time.Duration) error {
+//	w, err := b.findWalletByAcct(account)
+//
+//	if err != nil {
+//		return err
+//	}
+//
+//	return w.TimedUnlock(account, duration)
+//}
+//
+//func (b *VaultBackend) Lock(account accounts.Account) error {
+//	w, err := b.findWalletByAcct(account)
+//
+//	if err != nil {
+//		return err
+//	}
+//
+//	return w.Lock(account)
+//}
+//
+//func (b *VaultBackend) findWalletByAcct(account accounts.Account) (*vaultWallet, error) {
+//	b.mutex.RLock()
+//	defer b.mutex.RUnlock()
+//
+//	for _, wallet := range b.wallets {
+//		if wallet.Contains(account) {
+//			w, ok := wallet.(*vaultWallet)
+//
+//			if !ok {
+//				continue
+//			}
+//
+//			return w, nil
+//		}
+//	}
+//	return nil, accounts.ErrUnknownAccount
+//}
+//
+//
+//func (b *VaultBackend) NewAccount(walletUrl string, config interface{}) (common.Address, error) {
+//	url, err := parseURL(walletUrl)
+//
+//	if err != nil {
+//		return common.Address{}, err
+//	}
+//
+//	w, err := b.findWalletByUrl(url)
+//
+//	if err != nil {
+//		return common.Address{}, err
+//	}
+//
+//	return w.NewAccount(config)
+//}
+//
+//func (b *VaultBackend) ImportECDSA(key *ecdsa.PrivateKey, walletUrl string, config interface{}) (common.Address, error) {
+//	url, err := parseURL(walletUrl)
+//
+//	if err != nil {
+//		return common.Address{}, err
+//	}
+//
+//	w, err := b.findWalletByUrl(url)
+//
+//	if err != nil {
+//		return common.Address{}, err
+//	}
+//
+//	return w.Import(key, config)
+//}
 
 // walletsByUrl implements the sort interface to enable the sorting of a slice of wallets alphanumerically by their urls
 type walletsByUrl []accounts.Wallet

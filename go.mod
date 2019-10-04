@@ -6,6 +6,7 @@ require (
 	github.com/cespare/cp v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.7.1
 	github.com/ethereum/go-ethereum v0.0.0
+	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.3.2
 	github.com/goquorum/quorum-plugin-definitions v0.0.0
 	github.com/hashicorp/go-plugin v1.0.1
@@ -14,6 +15,7 @@ require (
 	github.com/hashicorp/vault/sdk v0.1.14-0.20190730042320-0dc007d98cc8
 	github.com/pborman/uuid v1.2.0 // indirect
 	github.com/rjeczalik/notify v0.9.2
+	github.com/stretchr/testify v1.3.0
 	github.com/syndtr/goleveldb v1.0.0 // indirect
 	google.golang.org/grpc v1.24.0
 )
