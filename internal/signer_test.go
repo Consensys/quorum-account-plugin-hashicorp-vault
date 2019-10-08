@@ -49,7 +49,7 @@ func TestSigner_Status(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		PluginBackend: mockBackend,
+		WalletFinderBackend: mockBackend,
 	}
 
 	mockBackend.
@@ -80,7 +80,7 @@ func TestSigner_Open(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		PluginBackend: mockBackend,
+		WalletFinderBackend: mockBackend,
 	}
 
 	mockBackend.
@@ -114,7 +114,7 @@ func TestSigner_Close(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		PluginBackend: mockBackend,
+		WalletFinderBackend: mockBackend,
 	}
 
 	mockBackend.
@@ -144,7 +144,7 @@ func TestSigner_Accounts(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		PluginBackend: mockBackend,
+		WalletFinderBackend: mockBackend,
 	}
 
 	mockBackend.
@@ -177,7 +177,7 @@ func TestSigner_Contains(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		PluginBackend: mockBackend,
+		WalletFinderBackend: mockBackend,
 	}
 
 	mockBackend.
@@ -210,7 +210,7 @@ func TestSigner_SignHash(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		PluginBackend: mockBackend,
+		WalletFinderBackend: mockBackend,
 	}
 
 	mockBackend.
@@ -246,7 +246,7 @@ func TestSigner_SignTx(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		PluginBackend: mockBackend,
+		WalletFinderBackend: mockBackend,
 	}
 
 	mockBackend.
@@ -310,7 +310,7 @@ func TestSigner_SignHashWithPassphrase(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		PluginBackend: mockBackend,
+		WalletFinderBackend: mockBackend,
 	}
 
 	mockBackend.
@@ -348,7 +348,7 @@ func TestSigner_SignTxWithPassphrase(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		PluginBackend: mockBackend,
+		WalletFinderBackend: mockBackend,
 	}
 
 	mockBackend.

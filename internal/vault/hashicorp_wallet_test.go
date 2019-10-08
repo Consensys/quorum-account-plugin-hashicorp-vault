@@ -15,7 +15,7 @@ import (
 func TestHashicorpWallet_URL(t *testing.T) {
 	u := accounts.URL{Scheme: WalletScheme, Path: "foo"}
 
-	w := vaultWallet{url: u}
+	w := wallet{url: u}
 
 	if u != w.URL() {
 		t.Fatalf("want: %v, got: %v", u, w.url)

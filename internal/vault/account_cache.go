@@ -74,10 +74,10 @@ type accountCache struct {
 	notify   chan struct{}
 	fileC    fileCache
 
-	vault *vaultWallet
+	vault *wallet
 }
 
-func newAccountCache(keydir string, vault *vaultWallet) (*accountCache, chan struct{}) {
+func newAccountCache(keydir string, vault *wallet) (*accountCache, chan struct{}) {
 	ac := &accountCache{
 		keydir: keydir,
 		byAddr: make(map[common.Address][]accounts.Account),

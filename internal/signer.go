@@ -17,7 +17,7 @@ import (
 )
 
 type signer struct {
-	vault.PluginBackend
+	vault.WalletFinderBackend
 }
 
 func (s *signer) init(config vault.HashicorpAccountStoreConfig) error {
@@ -26,7 +26,7 @@ func (s *signer) init(config vault.HashicorpAccountStoreConfig) error {
 		return err
 	}
 
-	s.PluginBackend = b
+	s.WalletFinderBackend = b
 	return nil
 }
 

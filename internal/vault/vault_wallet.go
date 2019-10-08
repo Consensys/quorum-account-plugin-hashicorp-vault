@@ -34,9 +34,9 @@ const (
 	AcctScheme   = "hashiacct"
 )
 
-// vaultWallet implements accounts.Wallet and represents the common functionality shared by all wallets that manage accounts stored in vaults
-type vaultWallet struct {
-	backend *VaultBackend
+// wallet implements accounts.Wallet and represents the common functionality shared by all wallets that manage accounts stored in vaults
+type wallet struct {
+	backend *Backend
 	url     accounts.URL
 
 	config        HashicorpWalletConfig
@@ -56,8 +56,8 @@ type unlocked struct {
 	abort chan struct{}
 }
 
-// newHashicorpWallet creates a Hashicorp Vault compatible vaultWallet using the provided config.  Wallet events will be applied to updateFeed.
-func newHashicorpWallet(config HashicorpWalletConfig, backend *VaultBackend, disableCache bool) (*vaultWallet, error) {
+// newHashicorpWallet creates a Hashicorp Vault compatible wallet using the provided config.  Wallet events will be applied to updateFeed.
+func newHashicorpWallet(config HashicorpWalletConfig, backend *Backend, disableCache bool) (*wallet, error) {
 	wUrl, err := MakeWalletUrl(config.VaultUrl, config.AuthorizationID)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func newHashicorpWallet(config HashicorpWalletConfig, backend *VaultBackend, dis
 		}
 	}
 
-	w := &vaultWallet{
+	w := &wallet{
 		url:          wUrl,
 		backend:      backend,
 		config:       config,
@@ -97,7 +97,7 @@ func newHashicorpWallet(config HashicorpWalletConfig, backend *VaultBackend, dis
 	// TODO: In order for this finalizer to work, there must be no references
 	// to ks. addressCache doesn't keep a reference but unlocked keys do,
 	// so the finalizer will not trigger until all timed unlocks have expired.
-	runtime.SetFinalizer(w, func(m *vaultWallet) {
+	runtime.SetFinalizer(w, func(m *wallet) {
 		m.cache.close()
 	})
 
@@ -106,21 +106,21 @@ func newHashicorpWallet(config HashicorpWalletConfig, backend *VaultBackend, dis
 	return w, nil
 }
 
-func (w *vaultWallet) isClosed() bool {
+func (w *wallet) isClosed() bool {
 	w.mutex.RLock()
 	defer w.mutex.RUnlock()
 
 	return w.client == nil
 }
 
-func (w *vaultWallet) reloadCache() {
+func (w *wallet) reloadCache() {
 	if !w.disableCache {
 		w.cache.maybeReload()
 	}
 }
 
 // URL implements accounts.Wallet, returning the URL of the configured vault.
-func (w *vaultWallet) URL() accounts.URL {
+func (w *wallet) URL() accounts.URL {
 	return w.url
 }
 
@@ -147,7 +147,7 @@ func (e hashicorpHealthcheckErr) Error() string {
 
 // Status implements accounts.Wallet, returning a custom status message from the
 // underlying vendor-specific vault service implementation.
-func (w *vaultWallet) Status() (string, error) {
+func (w *wallet) Status() (string, error) {
 	if w.isClosed() {
 		return closed, w.failedOpenErr
 	}
@@ -175,7 +175,7 @@ func (w *vaultWallet) Status() (string, error) {
 
 // withAcctStatuses appends the locked/unlocked status of the accounts managed by the service to the provided walletStatus.
 // Expects RLock to be held.
-func (w *vaultWallet) cacheStatus() string {
+func (w *wallet) cacheStatus() string {
 	// no accounts so just return
 	if w.cache == nil || len(w.cache.all) == 0 {
 		return ""
@@ -217,7 +217,7 @@ func (w *vaultWallet) cacheStatus() string {
 
 // Open implements accounts.Wallet, attempting to open a connection to the
 // vault.
-func (w *vaultWallet) Open(passphrase string) error {
+func (w *wallet) Open(passphrase string) error {
 	if !w.isClosed() {
 		return accounts.ErrWalletAlreadyOpen
 	}
@@ -254,7 +254,7 @@ func (e invalidApproleAuthErr) Error() string {
 	return fmt.Sprintf("both %v and %v environment variables must be set if using Approle authentication", e.roleIdEnv, e.secretIdEnv)
 }
 
-func (w *vaultWallet) setupClient() error {
+func (w *wallet) setupClient() error {
 	conf := api.DefaultConfig()
 	conf.Address = w.config.VaultUrl
 
@@ -342,7 +342,7 @@ func applyPrefix(pre, val string) string {
 }
 
 // Close implements accounts.Wallet, closing the connection to the vault.
-func (w *vaultWallet) Close() error {
+func (w *wallet) Close() error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
@@ -364,7 +364,7 @@ func (w *vaultWallet) Close() error {
 
 // Accounts implements accounts.Wallet, returning the list of accounts the wallet is
 // currently aware of.
-func (w *vaultWallet) Accounts() []accounts.Account {
+func (w *wallet) Accounts() []accounts.Account {
 	if w.cache == nil {
 		return []accounts.Account{}
 	}
@@ -375,7 +375,7 @@ func (w *vaultWallet) Accounts() []accounts.Account {
 // Contains implements accounts.Wallet, returning whether a particular account is
 // or is not managed by this wallet. An account with no url only needs to match
 // on the address to return true.
-func (w *vaultWallet) Contains(account accounts.Account) bool {
+func (w *wallet) Contains(account accounts.Account) bool {
 	equal := func(a, b accounts.Account) bool {
 		return a.Address == b.Address && (a.URL == b.URL || a.URL == accounts.URL{} || b.URL == accounts.URL{})
 	}
@@ -392,20 +392,20 @@ func (w *vaultWallet) Contains(account accounts.Account) bool {
 
 // Derive implements accounts.Wallet, but is a noop for vault wallets since there
 // is no notion of hierarchical account derivation for vault-stored accounts.
-func (w *vaultWallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Account, error) {
+func (w *wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Account, error) {
 	return accounts.Account{}, accounts.ErrNotSupported
 }
 
 // SelfDerive implements accounts.Wallet, but is a noop for vault wallets since
 // there is no notion of hierarchical account derivation for vault-stored accounts.
-func (w *vaultWallet) SelfDerive(base accounts.DerivationPath, chain ethereum.ChainStateReader) {}
+func (w *wallet) SelfDerive(base accounts.DerivationPath, chain ethereum.ChainStateReader) {}
 
 // SignHash implements accounts.Wallet, attempting to sign the given hash with
 // the given account. If the wallet does not manage this particular account, an
 // error is returned.
 //
 // The hash will not be signed if the account is locked.
-func (w *vaultWallet) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
+func (w *wallet) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
 	return w.signHash(account, hash, false)
 }
 
@@ -414,7 +414,7 @@ func (w *vaultWallet) SignHash(account accounts.Account, hash []byte) ([]byte, e
 // an error is returned.
 //
 // The transaction will not be signed if the account is locked.
-func (w *vaultWallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
+func (w *wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	return w.signTx(account, tx, chainID, false)
 }
 
@@ -424,7 +424,7 @@ func (w *vaultWallet) SignTx(account accounts.Account, tx *types.Transaction, ch
 //
 // If the account is locked, the wallet will unlock it but only for the duration
 // of the signing.  The passphrase arg is not used.
-func (w *vaultWallet) SignHashWithPassphrase(account accounts.Account, passphrase string, hash []byte) ([]byte, error) {
+func (w *wallet) SignHashWithPassphrase(account accounts.Account, passphrase string, hash []byte) ([]byte, error) {
 	return w.signHash(account, hash, true)
 }
 
@@ -434,7 +434,7 @@ func (w *vaultWallet) SignHashWithPassphrase(account accounts.Account, passphras
 //
 // If the account is locked, the wallet will unlock it but only for the duration
 // of the signing.  The passphrase arg is not used.
-func (w *vaultWallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
+func (w *wallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	return w.signTx(account, tx, chainID, true)
 }
 
@@ -442,7 +442,7 @@ var (
 	incorrectKeyForAddrErr = errors.New("the address of the account provided does not match the address derived from the private key retrieved from the Vault.  Ensure the correct secret names and versions are specified in the node config.")
 )
 
-func (w *vaultWallet) signHash(account accounts.Account, hash []byte, allowUnlock bool) ([]byte, error) {
+func (w *wallet) signHash(account accounts.Account, hash []byte, allowUnlock bool) ([]byte, error) {
 	if !w.Contains(account) {
 		return nil, accounts.ErrUnknownAccount
 	}
@@ -464,7 +464,7 @@ func (w *vaultWallet) signHash(account accounts.Account, hash []byte, allowUnloc
 	return crypto.Sign(hash, key)
 }
 
-func (w *vaultWallet) signTx(account accounts.Account, tx *types.Transaction, chainID *big.Int, allowUnlock bool) (*types.Transaction, error) {
+func (w *wallet) signTx(account accounts.Account, tx *types.Transaction, chainID *big.Int, allowUnlock bool) (*types.Transaction, error) {
 	if !w.Contains(account) {
 		return nil, accounts.ErrUnknownAccount
 	}
@@ -499,7 +499,7 @@ func (w *vaultWallet) signTx(account accounts.Account, tx *types.Transaction, ch
 // getKey returns the key for the given account.  If the account is locked and allowUnlock is true, the account will be unlocked by retrieving the key from the vault.  zeroFn is the corresponding zero function for the returned key and should be called to clean up once the key has been used.  Calls updateCache before attempting to get the key.
 //
 // The returned key will first be validated to make sure that it is the correct key for the given address.  If not an error will be returned.
-func (w *vaultWallet) getKey(acct accounts.Account, allowUnlock bool) (*ecdsa.PrivateKey, func(), error) {
+func (w *wallet) getKey(acct accounts.Account, allowUnlock bool) (*ecdsa.PrivateKey, func(), error) {
 	if w.isClosed() {
 		return nil, func() {}, accounts.ErrWalletClosed
 	}
@@ -539,7 +539,7 @@ func (w *vaultWallet) getKey(acct accounts.Account, allowUnlock bool) (*ecdsa.Pr
 	return key, zeroFn, err
 }
 
-func (w *vaultWallet) getKeyUsingFileConfig(addr common.Address, path string) (*ecdsa.PrivateKey, error) {
+func (w *wallet) getKeyUsingFileConfig(addr common.Address, path string) (*ecdsa.PrivateKey, error) {
 	// TODO parity with cache getAddress
 	fileBytes, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -560,7 +560,7 @@ func (w *vaultWallet) getKeyUsingFileConfig(addr common.Address, path string) (*
 }
 
 // getKeyFromVault retrieves the private key component of the provided secret from the Vault. Expects RLock to be held.
-func (w *vaultWallet) getKeyFromVault(c HashicorpAccountConfig) (*ecdsa.PrivateKey, error) {
+func (w *wallet) getKeyFromVault(c HashicorpAccountConfig) (*ecdsa.PrivateKey, error) {
 	hexKey, err := w.getSecretFromVault(c.SecretPath, c.SecretVersion, c.SecretEnginePath)
 
 	if err != nil {
@@ -577,7 +577,7 @@ func (w *vaultWallet) getKeyFromVault(c HashicorpAccountConfig) (*ecdsa.PrivateK
 }
 
 // getSecretFromVault retrieves a particular version of the secret 'name' from the provided secret engine. Expects RLock to be held.
-func (w *vaultWallet) getSecretFromVault(name string, version int64, engine string) (string, error) {
+func (w *wallet) getSecretFromVault(name string, version int64, engine string) (string, error) {
 	path := fmt.Sprintf("%s/data/%s", engine, name)
 
 	versionData := make(map[string][]string)
@@ -625,7 +625,7 @@ func (w *vaultWallet) getSecretFromVault(name string, version int64, engine stri
 // indefinitely the timeout is not altered.
 //
 // If the wallet does not manage this particular account, an error is returned.
-func (w *vaultWallet) TimedUnlock(account accounts.Account, timeout time.Duration) error {
+func (w *wallet) TimedUnlock(account accounts.Account, timeout time.Duration) error {
 	if !w.Contains(account) {
 		return accounts.ErrUnknownAccount
 	}
@@ -667,7 +667,7 @@ func (w *vaultWallet) TimedUnlock(account accounts.Account, timeout time.Duratio
 	return nil
 }
 
-func (w *vaultWallet) expire(addr common.Address, u *unlocked, timeout time.Duration) {
+func (w *wallet) expire(addr common.Address, u *unlocked, timeout time.Duration) {
 	t := time.NewTimer(timeout)
 	defer t.Stop()
 	select {
@@ -689,7 +689,7 @@ func (w *vaultWallet) expire(addr common.Address, u *unlocked, timeout time.Dura
 
 // Lock locks the given account thereby removing the corresponding private key from memory. If the
 // wallet does not manage this particular account, an error is returned.
-func (w *vaultWallet) Lock(account accounts.Account) error {
+func (w *wallet) Lock(account accounts.Account) error {
 	if !w.Contains(account) {
 		return accounts.ErrUnknownAccount
 	}
@@ -708,7 +708,7 @@ func (w *vaultWallet) Lock(account accounts.Account) error {
 	return nil
 }
 
-func (w *vaultWallet) NewAccount(config interface{}) (common.Address, error) {
+func (w *wallet) NewAccount(config interface{}) (common.Address, error) {
 	key, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	if err != nil {
 		return common.Address{}, err
@@ -719,7 +719,7 @@ func (w *vaultWallet) NewAccount(config interface{}) (common.Address, error) {
 	return w.add(key, config)
 }
 
-func (w *vaultWallet) Import(key *ecdsa.PrivateKey, config interface{}) (common.Address, error) {
+func (w *wallet) Import(key *ecdsa.PrivateKey, config interface{}) (common.Address, error) {
 	key, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	if err != nil {
 		return common.Address{}, err
@@ -730,7 +730,7 @@ func (w *vaultWallet) Import(key *ecdsa.PrivateKey, config interface{}) (common.
 	return w.add(key, config)
 }
 
-func (w *vaultWallet) add(key *ecdsa.PrivateKey, config interface{}) (common.Address, error) {
+func (w *wallet) add(key *ecdsa.PrivateKey, config interface{}) (common.Address, error) {
 	if w.cache.hasAddress(crypto.PubkeyToAddress(key.PublicKey)) {
 		return common.Address{}, fmt.Errorf("account already exists")
 	}
@@ -761,7 +761,7 @@ func (w *vaultWallet) add(key *ecdsa.PrivateKey, config interface{}) (common.Add
 //// Store writes the provided private key to the vault as two parts: the hex representation of the key and the 20-byte hex address derived from the key.  The address is returned along with the url identifiers of all secrets written to the vault.
 ////
 //// If an error is encountered during Store, the urls of any secrets already written to the vault will be included in the error.
-//func (w *vaultWallet) Store(key *ecdsa.PrivateKey) (common.Address, []string, error) {
+//func (w *wallet) Store(key *ecdsa.PrivateKey) (common.Address, []string, error) {
 //	addr, storedUrls, err := w.vault.store(key)
 //
 //	if err != nil {
@@ -792,7 +792,7 @@ func zeroKey(k *ecdsa.PrivateKey) {
 //
 // The 20-byte hex representation of the Geth address is returned along with the urls of all secrets written to the Vault.  If an error is encountered during the write, the urls of any secrets already written to the vault will be included in the error.
 func CreateHashicorpVaultAccount(walletConfig HashicorpWalletConfig, acctConfig HashicorpAccountConfig) (accounts.Account, string, error) {
-	w, err := newHashicorpWallet(walletConfig, &VaultBackend{}, true)
+	w, err := newHashicorpWallet(walletConfig, &Backend{}, true)
 	if err != nil {
 		return accounts.Account{}, "", err
 	}
@@ -818,7 +818,7 @@ func CreateHashicorpVaultAccount(walletConfig HashicorpWalletConfig, acctConfig 
 func ImportAsHashicorpVaultAccount(key *ecdsa.PrivateKey, walletConfig HashicorpWalletConfig, acctConfig HashicorpAccountConfig) (accounts.Account, string, error) {
 	defer zeroKey(key)
 
-	w, err := newHashicorpWallet(walletConfig, &VaultBackend{}, true)
+	w, err := newHashicorpWallet(walletConfig, &Backend{}, true)
 	if err != nil {
 		return accounts.Account{}, "", err
 	}
@@ -837,7 +837,7 @@ func ImportAsHashicorpVaultAccount(key *ecdsa.PrivateKey, walletConfig Hashicorp
 
 // TODO makes sense to have these as functions instead of methods?
 // TODO create file first then clean up afterwards if vault write fails
-func writeToHashicorpVaultAndFile(w *vaultWallet, key *ecdsa.PrivateKey, acctConfig HashicorpAccountConfig) (accounts.Account, string, error) {
+func writeToHashicorpVaultAndFile(w *wallet, key *ecdsa.PrivateKey, acctConfig HashicorpAccountConfig) (accounts.Account, string, error) {
 	updatedConfig, err := writeToHashicorpVault(w, key, acctConfig)
 
 	if err != nil {
@@ -855,7 +855,7 @@ func writeToHashicorpVaultAndFile(w *vaultWallet, key *ecdsa.PrivateKey, acctCon
 	return acct, updatedConfig.secretUrl, nil
 }
 
-func writeToHashicorpVault(w *vaultWallet, key *ecdsa.PrivateKey, config HashicorpAccountConfig) (HashicorpAccountConfig, error) {
+func writeToHashicorpVault(w *wallet, key *ecdsa.PrivateKey, config HashicorpAccountConfig) (HashicorpAccountConfig, error) {
 	address := crypto.PubkeyToAddress(key.PublicKey)
 	addrHex := hex.EncodeToString(address[:])
 
@@ -953,7 +953,7 @@ func writeTemporaryKeyFile(file string, content []byte) (string, error) {
 
 // writeSecret stores value in the configured Vault at the location defined by name and secretEngine.
 // The secret path and version are returned.
-func (w *vaultWallet) writeSecret(config HashicorpAccountConfig, name, value string) (string, int64, error) {
+func (w *wallet) writeSecret(config HashicorpAccountConfig, name, value string) (string, int64, error) {
 	urlPath := fmt.Sprintf("%s/data/%s", config.SecretEnginePath, config.SecretPath)
 
 	data := make(map[string]interface{})
@@ -997,7 +997,7 @@ func (w *vaultWallet) writeSecret(config HashicorpAccountConfig, name, value str
 // This should not be used if storing the returned client in a variable for later
 // use as the fact it is a pointer means that a full Lock should be held for the
 // entirety of the usage of the client.
-func (w *vaultWallet) getClient() *api.Client {
+func (w *wallet) getClient() *api.Client {
 	w.mutex.RLock()
 	defer w.mutex.RUnlock()
 

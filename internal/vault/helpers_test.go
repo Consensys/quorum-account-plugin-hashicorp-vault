@@ -34,7 +34,7 @@ var (
 
 type testHashicorpWalletBuilder struct {
 	config  HashicorpWalletConfig
-	backend *VaultBackend
+	backend *Backend
 }
 
 func (b *testHashicorpWalletBuilder) withBasicConfig() {
@@ -49,14 +49,14 @@ func (b *testHashicorpWalletBuilder) withBasicConfig() {
 		//AuthorizationID: "",
 	}
 
-	b.backend = &VaultBackend{}
+	b.backend = &Backend{}
 }
 
 func (b *testHashicorpWalletBuilder) withAuthorizationID(authorizationID string) {
 	b.config.AuthorizationID = authorizationID
 }
 
-func (b *testHashicorpWalletBuilder) build(t *testing.T) *vaultWallet {
+func (b *testHashicorpWalletBuilder) build(t *testing.T) *wallet {
 	w, err := newHashicorpWallet(b.config, b.backend, false)
 
 	if err != nil {
@@ -66,7 +66,7 @@ func (b *testHashicorpWalletBuilder) build(t *testing.T) *vaultWallet {
 	return w
 }
 
-func addUnlockedAccts(t *testing.T, w *vaultWallet, accts []string) {
+func addUnlockedAccts(t *testing.T, w *wallet, accts []string) {
 	addLockedAccts(t, w, accts)
 
 	u := make(map[common.Address]*unlocked)
@@ -78,13 +78,13 @@ func addUnlockedAccts(t *testing.T, w *vaultWallet, accts []string) {
 	w.unlocked = u
 }
 
-func addLockedAccts(t *testing.T, w *vaultWallet, accts []string) {
+func addLockedAccts(t *testing.T, w *wallet, accts []string) {
 	for _, a := range accts {
 		addAcct(t, w, a)
 	}
 }
 
-func addAcct(t *testing.T, w *vaultWallet, acct string) {
+func addAcct(t *testing.T, w *wallet, acct string) {
 	if !common.IsHexAddress(acct) {
 		t.Fatalf("invalid hex address: %v", acct)
 	}
@@ -95,7 +95,7 @@ func addAcct(t *testing.T, w *vaultWallet, acct string) {
 	w.cache.all = append(w.cache.all, accounts.Account{Address: addr})
 }
 
-func setupMockSealedVaultServer(w *vaultWallet) func() {
+func setupMockSealedVaultServer(w *wallet) func() {
 	vaultServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(503)
 	}))
@@ -105,7 +105,7 @@ func setupMockSealedVaultServer(w *vaultWallet) func() {
 	return vaultServer.Close
 }
 
-func setupMockSealedVaultServerAndOpen(t *testing.T, w *vaultWallet) func() {
+func setupMockSealedVaultServerAndOpen(t *testing.T, w *wallet) func() {
 	cleanup := setupMockSealedVaultServer(w)
 
 	if err := w.Open(""); err != nil {
@@ -118,7 +118,7 @@ func setupMockSealedVaultServerAndOpen(t *testing.T, w *vaultWallet) func() {
 
 // create a new mock server which returns mockResponse for all calls, updating w's config to use the mock server when opened.  Caller should call returned function when finished to shut down the mock server.
 // TODO make createSimpleHandler so that uses of this can be replaced with setupMockVaultServer2
-func setupMockVaultServer(w *vaultWallet, mockResponse []byte) func() {
+func setupMockVaultServer(w *wallet, mockResponse []byte) func() {
 	vaultServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write(mockResponse)
 	}))
@@ -129,7 +129,7 @@ func setupMockVaultServer(w *vaultWallet, mockResponse []byte) func() {
 }
 
 // create a new mock server which uses handler for all calls, updating w's config to use the mock server when opened.  Caller should call returned function when finished to shut down the mock server.
-func setupMockVaultServer2(w *vaultWallet, handler http.HandlerFunc) func() {
+func setupMockVaultServer2(w *wallet, handler http.HandlerFunc) func() {
 	vaultServer := httptest.NewServer(handler)
 
 	w.config.VaultUrl = vaultServer.URL
@@ -137,7 +137,7 @@ func setupMockVaultServer2(w *vaultWallet, handler http.HandlerFunc) func() {
 	return vaultServer.Close
 }
 
-func setupMockVaultServerAndOpen(t *testing.T, w *vaultWallet, mockResponse []byte) func() {
+func setupMockVaultServerAndOpen(t *testing.T, w *wallet, mockResponse []byte) func() {
 	cleanup := setupMockVaultServer(w, mockResponse)
 
 	if err := w.Open(""); err != nil {
@@ -161,8 +161,8 @@ func setEnvironmentVariables(toSet ...string) func() {
 	}
 }
 
-// make an arbitrary read request using the Vault client setup in the vaultWallet
-func makeArbitraryRequestUsingVaultClient(t *testing.T, w *vaultWallet) {
+// make an arbitrary read request using the Vault client setup in the wallet
+func makeArbitraryRequestUsingVaultClient(t *testing.T, w *wallet) {
 	_, err := w.client.Logical().Read("some/arbitrary/path")
 
 	if err != nil {

@@ -10,27 +10,24 @@ import (
 	"sync"
 )
 
-//// BackendType is the reflect type of a vault backend.
-//var BackendType = reflect.TypeOf(&VaultBackend{})
-
-type PluginBackend interface {
+type WalletFinderBackend interface {
 	accounts.Backend
 	FindWalletByUrl(url string) (accounts.Wallet, error)
 }
 
-// VaultBackend implements accounts.Backend to manage all wallets for a particular vendor's vault
-type VaultBackend struct {
+// Backend implements accounts.Backend to manage all wallets for a particular vendor's vault
+type Backend struct {
 	updateScope event.SubscriptionScope
 	updateFeed  event.Feed
 	mutex       sync.RWMutex // TODO
 	wallets     []accounts.Wallet
 }
 
-// NewHashicorpBackend creates a VaultBackend containing Hashicorp Vault compatible vaultWallets for each of the provided walletConfigs
-func NewHashicorpBackend(walletConfigs []HashicorpWalletConfig) (*VaultBackend, error) {
+// NewHashicorpBackend creates a Backend containing Hashicorp Vault compatible vaultWallets for each of the provided walletConfigs
+func NewHashicorpBackend(walletConfigs []HashicorpWalletConfig) (*Backend, error) {
 	wallets := []accounts.Wallet{}
 
-	backend := &VaultBackend{}
+	backend := &Backend{}
 
 	for _, conf := range walletConfigs {
 		w, err := newHashicorpWallet(conf, backend, false)
@@ -48,19 +45,19 @@ func NewHashicorpBackend(walletConfigs []HashicorpWalletConfig) (*VaultBackend, 
 	return backend, nil
 }
 
-// Wallets implements accounts.Backend returning a copy of the list of wallets managed by the VaultBackend
-func (b *VaultBackend) Wallets() []accounts.Wallet {
+// Wallets implements accounts.Backend returning a copy of the list of wallets managed by the Backend
+func (b *Backend) Wallets() []accounts.Wallet {
 	cpy := make([]accounts.Wallet, len(b.wallets))
 	copy(cpy, b.wallets)
 	return cpy
 }
 
 // Subscribe implements accounts.Backend, creating an async subscription to receive notifications on the additional of vaultWallets
-func (b *VaultBackend) Subscribe(sink chan<- accounts.WalletEvent) event.Subscription {
+func (b *Backend) Subscribe(sink chan<- accounts.WalletEvent) event.Subscription {
 	return b.updateScope.Track(b.updateFeed.Subscribe(sink))
 }
 
-func (b *VaultBackend) FindWalletByUrl(url string) (accounts.Wallet, error) {
+func (b *Backend) FindWalletByUrl(url string) (accounts.Wallet, error) {
 	u, err := parseURL(url)
 	if err != nil {
 		return nil, err
@@ -85,77 +82,6 @@ func parseURL(url string) (accounts.URL, error) {
 		Path:   parts[1],
 	}, nil
 }
-
-//func (b *VaultBackend) TimedUnlock(account accounts.Account, duration time.Duration) error {
-//	w, err := b.findWalletByAcct(account)
-//
-//	if err != nil {
-//		return err
-//	}
-//
-//	return w.TimedUnlock(account, duration)
-//}
-//
-//func (b *VaultBackend) Lock(account accounts.Account) error {
-//	w, err := b.findWalletByAcct(account)
-//
-//	if err != nil {
-//		return err
-//	}
-//
-//	return w.Lock(account)
-//}
-//
-//func (b *VaultBackend) findWalletByAcct(account accounts.Account) (*vaultWallet, error) {
-//	b.mutex.RLock()
-//	defer b.mutex.RUnlock()
-//
-//	for _, wallet := range b.wallets {
-//		if wallet.Contains(account) {
-//			w, ok := wallet.(*vaultWallet)
-//
-//			if !ok {
-//				continue
-//			}
-//
-//			return w, nil
-//		}
-//	}
-//	return nil, accounts.ErrUnknownAccount
-//}
-//
-//
-//func (b *VaultBackend) NewAccount(walletUrl string, config interface{}) (common.Address, error) {
-//	url, err := parseURL(walletUrl)
-//
-//	if err != nil {
-//		return common.Address{}, err
-//	}
-//
-//	w, err := b.findWalletByUrl(url)
-//
-//	if err != nil {
-//		return common.Address{}, err
-//	}
-//
-//	return w.NewAccount(config)
-//}
-//
-//func (b *VaultBackend) ImportECDSA(key *ecdsa.PrivateKey, walletUrl string, config interface{}) (common.Address, error) {
-//	url, err := parseURL(walletUrl)
-//
-//	if err != nil {
-//		return common.Address{}, err
-//	}
-//
-//	w, err := b.findWalletByUrl(url)
-//
-//	if err != nil {
-//		return common.Address{}, err
-//	}
-//
-//	return w.Import(key, config)
-//}
 
 // walletsByUrl implements the sort interface to enable the sorting of a slice of wallets alphanumerically by their urls
 type walletsByUrl []accounts.Wallet

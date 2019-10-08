@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-//func createWalletForTesting(contains []accounts.Account, unlockedKeys map[common.Address]*ecdsa.PrivateKey) *vaultWallet {
+//func createWalletForTesting(contains []accounts.Account, unlockedKeys map[common.Address]*ecdsa.PrivateKey) *wallet {
 //	// empty structs required to prevent seg violations
 //	ac := &accountCache{}
 //	ac.watcher = &watcher{}
@@ -38,7 +38,7 @@ import (
 //		u[a] = &unlocked{Key: &keystore.Key{PrivateKey: k}}
 //	}
 //
-//	return &vaultWallet{
+//	return &wallet{
 //		vault: &hashicorpService{
 //			cache: ac,
 //			unlocked: u,
@@ -48,7 +48,7 @@ import (
 //
 //func TestVaultWallet_URL(t *testing.T) {
 //	in := accounts.URL{Scheme: "http", Path: "url"}
-//	w := vaultWallet{url: in}
+//	w := wallet{url: in}
 //
 //	got := w.URL()
 //
@@ -139,7 +139,7 @@ func setupTestVaultServer(t *testing.T, handlerData []handlerData) (*httptest.Se
 	return vaultServer, vaultServer.Close
 }
 
-func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *httptest.Server) {
+func setHashicorpWalletClientForServer(t *testing.T, w *wallet, server *httptest.Server) {
 	//create default Hashicorp Vault client and update URL to use our test server
 	config := api.DefaultConfig()
 	config.Address = server.URL
@@ -154,7 +154,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 
 //
 //func TestVaultWallet_Status_Hashicorp_ClosedWhenServiceHasNoClient(t *testing.T) {
-//	w := vaultWallet{vault: &hashicorpService{cache: &accountCache{}}}
+//	w := wallet{vault: &hashicorpService{cache: &accountCache{}}}
 //
 //	status, err := w.Status()
 //
@@ -213,7 +213,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //			c, cleanup := makeMockHashicorpClient(t, b)
 //			defer cleanup()
 //
-//			w := vaultWallet{
+//			w := wallet{
 //				vault: &hashicorpService{client: c, cache: &accountCache{}},
 //			}
 //
@@ -236,7 +236,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //	c, cleanup := makeMockHashicorpClient(t, b)
 //	defer cleanup()
 //
-//	w := vaultWallet{
+//	w := wallet{
 //		vault: &hashicorpService{client: c, cache: &accountCache{}},
 //	}
 //
@@ -252,7 +252,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //}
 //
 //func TestVaultWallet_Open_Hashicorp_ReturnsErrIfAlreadyOpen(t *testing.T) {
-//	w := vaultWallet{vault: &hashicorpService{client: &api.Client{}}}
+//	w := wallet{vault: &hashicorpService{client: &api.Client{}}}
 //
 //	if err := w.Open(""); err != accounts.ErrWalletAlreadyOpen {
 //		t.Fatalf("want: %v, got: %v", accounts.ErrWalletAlreadyOpen, err)
@@ -273,7 +273,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //		Url: server.URL,
 //	}
 //
-//	w := vaultWallet{vault: &hashicorpService{config: config}, backend: &VaultBackend{updateFeed: event.Feed{}}}
+//	w := wallet{vault: &hashicorpService{config: config}, backend: &Backend{updateFeed: event.Feed{}}}
 //
 //	if err := w.Open(""); err != nil {
 //		t.Fatalf("error: %v", err)
@@ -372,7 +372,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //		ClientKey:  "testdata/quorum-client.key",
 //	}
 //
-//	w := vaultWallet{vault: &hashicorpService{config: config}, backend: &VaultBackend{updateFeed: event.Feed{}}}
+//	w := wallet{vault: &hashicorpService{config: config}, backend: &Backend{updateFeed: event.Feed{}}}
 //
 //	if err := w.Open(""); err != nil {
 //		t.Fatalf("error: %v", err)
@@ -479,7 +479,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //				Approle: tt.approle,
 //			}
 //
-//			w := vaultWallet{vault: &hashicorpService{config: config}, backend: &VaultBackend{updateFeed: event.Feed{}}}
+//			w := wallet{vault: &hashicorpService{config: config}, backend: &Backend{updateFeed: event.Feed{}}}
 //
 //			if err := w.Open(""); err != nil {
 //				t.Fatalf("error: %v", err)
@@ -553,7 +553,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //				Url: "http://url:1",
 //			}
 //
-//			w := vaultWallet{vault: &hashicorpService{config: config}}
+//			w := wallet{vault: &hashicorpService{config: config}}
 //
 //			if err := w.Open(""); err != tt.want {
 //				t.Fatalf("want error: %v\ngot: %v", tt.want, err)
@@ -562,7 +562,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //	}
 //}
 //
-//// Note: This is an integration test, as such the scope of the test is large.  It covers the VaultBackend, vaultWallet and hashicorpService
+//// Note: This is an integration test, as such the scope of the test is large.  It covers the Backend, wallet and hashicorpService
 //func TestVaultWallet_Open_Hashicorp_SendsEventToBackendSubscribers(t *testing.T) {
 //	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
 //		t.Fatal(err)
@@ -698,21 +698,21 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //		Secrets: []HashicorpSecretConfig{{AddressSecret: addr1, AddressSecretVersion: 1, PrivateKeySecret: key1, PrivateKeySecretVersion: 1, SecretEngine: "kv"}},
 //	}
 //
-//	w, err := newHashicorpWallet(config, &VaultBackend{updateFeed: event.Feed{}}, "", false)
+//	w, err := newHashicorpWallet(config, &Backend{updateFeed: event.Feed{}}, "", false)
 //
 //	if err != nil {
 //		t.Fatal(err)
 //	}
 //
-//	unopened, err := newHashicorpWallet(config, &VaultBackend{updateFeed: event.Feed{}}, "", false)
+//	unopened, err := newHashicorpWallet(config, &Backend{updateFeed: event.Feed{}}, "", false)
 //
 //	if err != nil {
 //		t.Fatal(err)
 //	}
 //
 //	cmpOpts := []cmp.Option{
-//		cmp.AllowUnexported(vaultWallet{}, hashicorpService{}),
-//		cmpopts.IgnoreUnexported(VaultBackend{}, sync.RWMutex{}),
+//		cmp.AllowUnexported(wallet{}, hashicorpService{}),
+//		cmpopts.IgnoreUnexported(Backend{}, sync.RWMutex{}),
 //	}
 //
 //	if diff := cmp.Diff(unopened, w, cmpOpts...); diff != "" {
@@ -746,7 +746,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //	ac.watcher.ev = make(chan notify.EventInfo, 10)
 //	ac.watcher.quit = make(chan struct{})
 //
-//	w := vaultWallet{
+//	w := wallet{
 //		vault: &hashicorpService{cache: ac},
 //	}
 //
@@ -805,7 +805,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //			ac.watcher.ev = make(chan notify.EventInfo, 10)
 //			ac.watcher.quit = make(chan struct{})
 //
-//			w := vaultWallet{
+//			w := wallet{
 //				vault: &hashicorpService{cache: ac},
 //			}
 //
@@ -2418,7 +2418,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //		return accounts.URL{Scheme: parts[0], Path: parts[1]}
 //	}
 //
-//	w := vaultWallet{
+//	w := wallet{
 //		url: parseURL(vaultServer.URL),
 //		vault: &hashicorpService{
 //			client: client,
@@ -2534,7 +2534,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //		return accounts.URL{Scheme: parts[0], Path: parts[1]}
 //	}
 //
-//	w := vaultWallet{
+//	w := wallet{
 //		url: parseURL(vaultServer.URL),
 //		vault: &hashicorpService{
 //			client: client,
@@ -2797,7 +2797,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //	return server, closeServer, test
 //}
 //
-//func setupWalletWithNoClient(t *testing.T, url string, unlockAll bool, secrets []HashicorpSecretConfig) *vaultWallet {
+//func setupWalletWithNoClient(t *testing.T, url string, unlockAll bool, secrets []HashicorpSecretConfig) *wallet {
 //	wltConfig := HashicorpWalletConfig{
 //		Client: HashicorpClientConfig{
 //			Url:       url,
@@ -2806,7 +2806,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //		Secrets: secrets,
 //	}
 //
-//	w, err := newHashicorpWallet(wltConfig, &VaultBackend{updateFeed: event.Feed{}}, "",  false)
+//	w, err := newHashicorpWallet(wltConfig, &Backend{updateFeed: event.Feed{}}, "",  false)
 //
 //	if err != nil {
 //		t.Fatal(err)
@@ -2815,7 +2815,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 //	return w
 //}
 //
-//func validateCacheTestCase(t *testing.T, w *vaultWallet, serverUrl string, test cacheTestCase) {
+//func validateCacheTestCase(t *testing.T, w *wallet, serverUrl string, test cacheTestCase) {
 //	gotAccts := getAccounts(t, w)
 //
 //	// populate the format string acct urls defined in the test cases with the current server url

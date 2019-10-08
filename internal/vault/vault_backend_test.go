@@ -70,13 +70,13 @@ package vault
 //		want []accounts.Wallet
 //	}{
 //		"empty":    {in: []accounts.Wallet{}, want: []accounts.Wallet{}},
-//		"single":   {in: []accounts.Wallet{&vaultWallet{}}, want: []accounts.Wallet{&vaultWallet{}}},
-//		"multiple": {in: []accounts.Wallet{&vaultWallet{}, &vaultWallet{}}, want: []accounts.Wallet{&vaultWallet{}, &vaultWallet{}}},
+//		"single":   {in: []accounts.Wallet{&wallet{}}, want: []accounts.Wallet{&wallet{}}},
+//		"multiple": {in: []accounts.Wallet{&wallet{}, &wallet{}}, want: []accounts.Wallet{&wallet{}, &wallet{}}},
 //	}
 //
 //	for name, tt := range tests {
 //		t.Run(name, func(t *testing.T) {
-//			b := VaultBackend{wallets: tt.in}
+//			b := Backend{wallets: tt.in}
 //
 //			got := b.Wallets()
 //
@@ -88,15 +88,15 @@ package vault
 //}
 //
 //func TestVaultBackend_Wallets_ReturnsCopy(t *testing.T) {
-//	b := VaultBackend{
+//	b := Backend{
 //		wallets: []accounts.Wallet{
-//			&vaultWallet{url: accounts.URL{Scheme: "http", Path: "url"}},
+//			&wallet{url: accounts.URL{Scheme: "http", Path: "url"}},
 //		},
 //	}
 //
 //	got := b.Wallets()
 //
-//	got[0] = &vaultWallet{url: accounts.URL{Scheme: "http", Path: "otherurl"}}
+//	got[0] = &wallet{url: accounts.URL{Scheme: "http", Path: "otherurl"}}
 //
 //	if reflect.DeepEqual(b.wallets, got) {
 //		t.Fatal("changes to returned slice should not affect slice in backend")
@@ -104,7 +104,7 @@ package vault
 //}
 //
 //func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeed(t *testing.T) {
-//	b := VaultBackend{updateFeed: event.Feed{}}
+//	b := Backend{updateFeed: event.Feed{}}
 //
 //	subscriber := make(chan accounts.WalletEvent, 1)
 //	b.Subscribe(subscriber)
@@ -114,7 +114,7 @@ package vault
 //	}
 //
 //	// mock an event
-//	e := accounts.WalletEvent{Wallet: &vaultWallet{}, Kind: accounts.WalletOpened}
+//	e := accounts.WalletEvent{Wallet: &wallet{}, Kind: accounts.WalletOpened}
 //	b.updateFeed.Send(e)
 //
 //	if len(subscriber) != 1 {
