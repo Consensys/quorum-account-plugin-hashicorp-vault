@@ -6,7 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/sdk/helper/consts"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"regexp"
 	"strings"
@@ -15,12 +15,11 @@ import (
 
 func TestHashicorpWallet_URL(t *testing.T) {
 	u := accounts.URL{Scheme: WalletScheme, Path: "foo"}
-
 	w := wallet{url: u}
 
-	if u != w.URL() {
-		t.Fatalf("want: %v, got: %v", u, w.url)
-	}
+	got := w.URL()
+
+	require.Equal(t, u, got)
 }
 
 func TestNewHashicorpWallet(t *testing.T) {
@@ -35,13 +34,8 @@ func TestHashicorpWallet_Status_ClosedByDefault(t *testing.T) {
 	got, err := w.Status()
 	want := closed
 
-	if want != got {
-		t.Fatalf("want: %v, got: %v", want, got)
-	}
-
-	if err != nil {
-		t.Fatalf("want nil error, got: %v", err)
-	}
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }
 
 func TestHashicorpWallet_Status_VaultAndAcctStatus(t *testing.T) {
@@ -183,9 +177,7 @@ func TestHashicorpWallet_Status_VaultAndAcctStatus(t *testing.T) {
 				cleanup = setupMock404VaultServerAndOpen(t, w)
 			} else {
 				b, err := json.Marshal(tt.healthResponse)
-				if err != nil {
-					t.Fatalf("err marshalling mock response: %v", err)
-				}
+				require.NoError(t, err)
 
 				cleanup = setupMockVaultServerAndOpen(t, w, b)
 			}
@@ -198,23 +190,18 @@ func TestHashicorpWallet_Status_VaultAndAcctStatus(t *testing.T) {
 
 			if strings.HasPrefix(tt.want, "^") {
 				// regex has been provided
-				if ok, err := regexp.MatchString(tt.want, got); err != nil {
-					t.Fatalf("regex error: %v", err)
-				} else if !ok {
-					t.Fatalf("want match for: %v\ngot: %v", tt.want, got)
-				}
-			} else if tt.want != got {
-				t.Fatalf("\nwant: %v\n got: %v", tt.want, got)
+				require.Regexp(t, regexp.MustCompile(tt.want), got)
+			} else {
+				require.Equal(t, tt.want, got)
 			}
 
 			if tt.doBadHealthResponse {
 				// in this case the Vault client library returns its own error - we ignore their error to prevent coupling the test to their implementation
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.wantErr.Error())
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.wantErr.Error())
 			} else {
-				assert.Equal(t, tt.wantErr, err)
+				require.Equal(t, tt.wantErr, err)
 			}
-
 		})
 	}
 }
@@ -226,14 +213,14 @@ func TestHashicorpWallet_Open_ErrorIfAlreadyOpen(t *testing.T) {
 	builder.withBasicConfig()
 	w := builder.build(t)
 
-	if err := w.Open(""); err != nil {
-		t.Fatal(err)
-	}
+	var err error
 
+	err = w.Open("")
+	require.NoError(t, err)
+
+	err = w.Open("")
 	want := accounts.ErrWalletAlreadyOpen
-	if err := w.Open(""); err != want {
-		t.Fatalf("want: %v, got: %v", want, err)
-	}
+	require.EqualError(t, err, want.Error())
 }
 
 func TestHashicorpWallet_Open_ValidatesAuthenticationCredentials(t *testing.T) {
@@ -322,12 +309,9 @@ func TestHashicorpWallet_Open_ValidatesAuthenticationCredentials(t *testing.T) {
 			w := builder.build(t)
 
 			err := w.Open("")
-
 			cleanup()
 
-			if err != tt.wantErr {
-				t.Fatalf("want: %v\ngot: %v", tt.wantErr, err)
-			}
+			require.EqualError(t, err, tt.wantErr.Error())
 		})
 	}
 }
@@ -353,24 +337,19 @@ func TestHashicorpWallet_Open_CreatesTokenAuthenticatedClient(t *testing.T) {
 
 		header := map[string][]string(r.Header)
 		token := header[consts.AuthHeaderName]
-		if len(token) != 1 || token[0] != DefaultTokenEnv {
-			t.Fatalf("client not authenticated correctly, want token value: %v, got: %v", DefaultTokenEnv, token[0])
-		}
+
+		require.Len(t, token, 1)
+		require.Equal(t, DefaultTokenEnv, token[0])
 	})
 
 	defer setupMockVaultServer2(w, handler)()
 
 	err := w.Open("")
 
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	makeArbitraryRequestUsingVaultClient(t, w)
-
-	if !handlerInvoked {
-		t.Fatalf("test incomplete: handler not invoked")
-	}
+	require.True(t, handlerInvoked, "test incomplete as no request made to Vault")
 }
 
 func TestHashicorpWallet_Open_CreatesTokenAuthenticatedClient_AuthID(t *testing.T) {

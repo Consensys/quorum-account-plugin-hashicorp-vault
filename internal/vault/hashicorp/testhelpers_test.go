@@ -3,6 +3,7 @@ package hashicorp
 import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -58,9 +59,7 @@ func (b *testHashicorpWalletBuilder) withAuthorizationID(authorizationID string)
 
 func (b *testHashicorpWalletBuilder) build(t *testing.T) *wallet {
 	w, err := NewHashicorpWallet(b.config, b.backend, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	return w
 }
@@ -84,9 +83,7 @@ func addLockedAccts(t *testing.T, w *wallet, accts []string) {
 }
 
 func addAcct(t *testing.T, w *wallet, acct string) {
-	if !common.IsHexAddress(acct) {
-		t.Fatalf("invalid hex address: %v", acct)
-	}
+	require.True(t, common.IsHexAddress(acct), "invalid hex address")
 
 	addr := common.HexToAddress(acct)
 
@@ -185,8 +182,5 @@ func setEnvironmentVariables(toSet ...string) func() {
 // make an arbitrary read request using the Vault client setup in the wallet
 func makeArbitraryRequestUsingVaultClient(t *testing.T, w *wallet) {
 	_, err := w.client.Logical().Read("some/arbitrary/path")
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }

@@ -2,6 +2,7 @@ package vault
 
 import (
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -18,13 +19,8 @@ func TestMakeWalletUrl_ReplacesSchemeAndAddsAuthorizationInformation(t *testing.
 
 	got, err := MakeWalletUrl(walletScheme, userInfo, strUrl)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if want != got {
-		t.Fatalf("want: %v, got: %v", want, got)
-	}
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }
 
 func TestMakeWalletUrl_ErrorIfInvalidUrl(t *testing.T) {
@@ -33,7 +29,5 @@ func TestMakeWalletUrl_ErrorIfInvalidUrl(t *testing.T) {
 
 	_, err := MakeWalletUrl(walletScheme, userInfo, noSchemeUrl)
 
-	if err == nil {
-		t.Fatal("error expected")
-	}
+	require.Error(t, err)
 }

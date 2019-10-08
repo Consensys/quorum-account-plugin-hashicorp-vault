@@ -11,7 +11,7 @@ import (
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/testmocks/mock_accounts"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/testmocks/mock_vault"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
 )
@@ -68,8 +68,8 @@ func TestSigner_Status(t *testing.T) {
 
 	want := &proto.StatusResponse{Status: status}
 
-	assert.NoError(t, err)
-	assert.Equal(t, want, got)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }
 
 func TestSigner_Open(t *testing.T) {
@@ -102,8 +102,8 @@ func TestSigner_Open(t *testing.T) {
 
 	want := &proto.OpenResponse{}
 
-	assert.NoError(t, err)
-	assert.Equal(t, want, got)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }
 
 func TestSigner_Close(t *testing.T) {
@@ -132,8 +132,8 @@ func TestSigner_Close(t *testing.T) {
 
 	want := &proto.CloseResponse{}
 
-	assert.NoError(t, err)
-	assert.Equal(t, want, got)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }
 
 func TestSigner_Accounts(t *testing.T) {
@@ -165,8 +165,8 @@ func TestSigner_Accounts(t *testing.T) {
 		Accounts: []*proto.Account{protoAcct1, protoAcct2},
 	}
 
-	assert.NoError(t, err)
-	assert.Equal(t, want, got)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }
 
 func TestSigner_Contains(t *testing.T) {
@@ -198,8 +198,8 @@ func TestSigner_Contains(t *testing.T) {
 
 	want := &proto.ContainsResponse{IsContained: true}
 
-	assert.NoError(t, err)
-	assert.Equal(t, want, got)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }
 
 func TestSigner_SignHash(t *testing.T) {
@@ -234,8 +234,8 @@ func TestSigner_SignHash(t *testing.T) {
 
 	want := &proto.SignHashResponse{Result: signed}
 
-	assert.NoError(t, err)
-	assert.Equal(t, want, got)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }
 
 func TestSigner_SignTx(t *testing.T) {
@@ -273,9 +273,7 @@ func TestSigner_SignTx(t *testing.T) {
 	toSign.Size() // This field is populated when the signer decodes the transaction so we mimic that here
 
 	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	mockWallet.
 		EXPECT().
@@ -291,15 +289,14 @@ func TestSigner_SignTx(t *testing.T) {
 	got, err := s.SignTx(context.Background(), req)
 
 	rlpSigned, err := rlp.EncodeToBytes(signed)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	want := &proto.SignTxResponse{
 		RlpTx: rlpSigned,
 	}
 
-	assert.NoError(t, err)
-	assert.Equal(t, want, got)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }
 
 func TestSigner_SignHashWithPassphrase(t *testing.T) {
@@ -336,8 +333,8 @@ func TestSigner_SignHashWithPassphrase(t *testing.T) {
 
 	want := &proto.SignHashResponse{Result: signed}
 
-	assert.NoError(t, err)
-	assert.Equal(t, want, got)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }
 
 func TestSigner_SignTxWithPassphrase(t *testing.T) {
@@ -377,9 +374,7 @@ func TestSigner_SignTxWithPassphrase(t *testing.T) {
 	toSign.Size() // This field is populated when the signer decodes the transaction so we mimic that here
 
 	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	mockWallet.
 		EXPECT().
@@ -396,13 +391,12 @@ func TestSigner_SignTxWithPassphrase(t *testing.T) {
 	got, err := s.SignTxWithPassphrase(context.Background(), req)
 
 	rlpSigned, err := rlp.EncodeToBytes(signed)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	want := &proto.SignTxResponse{
 		RlpTx: rlpSigned,
 	}
 
-	assert.NoError(t, err)
-	assert.Equal(t, want, got)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }

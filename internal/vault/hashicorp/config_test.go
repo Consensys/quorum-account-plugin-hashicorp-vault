@@ -1,6 +1,7 @@
 package hashicorp
 
 import (
+	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 )
@@ -44,48 +45,43 @@ func minimumValidHashicorpAccountConfigForAccountCreation() HashicorpAccountConf
 func TestHashicorpAccountStoreConfig_Validate(t *testing.T) {
 	c := minimumValidHashicorpAccountStoreConfig()
 
-	if err := c.Validate(); err != nil {
-		t.Fatal("config should be valid")
-	}
+	err := c.Validate()
+	require.NoError(t, err)
 }
 
 func TestHashicorpAccountStoreConfig_Validate_AtLeastOneValidWalletConfigurationRequired(t *testing.T) {
+	var err error
+
 	c := minimumValidHashicorpAccountStoreConfig()
-
 	c.Wallets = []HashicorpWalletConfig{}
-
-	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), noWalletConfigMsg) {
-		t.Fatalf("want error containing: %v, got: %v", noWalletConfigMsg, err)
-	}
+	err = c.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), noWalletConfigMsg)
 
 	w := minimumValidHashicorpWalletConfig()
 	w.VaultUrl = ""
 	c.Wallets = []HashicorpWalletConfig{w}
-
-	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), invalidVaultUrlMsg) {
-		t.Fatalf("want error containing: %v, got: %v", invalidVaultUrlMsg, err)
-	}
+	err = c.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), invalidVaultUrlMsg)
 }
 
 func TestHashicorpAccountStoreConfig_Validate_AccountConfigurationIsOptionalButMustBeValid(t *testing.T) {
+	var err error
+
 	c := minimumValidHashicorpAccountStoreConfig()
 	c.HashicorpAccount = HashicorpAccountConfig{}
-
-	if err := c.Validate(); err != nil {
-		t.Fatal("config should be valid")
-	}
+	err = c.Validate()
+	require.NoError(t, err)
 
 	c.HashicorpAccount = minimumValidHashicorpAccountConfig()
-
-	if err := c.Validate(); err != nil {
-		t.Fatal("config should be valid")
-	}
+	err = c.Validate()
+	require.NoError(t, err)
 
 	c.HashicorpAccount.SecretPath = ""
-
-	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), invalidSecretPathMsg) {
-		t.Fatalf("want error containing: %v, got: %v", invalidSecretPathMsg, err)
-	}
+	err = c.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), invalidSecretPathMsg)
 }
 
 func TestHashicorpAccountStoreConfig_Validate_ErrorMsgsAreCombined(t *testing.T) {
@@ -104,35 +100,34 @@ func TestHashicorpAccountStoreConfig_Validate_ErrorMsgsAreCombined(t *testing.T)
 
 	want := []string{noWalletConfigMsg, invalidSecretPathMsg}
 
-	if err := c.Validate(); err == nil || !contains(err, want) {
-		t.Fatalf("want error containing: %v\ngot: %v", want, err)
-	}
+	err := c.Validate()
+
+	require.Error(t, err)
+	require.True(t, contains(err, want))
 }
 
 func TestHashicorpAccountStoreConfig_ValidateForAccountCreation(t *testing.T) {
 	c := minimumValidHashicorpAccountStoreConfigForAccountCreation()
 
-	if err := c.ValidateForAccountCreation(); err != nil {
-		t.Fatal("config should be valid")
-	}
+	err := c.ValidateForAccountCreation()
+	require.NoError(t, err)
 }
 
 func TestHashicorpAccountStoreConfig_ValidateForAccountCreation_AtLeastOneValidWalletConfigurationRequired(t *testing.T) {
+	var err error
+
 	c := minimumValidHashicorpAccountStoreConfigForAccountCreation()
-
 	c.Wallets = []HashicorpWalletConfig{}
-
-	if err := c.ValidateForAccountCreation(); err == nil || !strings.Contains(err.Error(), noWalletConfigMsg) {
-		t.Fatalf("want error containing: %v, got: %v", noWalletConfigMsg, err)
-	}
+	err = c.ValidateForAccountCreation()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), noWalletConfigMsg)
 
 	w := minimumValidHashicorpWalletConfig()
 	w.VaultUrl = ""
 	c.Wallets = []HashicorpWalletConfig{w}
-
-	if err := c.ValidateForAccountCreation(); err == nil || !strings.Contains(err.Error(), invalidVaultUrlMsg) {
-		t.Fatalf("want error containing: %v, got: %v", invalidVaultUrlMsg, err)
-	}
+	err = c.ValidateForAccountCreation()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), invalidVaultUrlMsg)
 }
 
 func TestHashicorpAccountStoreConfig_ValidateForAccountCreation_AccountConfigurationRequired(t *testing.T) {
@@ -150,9 +145,10 @@ func TestHashicorpAccountStoreConfig_ValidateForAccountCreation_AccountConfigura
 
 	want := []string{invalidSecretPathMsg, invalidSecretEnginePathMsg}
 
-	if err := c.ValidateForAccountCreation(); err == nil || !contains(err, want) {
-		t.Fatalf("want error containing: %v\ngot: %v", want, err)
-	}
+	err := c.ValidateForAccountCreation()
+
+	require.Error(t, err)
+	require.True(t, contains(err, want))
 }
 
 func TestHashicorpAccountStoreConfig_ValidateForAccountCreation_ErrorMsgsAreCombined(t *testing.T) {
@@ -171,97 +167,94 @@ func TestHashicorpAccountStoreConfig_ValidateForAccountCreation_ErrorMsgsAreComb
 
 	want := []string{noWalletConfigMsg, invalidSecretPathMsg}
 
-	if err := c.ValidateForAccountCreation(); err == nil || !contains(err, want) {
-		t.Fatalf("want error containing: %v\ngot: %v", want, err)
-	}
+	err := c.ValidateForAccountCreation()
+
+	require.Error(t, err)
+	require.True(t, contains(err, want))
 }
 
 func TestHashicorpWalletConfig_Validate(t *testing.T) {
 	c := minimumValidHashicorpWalletConfig()
 
-	if err := c.Validate(); err != nil {
-		t.Fatal("config should be valid")
-	}
+	err := c.Validate()
+	require.NoError(t, err)
 }
 
 func TestHashicorpWalletConfig_Validate_VaultUrlRequired(t *testing.T) {
 	c := minimumValidHashicorpWalletConfig()
-
 	c.VaultUrl = ""
 
-	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), invalidVaultUrlMsg) {
-		t.Fatalf("want error containing: %v, got: %v", invalidVaultUrlMsg, err)
-	}
+	err := c.Validate()
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), invalidVaultUrlMsg)
 }
 
 func TestHashicorpWalletConfig_Validate_AccountConfigDirRequired(t *testing.T) {
 	c := minimumValidHashicorpWalletConfig()
-
 	c.AccountConfigDir = ""
 
-	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), invalidAccountConfigDirMsg) {
-		t.Fatalf("want error containing: %v, got: %v", invalidAccountConfigDirMsg, err)
-	}
+	err := c.Validate()
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), invalidAccountConfigDirMsg)
 }
 
 func TestHashicorpAccountConfig_Validate(t *testing.T) {
 	c := minimumValidHashicorpAccountConfig()
 
-	if err := c.Validate(); err != nil {
-		t.Fatal("config should be valid")
-	}
+	err := c.Validate()
+	require.NoError(t, err)
 }
 
 func TestHashicorpAccountConfig_Validate_SecretPathRequired(t *testing.T) {
 	c := minimumValidHashicorpAccountConfig()
-
 	c.SecretPath = ""
 
-	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), invalidSecretPathMsg) {
-		t.Fatalf("want error containing: %v, got: %v", invalidSecretPathMsg, err)
-	}
+	err := c.Validate()
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), invalidSecretPathMsg)
 }
 
 func TestHashicorpAccountConfig_Validate_SecretEnginePathRequired(t *testing.T) {
 	c := minimumValidHashicorpAccountConfig()
-
 	c.SecretEnginePath = ""
 
-	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), invalidSecretEnginePathMsg) {
-		t.Fatalf("want error containing: %v, got: %v", invalidSecretEnginePathMsg, err)
-	}
+	err := c.Validate()
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), invalidSecretEnginePathMsg)
 }
 
 func TestHashicorpAccountConfig_Validate_SecretVersionRequiredAndMustBeGreaterThanZero(t *testing.T) {
+	var err error
+
 	c := minimumValidHashicorpAccountConfig()
-
 	c.SecretVersion = 0
-
-	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), invalidSecretVersionMsg) {
-		t.Fatalf("want error containing: %v, got: %v", invalidSecretVersionMsg, err)
-	}
+	err = c.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), invalidSecretVersionMsg)
 
 	c.SecretVersion = -1
-
-	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), invalidSecretVersionMsg) {
-		t.Fatalf("want error containing: %v, got: %v", invalidSecretVersionMsg, err)
-	}
+	err = c.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), invalidSecretVersionMsg)
 }
 
 func TestHashicorpAccountConfig_Validate_AddressRequiredAndMustBeValidHexAddress(t *testing.T) {
+	var err error
+
 	c := minimumValidHashicorpAccountConfig()
-
 	c.Address = ""
-
-	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), invalidAddressMsg) {
-		t.Fatalf("want error containing: %v, got: %v", invalidAddressMsg, err)
-	}
+	err = c.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), invalidAddressMsg)
 
 	c.Address = "notvalidhex"
-
-	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), invalidAddressMsg) {
-		t.Fatalf("want error containing: %v, got: %v", invalidAddressMsg, err)
-	}
+	err = c.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), invalidAddressMsg)
 }
 
 func TestHashicorpAccountConfig_Validate_ErrorMsgsAreCombined(t *testing.T) {
@@ -278,37 +271,37 @@ func TestHashicorpAccountConfig_Validate_ErrorMsgsAreCombined(t *testing.T) {
 
 	want := []string{invalidSecretPathMsg, invalidSecretEnginePathMsg, invalidAddressMsg, invalidSecretVersionMsg}
 
-	if err := c.Validate(); err == nil || !contains(err, want) {
-		t.Fatalf("want error containing: %v\ngot: %v", want, err)
-	}
+	err := c.Validate()
+
+	require.Error(t, err)
+	require.True(t, contains(err, want))
 }
 
 func TestHashicorpAccountConfig_ValidateForAccountCreation(t *testing.T) {
 	c := minimumValidHashicorpAccountConfigForAccountCreation()
 
-	if err := c.ValidateForAccountCreation(); err != nil {
-		t.Fatal("config should be valid")
-	}
+	err := c.ValidateForAccountCreation()
+	require.NoError(t, err)
 }
 
 func TestHashicorpAccountConfig_ValidateForAccountCreation_SecretPathRequired(t *testing.T) {
 	c := minimumValidHashicorpAccountConfigForAccountCreation()
-
 	c.SecretPath = ""
 
-	if err := c.ValidateForAccountCreation(); err == nil || !strings.Contains(err.Error(), invalidSecretPathMsg) {
-		t.Fatalf("want error containing: %v, got: %v", invalidSecretPathMsg, err)
-	}
+	err := c.ValidateForAccountCreation()
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), invalidSecretPathMsg)
 }
 
 func TestHashicorpAccountConfig_ValidateForAccountCreation_SecretEnginePathRequired(t *testing.T) {
 	c := minimumValidHashicorpAccountConfigForAccountCreation()
-
 	c.SecretEnginePath = ""
 
-	if err := c.ValidateForAccountCreation(); err == nil || !strings.Contains(err.Error(), invalidSecretEnginePathMsg) {
-		t.Fatalf("want error containing: %v, got: %v", invalidSecretEnginePathMsg, err)
-	}
+	err := c.ValidateForAccountCreation()
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), invalidSecretEnginePathMsg)
 }
 
 func TestHashicorpAccountConfig_ValidateForAccountCreation_ErrorMsgsAreCombined(t *testing.T) {
@@ -325,7 +318,8 @@ func TestHashicorpAccountConfig_ValidateForAccountCreation_ErrorMsgsAreCombined(
 
 	want := []string{invalidSecretPathMsg, invalidSecretEnginePathMsg}
 
-	if err := c.ValidateForAccountCreation(); err == nil || !contains(err, want) {
-		t.Fatalf("want error containing: %v\ngot: %v", want, err)
-	}
+	err := c.ValidateForAccountCreation()
+
+	require.Error(t, err)
+	require.True(t, contains(err, want))
 }
