@@ -10,7 +10,7 @@ import (
 const DefaultProtocolVersion = 1
 
 var (
-	// TODO
+	// TODO from godoc: "the plugin host creates a HandshakeConfig that is exported and plugins then can easily consume it.  Export in quorum/plugin-definitions"
 	DefaultHandshakeConfig = plugin.HandshakeConfig{
 		ProtocolVersion:  DefaultProtocolVersion,
 		MagicCookieKey:   "QUORUM_PLUGIN_MAGIC_COOKIE",
@@ -25,7 +25,6 @@ func main() {
 		Plugins: map[string]plugin.Plugin{
 			"impl": &internal.SignerPluginImpl{},
 		},
-
 		GRPCServer: plugin.DefaultGRPCServer,
 	})
 }
