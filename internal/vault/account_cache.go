@@ -74,10 +74,10 @@ type accountCache struct {
 	notify   chan struct{}
 	fileC    fileCache
 
-	vault *hashicorpService
+	vault *vaultWallet
 }
 
-func newAccountCache(keydir string, vault *hashicorpService) (*accountCache, chan struct{}) {
+func newAccountCache(keydir string, vault *vaultWallet) (*accountCache, chan struct{}) {
 	ac := &accountCache{
 		keydir: keydir,
 		byAddr: make(map[common.Address][]accounts.Account),
@@ -312,7 +312,7 @@ func (ac *accountCache) scanAccounts() error {
 func (ac *accountCache) unlockIfConfigured(acct accounts.Account) error {
 	for _, toUnlock := range ac.vault.toUnlock {
 		if acct.Address == toUnlock {
-			if err := ac.vault.timedUnlock(acct, 0); err != nil {
+			if err := ac.vault.TimedUnlock(acct, 0); err != nil {
 				return err
 			}
 		}

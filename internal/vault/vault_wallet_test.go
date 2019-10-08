@@ -140,12 +140,6 @@ func setupTestVaultServer(t *testing.T, handlerData []handlerData) (*httptest.Se
 }
 
 func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *httptest.Server) {
-	hs, ok := w.vault.(*hashicorpService)
-
-	if !ok {
-		t.Fatal("wallet's vault service is not a *hashicorpService")
-	}
-
 	//create default Hashicorp Vault client and update URL to use our test server
 	config := api.DefaultConfig()
 	config.Address = server.URL
@@ -155,7 +149,7 @@ func setHashicorpWalletClientForServer(t *testing.T, w *vaultWallet, server *htt
 		t.Fatalf("err creating client: %v", err)
 	}
 
-	hs.client = client
+	w.client = client
 }
 
 //

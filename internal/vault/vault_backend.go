@@ -33,7 +33,7 @@ func NewHashicorpBackend(walletConfigs []HashicorpWalletConfig) (*VaultBackend, 
 	backend := &VaultBackend{}
 
 	for _, conf := range walletConfigs {
-		w, err := newHashicorpWallet(conf, backend)
+		w, err := newHashicorpWallet(conf, backend, false)
 		if err != nil {
 			log.Error("unable to create Hashicorp wallet from config", "err", err)
 			continue

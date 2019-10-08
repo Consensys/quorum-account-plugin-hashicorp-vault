@@ -57,7 +57,7 @@ func (b *testHashicorpWalletBuilder) withAuthorizationID(authorizationID string)
 }
 
 func (b *testHashicorpWalletBuilder) build(t *testing.T) *vaultWallet {
-	w, err := newHashicorpWallet(b.config, b.backend)
+	w, err := newHashicorpWallet(b.config, b.backend, false)
 
 	if err != nil {
 		t.Fatal(err)
@@ -75,7 +75,7 @@ func addUnlockedAccts(t *testing.T, w *vaultWallet, accts []string) {
 		u[common.HexToAddress(a)] = &unlocked{}
 	}
 
-	w.vault.(*hashicorpService).unlocked = u
+	w.unlocked = u
 }
 
 func addLockedAccts(t *testing.T, w *vaultWallet, accts []string) {
@@ -91,8 +91,8 @@ func addAcct(t *testing.T, w *vaultWallet, acct string) {
 
 	addr := common.HexToAddress(acct)
 
-	w.vault.(*hashicorpService).cache.byAddr[addr] = []accounts.Account{}
-	w.vault.(*hashicorpService).cache.all = append(w.vault.(*hashicorpService).cache.all, accounts.Account{Address: addr})
+	w.cache.byAddr[addr] = []accounts.Account{}
+	w.cache.all = append(w.cache.all, accounts.Account{Address: addr})
 }
 
 func setupMockSealedVaultServer(w *vaultWallet) func() {
@@ -100,7 +100,7 @@ func setupMockSealedVaultServer(w *vaultWallet) func() {
 		w.WriteHeader(503)
 	}))
 
-	w.vault.(*hashicorpService).config.VaultUrl = vaultServer.URL
+	w.config.VaultUrl = vaultServer.URL
 
 	return vaultServer.Close
 }
@@ -123,7 +123,7 @@ func setupMockVaultServer(w *vaultWallet, mockResponse []byte) func() {
 		w.Write(mockResponse)
 	}))
 
-	w.vault.(*hashicorpService).config.VaultUrl = vaultServer.URL
+	w.config.VaultUrl = vaultServer.URL
 
 	return vaultServer.Close
 }
@@ -132,7 +132,7 @@ func setupMockVaultServer(w *vaultWallet, mockResponse []byte) func() {
 func setupMockVaultServer2(w *vaultWallet, handler http.HandlerFunc) func() {
 	vaultServer := httptest.NewServer(handler)
 
-	w.vault.(*hashicorpService).config.VaultUrl = vaultServer.URL
+	w.config.VaultUrl = vaultServer.URL
 
 	return vaultServer.Close
 }
@@ -163,7 +163,7 @@ func setEnvironmentVariables(toSet ...string) func() {
 
 // make an arbitrary read request using the Vault client setup in the vaultWallet
 func makeArbitraryRequestUsingVaultClient(t *testing.T, w *vaultWallet) {
-	_, err := w.vault.(*hashicorpService).client.Logical().Read("some/arbitrary/path")
+	_, err := w.client.Logical().Read("some/arbitrary/path")
 
 	if err != nil {
 		t.Fatal(err)
