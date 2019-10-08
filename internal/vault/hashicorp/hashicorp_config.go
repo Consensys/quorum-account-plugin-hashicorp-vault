@@ -1,7 +1,11 @@
-package vault
+package hashicorp
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
+	"io"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -146,4 +150,19 @@ func (c HashicorpAccountConfig) validate(skipAddrAndVersion bool) error {
 	}
 
 	return nil
+}
+
+func (c HashicorpAccountConfig) AsAccount(urlPath string) *accounts.Account {
+	return &accounts.Account{Address: common.HexToAddress(c.Address), URL: accounts.URL{Scheme: AcctScheme, Path: urlPath}}
+}
+
+type JsonAccountConfigUnmarshaller struct{}
+
+func (JsonAccountConfigUnmarshaller) Unmarshal(r io.Reader) (vault.ValidatableAccountGetterConfig, error) {
+	acctConfig := HashicorpAccountConfig{}
+	if err := json.NewDecoder(r).Decode(&acctConfig); err != nil {
+		return nil, err
+	}
+
+	return acctConfig, nil
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/testutils/mock_accounts"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/testutils/mock_vault"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
@@ -18,13 +18,13 @@ import (
 
 var (
 	wltUrl = accounts.URL{
-		Scheme: vault.WalletScheme,
+		Scheme: hashicorp.WalletScheme,
 		Path:   "FOO@localhost:8200",
 	}
 
 	acct1 = accounts.Account{
 		Address: common.HexToAddress("0x4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
-		URL:     accounts.URL{Scheme: vault.AcctScheme, Path: "path/to/file1.json"},
+		URL:     accounts.URL{Scheme: hashicorp.AcctScheme, Path: "path/to/file1.json"},
 	}
 	protoAcct1 = &proto.Account{
 		Address: acct1.Address.Bytes(),
@@ -33,7 +33,7 @@ var (
 
 	acct2 = accounts.Account{
 		Address: common.HexToAddress("0x2332f90a329c2c55ba120b1449d36a144d1f9fe4"),
-		URL:     accounts.URL{Scheme: vault.AcctScheme, Path: "path/to/file2.json"},
+		URL:     accounts.URL{Scheme: hashicorp.AcctScheme, Path: "path/to/file2.json"},
 	}
 	protoAcct2 = &proto.Account{
 		Address: acct2.Address.Bytes(),
@@ -49,7 +49,7 @@ func TestSigner_Status(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinderBackend: mockBackend,
+		WalletFinder: mockBackend,
 	}
 
 	mockBackend.
@@ -80,7 +80,7 @@ func TestSigner_Open(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinderBackend: mockBackend,
+		WalletFinder: mockBackend,
 	}
 
 	mockBackend.
@@ -114,7 +114,7 @@ func TestSigner_Close(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinderBackend: mockBackend,
+		WalletFinder: mockBackend,
 	}
 
 	mockBackend.
@@ -144,7 +144,7 @@ func TestSigner_Accounts(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinderBackend: mockBackend,
+		WalletFinder: mockBackend,
 	}
 
 	mockBackend.
@@ -177,7 +177,7 @@ func TestSigner_Contains(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinderBackend: mockBackend,
+		WalletFinder: mockBackend,
 	}
 
 	mockBackend.
@@ -210,7 +210,7 @@ func TestSigner_SignHash(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinderBackend: mockBackend,
+		WalletFinder: mockBackend,
 	}
 
 	mockBackend.
@@ -246,7 +246,7 @@ func TestSigner_SignTx(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinderBackend: mockBackend,
+		WalletFinder: mockBackend,
 	}
 
 	mockBackend.
@@ -310,7 +310,7 @@ func TestSigner_SignHashWithPassphrase(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinderBackend: mockBackend,
+		WalletFinder: mockBackend,
 	}
 
 	mockBackend.
@@ -348,7 +348,7 @@ func TestSigner_SignTxWithPassphrase(t *testing.T) {
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinderBackend: mockBackend,
+		WalletFinder: mockBackend,
 	}
 
 	mockBackend.

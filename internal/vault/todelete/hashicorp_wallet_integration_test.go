@@ -1,21 +1,23 @@
 // Long running Hashicorp Vault tests
 // +build integration
 
-package vault
+package todelete
 
 import (
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
 	"strings"
 	"testing"
 )
 
 func TestHashicorpWallet_Status_ClosedIfOpenFailsDueToVaultError(t *testing.T) {
-	defer setEnvironmentVariables(DefaultRoleIDEnv, DefaultSecretIDEnv)()
+	defer vault.setEnvironmentVariables(hashicorp.DefaultRoleIDEnv, hashicorp.DefaultSecretIDEnv)()
 
-	var builder testHashicorpWalletBuilder
+	var builder vault.testHashicorpWalletBuilder
 	builder.withBasicConfig()
 	w := builder.build(t)
 
-	defer setupMockSealedVaultServer(w)()
+	defer vault.setupMockSealedVaultServer(w)()
 
 	wantErr := w.Open("")
 
@@ -24,7 +26,7 @@ func TestHashicorpWallet_Status_ClosedIfOpenFailsDueToVaultError(t *testing.T) {
 	}
 
 	got, gotErr := w.Status()
-	want := closed
+	want := vault.closed
 
 	if want != got {
 		t.Fatalf("want: %v, got: %v", want, got)
@@ -41,13 +43,13 @@ func TestHashicorpWallet_Status_ClosedIfOpenFailsDueToVaultError(t *testing.T) {
 }
 
 func TestHashicorpWallet_Status_VaultHealthcheckError(t *testing.T) {
-	defer setEnvironmentVariables(DefaultTokenEnv)()
+	defer vault.setEnvironmentVariables(hashicorp.DefaultTokenEnv)()
 
-	var builder testHashicorpWalletBuilder
+	var builder vault.testHashicorpWalletBuilder
 	builder.withBasicConfig()
 	w := builder.build(t)
 
-	defer setupMockSealedVaultServerAndOpen(t, w)()
+	defer vault.setupMockSealedVaultServerAndOpen(t, w)()
 
 	got, err := w.Status()
 	want := ""
@@ -56,7 +58,7 @@ func TestHashicorpWallet_Status_VaultHealthcheckError(t *testing.T) {
 		t.Fatalf("want: %v, got: %v", want, got)
 	}
 
-	if _, ok := err.(hashicorpHealthcheckErr); !ok {
-		t.Fatalf("want: %T, got: %T", hashicorpHealthcheckErr{}, err)
+	if _, ok := err.(vault.hashicorpHealthcheckErr); !ok {
+		t.Fatalf("want: %T, got: %T", vault.hashicorpHealthcheckErr{}, err)
 	}
 }

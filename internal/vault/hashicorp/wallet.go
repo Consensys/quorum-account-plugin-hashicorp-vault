@@ -1,4 +1,4 @@
-package vault
+package hashicorp
 
 import (
 	"bytes"
@@ -11,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/cache"
 	"github.com/hashicorp/vault/api"
 	"io/ioutil"
 	"math/big"
@@ -39,14 +41,14 @@ type wallet struct {
 	backend *Backend
 	url     accounts.URL
 
-	config        HashicorpWalletConfig
-	mutex         sync.RWMutex
-	client        *api.Client
-	toUnlock      []common.Address
+	config HashicorpWalletConfig
+	mutex  sync.RWMutex
+	client *api.Client
+	//toUnlock      []common.Address
 	disableCache  bool
 	failedOpenErr error
 
-	cache    *accountCache
+	cache    *cache.AccountCache
 	changes  chan struct{}                // Channel receiving change notifications from the cache; TODO may not need
 	unlocked map[common.Address]*unlocked // Currently unlocked account (decrypted private keys)
 }
@@ -73,16 +75,17 @@ func newHashicorpWallet(config HashicorpWalletConfig, backend *Backend, disableC
 			if common.IsHexAddress(trimmed) {
 				toUnlock = append(toUnlock, common.HexToAddress(trimmed))
 			} else {
+				// TODO use standard log package
 				log.Debug("Failed to unlock account", "addr", trimmed, "err", "invalid hex-encoded ethereum address")
 			}
 		}
 	}
 
 	w := &wallet{
-		url:          wUrl,
-		backend:      backend,
-		config:       config,
-		toUnlock:     toUnlock,
+		url:     wUrl,
+		backend: backend,
+		config:  config,
+		//toUnlock:     toUnlock,
 		unlocked:     make(map[common.Address]*unlocked),
 		disableCache: disableCache,
 	}
@@ -92,13 +95,13 @@ func newHashicorpWallet(config HashicorpWalletConfig, backend *Backend, disableC
 	//	return nil
 	//}
 
-	w.cache, w.changes = newAccountCache(w.config.AccountConfigDir, w)
+	w.cache, w.changes = cache.NewAccountCache(w.config.AccountConfigDir, w, toUnlock, JsonAccountConfigUnmarshaller{})
 
 	// TODO: In order for this finalizer to work, there must be no references
 	// to ks. addressCache doesn't keep a reference but unlocked keys do,
 	// so the finalizer will not trigger until all timed unlocks have expired.
 	runtime.SetFinalizer(w, func(m *wallet) {
-		m.cache.close()
+		m.cache.Close()
 	})
 
 	w.reloadCache()
@@ -115,7 +118,7 @@ func (w *wallet) isClosed() bool {
 
 func (w *wallet) reloadCache() {
 	if !w.disableCache {
-		w.cache.maybeReload()
+		w.cache.MaybeReload()
 	}
 }
 
@@ -177,7 +180,7 @@ func (w *wallet) Status() (string, error) {
 // Expects RLock to be held.
 func (w *wallet) cacheStatus() string {
 	// no accounts so just return
-	if w.cache == nil || len(w.cache.all) == 0 {
+	if w.cache == nil || len(w.cache.All) == 0 {
 		return ""
 	}
 
@@ -196,7 +199,7 @@ func (w *wallet) cacheStatus() string {
 		unlockedStatus = fmt.Sprintf("Unlocked: %v", strings.Join(unlocked, ", "))
 	}
 
-	for addr, _ := range w.cache.byAddr {
+	for addr, _ := range w.cache.ByAddr {
 		if _, ok := w.unlocked[addr]; !ok {
 			locked = append(locked, hexutil.Encode(addr[:]))
 		}
@@ -349,13 +352,13 @@ func (w *wallet) Close() error {
 	w.client = nil
 
 	for _, k := range w.unlocked {
-		zeroKey(k.PrivateKey)
+		vault.ZeroKey(k.PrivateKey)
 	}
 	w.unlocked = nil
 	w.changes = nil
 
 	if w.cache != nil {
-		w.cache.close()
+		w.cache.Close()
 		w.cache = nil
 	}
 
@@ -369,7 +372,7 @@ func (w *wallet) Accounts() []accounts.Account {
 		return []accounts.Account{}
 	}
 
-	return w.cache.accounts()
+	return w.cache.Accounts()
 }
 
 // Contains implements accounts.Wallet, returning whether a particular account is
@@ -506,9 +509,9 @@ func (w *wallet) getKey(acct accounts.Account, allowUnlock bool) (*ecdsa.Private
 
 	w.reloadCache()
 
-	w.cache.mu.Lock()
-	a, err := w.cache.find(acct)
-	w.cache.mu.Unlock()
+	w.cache.Mu.Lock()
+	a, err := w.cache.Find(acct)
+	w.cache.Mu.Unlock()
 
 	if err != nil {
 		return nil, func() {}, err
@@ -680,7 +683,7 @@ func (w *wallet) expire(addr common.Address, u *unlocked, timeout time.Duration)
 		// because the map stores a new pointer every time the key is
 		// unlocked.
 		if w.unlocked[addr] == u {
-			zeroKey(u.PrivateKey)
+			vault.ZeroKey(u.PrivateKey)
 			delete(w.unlocked, addr)
 		}
 		w.mutex.Unlock()
@@ -714,7 +717,7 @@ func (w *wallet) NewAccount(config interface{}) (common.Address, error) {
 		return common.Address{}, err
 	}
 	// zero the key as new accounts should be locked by default
-	defer zeroKey(key)
+	defer vault.ZeroKey(key)
 
 	return w.add(key, config)
 }
@@ -725,13 +728,13 @@ func (w *wallet) Import(key *ecdsa.PrivateKey, config interface{}) (common.Addre
 		return common.Address{}, err
 	}
 	// zero the key as new accounts should be locked by default
-	defer zeroKey(key)
+	defer vault.ZeroKey(key)
 
 	return w.add(key, config)
 }
 
 func (w *wallet) add(key *ecdsa.PrivateKey, config interface{}) (common.Address, error) {
-	if w.cache.hasAddress(crypto.PubkeyToAddress(key.PublicKey)) {
+	if w.cache.HasAddress(crypto.PubkeyToAddress(key.PublicKey)) {
 		return common.Address{}, fmt.Errorf("account already exists")
 	}
 
@@ -753,7 +756,7 @@ func (w *wallet) add(key *ecdsa.PrivateKey, config interface{}) (common.Address,
 
 	// Add the account to the cache immediately rather
 	// than waiting for file system notifications to pick it up.
-	w.cache.add(acct)
+	w.cache.Add(acct)
 
 	return acct.Address, nil
 }
@@ -770,21 +773,6 @@ func (w *wallet) add(key *ecdsa.PrivateKey, config interface{}) (common.Address,
 //
 //	return addr, storedUrls, nil
 //}
-
-// accountsByURL implements the sort interface to enable the sorting of a slice of accounts alphanumerically by their urls
-type accountsByURL []accounts.Account
-
-func (s accountsByURL) Len() int           { return len(s) }
-func (s accountsByURL) Less(i, j int) bool { return s[i].URL.Cmp(s[j].URL) < 0 }
-func (s accountsByURL) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-
-// zeroKey zeroes a private key in memory
-func zeroKey(k *ecdsa.PrivateKey) {
-	b := k.D.Bits()
-	for i := range b {
-		b[i] = 0
-	}
-}
 
 // CreateAccountInHashicorpVault generates a secp256k1 key and corresponding Geth address and stores both in the Vault defined in the provided config.  The key and address are stored in hex string format.
 //
@@ -810,13 +798,13 @@ func CreateHashicorpVaultAccount(walletConfig HashicorpWalletConfig, acctConfig 
 	if err != nil {
 		return accounts.Account{}, "", err
 	}
-	defer zeroKey(key)
+	defer vault.ZeroKey(key)
 
 	return writeToHashicorpVaultAndFile(w, key, acctConfig)
 }
 
 func ImportAsHashicorpVaultAccount(key *ecdsa.PrivateKey, walletConfig HashicorpWalletConfig, acctConfig HashicorpAccountConfig) (accounts.Account, string, error) {
-	defer zeroKey(key)
+	defer vault.ZeroKey(key)
 
 	w, err := newHashicorpWallet(walletConfig, &Backend{}, true)
 	if err != nil {

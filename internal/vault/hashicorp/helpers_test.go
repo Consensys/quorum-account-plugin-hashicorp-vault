@@ -1,4 +1,4 @@
-package vault
+package hashicorp
 
 import (
 	"github.com/ethereum/go-ethereum/accounts"
@@ -91,8 +91,8 @@ func addAcct(t *testing.T, w *wallet, acct string) {
 
 	addr := common.HexToAddress(acct)
 
-	w.cache.byAddr[addr] = []accounts.Account{}
-	w.cache.all = append(w.cache.all, accounts.Account{Address: addr})
+	w.cache.ByAddr[addr] = []accounts.Account{}
+	w.cache.All = append(w.cache.All, accounts.Account{Address: addr})
 }
 
 func setupMockSealedVaultServer(w *wallet) func() {

@@ -1,4 +1,4 @@
-package vault
+package hashicorp
 
 import (
 	"errors"
@@ -12,6 +12,10 @@ import (
 
 type WalletFinderBackend interface {
 	accounts.Backend
+	WalletFinder
+}
+
+type WalletFinder interface {
 	FindWalletByUrl(url string) (accounts.Wallet, error)
 }
 

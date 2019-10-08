@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
 	"math/big"
 	"strings"
 
@@ -11,22 +13,21 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type signer struct {
-	vault.WalletFinderBackend
+	hashicorp.WalletFinder
 }
 
-func (s *signer) init(config vault.HashicorpAccountStoreConfig) error {
-	b, err := vault.NewHashicorpBackend(config.Wallets)
+func (s *signer) init(config hashicorp.HashicorpAccountStoreConfig) error {
+	b, err := hashicorp.NewHashicorpBackend(config.Wallets)
 	if err != nil {
 		return err
 	}
 
-	s.WalletFinderBackend = b
+	s.WalletFinder = b
 	return nil
 }
 

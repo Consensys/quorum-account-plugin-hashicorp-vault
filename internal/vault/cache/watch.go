@@ -16,7 +16,7 @@
 
 // +build darwin,!ios freebsd linux,!arm64 netbsd solaris
 
-package vault
+package cache
 
 import (
 	"time"
@@ -26,14 +26,14 @@ import (
 )
 
 type watcher struct {
-	ac       *accountCache
+	ac       *AccountCache
 	starting bool
 	running  bool
 	ev       chan notify.EventInfo
 	quit     chan struct{}
 }
 
-func newWatcher(ac *accountCache) *watcher {
+func newWatcher(ac *AccountCache) *watcher {
 	return &watcher{
 		ac:   ac,
 		ev:   make(chan notify.EventInfo, 10),
@@ -58,10 +58,10 @@ func (w *watcher) close() {
 
 func (w *watcher) loop() {
 	defer func() {
-		w.ac.mu.Lock()
+		w.ac.Mu.Lock()
 		w.running = false
 		w.starting = false
-		w.ac.mu.Unlock()
+		w.ac.Mu.Unlock()
 	}()
 	logger := log.New("path", w.ac.keydir)
 
@@ -73,9 +73,9 @@ func (w *watcher) loop() {
 	logger.Trace("Started watching keystore folder")
 	defer logger.Trace("Stopped watching keystore folder")
 
-	w.ac.mu.Lock()
+	w.ac.Mu.Lock()
 	w.running = true
-	w.ac.mu.Unlock()
+	w.ac.Mu.Unlock()
 
 	// Wait for file system events and reload.
 	// When an event occurs, the reload call is delayed a bit so that

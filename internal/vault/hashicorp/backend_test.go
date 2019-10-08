@@ -1,4 +1,4 @@
-package vault
+package hashicorp
 
 //func TestNewHashicorpBackend_CreatesWalletsWithUrlsFromConfig(t *testing.T) {
 //	makeConfs := func(url string, urls ...string) []HashicorpWalletConfig {

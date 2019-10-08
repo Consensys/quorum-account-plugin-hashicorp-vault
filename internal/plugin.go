@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
 	"log"
 	"time"
 
 	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
 	sproto "github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -40,13 +40,13 @@ func (p *SignerPluginImpl) Init(ctx context.Context, req *iproto.PluginInitializ
 	return &iproto.PluginInitialization_Response{}, nil
 }
 
-func NewSignerConfiguration(rawJSON []byte) (vault.HashicorpAccountStoreConfig, error) {
-	var conf vault.HashicorpAccountStoreConfig
+func NewSignerConfiguration(rawJSON []byte) (hashicorp.HashicorpAccountStoreConfig, error) {
+	var conf hashicorp.HashicorpAccountStoreConfig
 	if err := json.Unmarshal(rawJSON, &conf); err != nil {
-		return vault.HashicorpAccountStoreConfig{}, fmt.Errorf("can't parse configuration")
+		return hashicorp.HashicorpAccountStoreConfig{}, fmt.Errorf("can't parse configuration")
 	}
 	if err := conf.Validate(); err != nil {
-		return vault.HashicorpAccountStoreConfig{}, fmt.Errorf("invalid configuration: %s", err)
+		return hashicorp.HashicorpAccountStoreConfig{}, fmt.Errorf("invalid configuration: %s", err)
 	}
 	//conf.SetDefaults()
 	return conf, nil
