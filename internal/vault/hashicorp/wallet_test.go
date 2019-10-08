@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/sdk/helper/consts"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"regexp"
 	"strings"
@@ -60,13 +61,20 @@ func TestHashicorpWallet_Status_VaultAndAcctStatus(t *testing.T) {
 	)
 
 	tests := []struct {
-		name           string
-		healthResponse api.HealthResponse
-		lockedAccts    []string
-		unlockedAccts  []string
-		want           string
-		wantErr        error
+		name                string
+		healthResponse      api.HealthResponse
+		doBadHealthResponse bool
+		lockedAccts         []string
+		unlockedAccts       []string
+		want                string
+		wantErr             error
 	}{
+		{
+			name:                "healthcheck error",
+			doBadHealthResponse: true,
+			want:                "",
+			wantErr:             fmt.Errorf("%v", hashicorpHealthcheckFailed),
+		},
 		{
 			name:           "uninitialised no accts",
 			healthResponse: api.HealthResponse{Initialized: false},
@@ -165,15 +173,22 @@ func TestHashicorpWallet_Status_VaultAndAcctStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b, err := json.Marshal(tt.healthResponse)
-			if err != nil {
-				t.Fatalf("err marshalling mock response: %v", err)
-			}
-
 			var builder testHashicorpWalletBuilder
 			builder.withBasicConfig()
 			w := builder.build(t)
-			cleanup := setupMockVaultServerAndOpen(t, w, b)
+
+			var cleanup func()
+
+			if tt.doBadHealthResponse {
+				cleanup = setupMock404VaultServerAndOpen(t, w)
+			} else {
+				b, err := json.Marshal(tt.healthResponse)
+				if err != nil {
+					t.Fatalf("err marshalling mock response: %v", err)
+				}
+
+				cleanup = setupMockVaultServerAndOpen(t, w, b)
+			}
 
 			addUnlockedAccts(t, w, tt.unlockedAccts)
 			addLockedAccts(t, w, tt.lockedAccts)
@@ -192,8 +207,12 @@ func TestHashicorpWallet_Status_VaultAndAcctStatus(t *testing.T) {
 				t.Fatalf("\nwant: %v\n got: %v", tt.want, got)
 			}
 
-			if tt.wantErr != err {
-				t.Fatalf("want: %v, got: %v", tt.wantErr, err)
+			if tt.doBadHealthResponse {
+				// in this case the Vault client library returns its own error - we ignore their error to prevent coupling the test to their implementation
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr.Error())
+			} else {
+				assert.Equal(t, tt.wantErr, err)
 			}
 
 		})

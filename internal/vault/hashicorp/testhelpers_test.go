@@ -58,7 +58,6 @@ func (b *testHashicorpWalletBuilder) withAuthorizationID(authorizationID string)
 
 func (b *testHashicorpWalletBuilder) build(t *testing.T) *wallet {
 	w, err := NewHashicorpWallet(b.config, b.backend, false)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,6 +127,17 @@ func setupMockVaultServer(w *wallet, mockResponse []byte) func() {
 	return vaultServer.Close
 }
 
+func setupMock404VaultServer(w *wallet) func() {
+	vaultServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+		//w.Write(mockResponse)
+	}))
+
+	w.config.VaultUrl = vaultServer.URL
+
+	return vaultServer.Close
+}
+
 // create a new mock server which uses handler for all calls, updating w's config to use the mock server when opened.  Caller should call returned function when finished to shut down the mock server.
 func setupMockVaultServer2(w *wallet, handler http.HandlerFunc) func() {
 	vaultServer := httptest.NewServer(handler)
@@ -139,6 +149,17 @@ func setupMockVaultServer2(w *wallet, handler http.HandlerFunc) func() {
 
 func setupMockVaultServerAndOpen(t *testing.T, w *wallet, mockResponse []byte) func() {
 	cleanup := setupMockVaultServer(w, mockResponse)
+
+	if err := w.Open(""); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+
+	return cleanup
+}
+
+func setupMock404VaultServerAndOpen(t *testing.T, w *wallet) func() {
+	cleanup := setupMock404VaultServer(w)
 
 	if err := w.Open(""); err != nil {
 		cleanup()
