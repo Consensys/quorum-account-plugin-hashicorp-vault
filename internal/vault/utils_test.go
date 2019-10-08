@@ -1,20 +1,22 @@
-package hashicorp
+package vault
 
 import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"testing"
 )
 
+const walletScheme = "wlt"
+
 func TestMakeWalletUrl_ReplacesSchemeAndAddsAuthorizationInformation(t *testing.T) {
+	userInfo := "foo"
 	strUrl := "http://url:1"
-	authId := "foo"
 
 	want := accounts.URL{
-		Scheme: WalletScheme,
+		Scheme: walletScheme,
 		Path:   "foo@url:1",
 	}
 
-	got, err := MakeWalletUrl(strUrl, authId)
+	got, err := MakeWalletUrl(walletScheme, userInfo, strUrl)
 
 	if err != nil {
 		t.Fatal(err)
@@ -26,10 +28,10 @@ func TestMakeWalletUrl_ReplacesSchemeAndAddsAuthorizationInformation(t *testing.
 }
 
 func TestMakeWalletUrl_ErrorIfInvalidUrl(t *testing.T) {
+	userInfo := "authid"
 	noSchemeUrl := "url:1"
-	authId := "authid"
 
-	_, err := MakeWalletUrl(noSchemeUrl, authId)
+	_, err := MakeWalletUrl(walletScheme, userInfo, noSchemeUrl)
 
 	if err == nil {
 		t.Fatal("error expected")

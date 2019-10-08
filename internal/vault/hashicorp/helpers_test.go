@@ -57,7 +57,7 @@ func (b *testHashicorpWalletBuilder) withAuthorizationID(authorizationID string)
 }
 
 func (b *testHashicorpWalletBuilder) build(t *testing.T) *wallet {
-	w, err := newHashicorpWallet(b.config, b.backend, false)
+	w, err := NewHashicorpWallet(b.config, b.backend, false)
 
 	if err != nil {
 		t.Fatal(err)

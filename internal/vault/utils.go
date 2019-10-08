@@ -11,6 +11,22 @@ type Unlocker interface {
 	TimedUnlock(account accounts.Account, timeout time.Duration) error
 }
 
+// MakeWalletUrl converts strUrl to an accounts.URL, replacing the scheme and adding an optional userinfo.  For example, the result for the strUrl http://localhost:8000 will be of the form scheme://userInfo@localhost:8000.
+func MakeWalletUrl(scheme, userInfo, strUrl string) (accounts.URL, error) {
+	url, err := ToUrl(strUrl)
+	if err != nil {
+		return accounts.URL{}, err
+	}
+
+	wltPath := url.Path
+
+	if userInfo != "" {
+		wltPath = fmt.Sprintf("%v@%v", userInfo, wltPath)
+	}
+
+	return accounts.URL{Scheme: scheme, Path: wltPath}, nil
+}
+
 func ToUrl(strUrl string) (accounts.URL, error) {
 	if strUrl == "" {
 		return accounts.URL{}, nil
