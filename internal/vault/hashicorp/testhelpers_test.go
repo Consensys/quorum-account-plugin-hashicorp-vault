@@ -1,9 +1,14 @@
 package hashicorp
 
 import (
+	"crypto/ecdsa"
+	"crypto/tls"
+	"crypto/x509"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,21 +20,37 @@ type acct struct {
 }
 
 var (
-	acct1 = acct{
+	acct1Data = acct{
 		addr: "0x4d6d744b6da435b5bbdde2526dc20e9a41cb72e5",
-		key:  "0xa0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec",
+		key:  "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec",
 	}
-	acct2 = acct{
+	acct2Data = acct{
 		addr: "0x2332f90a329c2c55ba120b1449d36a144d1f9fe4",
 		key:  "0xf979964ba371b55ad7ae4502d21a617c3434224291a84559e73ef69fd0629dbc",
 	}
-	acct3 = acct{
+	acct3Data = acct{
 		addr: "0x992d7a8fca612c963796ecbfe78b300370b9545a",
 		key:  "0xeaa0bddeae4ec6aca7a77da41e898a82133adc6e0ac6816c32433d0f739005e7",
 	}
-	acct4 = acct{
+	acct4Data = acct{
 		addr: "0x39ac8f3ae3681b4422fdf808ae18ba4365e37da8",
 		key:  "0x8bd76e8a5a3945ac6f482f842bc43cf0a51b13bdf378ea8f1d46ee906ccd1cde",
+	}
+	acct1 = accounts.Account{
+		Address: common.HexToAddress(acct1Data.addr),
+		URL:     accounts.URL{Scheme: AcctScheme, Path: "testdata/acctconfig/acct1.json"},
+	}
+	acct2 = accounts.Account{
+		Address: common.HexToAddress(acct2Data.addr),
+		URL:     accounts.URL{Scheme: AcctScheme, Path: "testdata/acctconfig/acct2.json"},
+	}
+	acct3 = accounts.Account{
+		Address: common.HexToAddress(acct3Data.addr),
+		URL:     accounts.URL{Scheme: AcctScheme, Path: "testdata/acctconfig/acct3.json"},
+	}
+	acct4 = accounts.Account{
+		Address: common.HexToAddress(acct4Data.addr),
+		URL:     accounts.URL{Scheme: AcctScheme, Path: "testdata/acctconfig/acct4.json"},
 	}
 )
 
@@ -53,8 +74,22 @@ func (b *testHashicorpWalletBuilder) withBasicConfig() {
 	b.backend = &Backend{}
 }
 
+func (b *testHashicorpWalletBuilder) withApprolePath(approlePath string) {
+	b.config.ApprolePath = approlePath
+}
+
 func (b *testHashicorpWalletBuilder) withAuthorizationID(authorizationID string) {
 	b.config.AuthorizationID = authorizationID
+}
+
+func (b *testHashicorpWalletBuilder) withMutualTLSConfig(caCert, clientCert, clientKey string) {
+	b.config.CaCert = caCert
+	b.config.ClientCert = clientCert
+	b.config.ClientKey = clientKey
+}
+
+func (b *testHashicorpWalletBuilder) withAccountConfigDir(accountConfigDir string) {
+	b.config.AccountConfigDir = accountConfigDir
 }
 
 func (b *testHashicorpWalletBuilder) build(t *testing.T) *wallet {
@@ -64,36 +99,43 @@ func (b *testHashicorpWalletBuilder) build(t *testing.T) *wallet {
 	return w
 }
 
-func addUnlockedAccts(t *testing.T, w *wallet, accts []string) {
-	addLockedAccts(t, w, accts)
+type acctAndKey struct {
+	acct accounts.Account
+	key  *ecdsa.PrivateKey
+}
 
+func addUnlockedAccts(t *testing.T, w *wallet, acctAndKeys ...acctAndKey) {
 	u := make(map[common.Address]*unlocked)
 
-	for _, a := range accts {
-		u[common.HexToAddress(a)] = &unlocked{}
+	for _, a := range acctAndKeys {
+		addAcct(t, w, a.acct)
+		u[a.acct.Address] = &unlocked{Key: &keystore.Key{
+			Address:    a.acct.Address,
+			PrivateKey: a.key,
+		}}
 	}
 
 	w.unlocked = u
 }
 
-func addLockedAccts(t *testing.T, w *wallet, accts []string) {
+func addLockedAccts(t *testing.T, w *wallet, accts ...accounts.Account) {
 	for _, a := range accts {
 		addAcct(t, w, a)
 	}
 }
 
-func addAcct(t *testing.T, w *wallet, acct string) {
-	require.True(t, common.IsHexAddress(acct), "invalid hex address")
-
-	addr := common.HexToAddress(acct)
-
-	w.cache.ByAddr[addr] = []accounts.Account{}
-	w.cache.All = append(w.cache.All, accounts.Account{Address: addr})
+func addAcct(t *testing.T, w *wallet, acct accounts.Account) {
+	w.cache.ByAddr[acct.Address] = append(w.cache.ByAddr[acct.Address], acct)
+	w.cache.All = append(w.cache.All, acct)
 }
 
-func setupMockSealedVaultServer(w *wallet) func() {
+const (
+	vaultNotFoundStatusCode int = 404
+)
+
+func setupMockErrorCodeVaultServerAndRegisterWithWallet(w *wallet, statusCode int) func() {
 	vaultServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(503)
+		w.WriteHeader(statusCode)
 	}))
 
 	w.config.VaultUrl = vaultServer.URL
@@ -101,8 +143,8 @@ func setupMockSealedVaultServer(w *wallet) func() {
 	return vaultServer.Close
 }
 
-func setupMockSealedVaultServerAndOpen(t *testing.T, w *wallet) func() {
-	cleanup := setupMockSealedVaultServer(w)
+func setupMockErrorCodeVaultServerAndRegisterWithWalletAndOpen(t *testing.T, w *wallet, statusCode int) func() {
+	cleanup := setupMockErrorCodeVaultServerAndRegisterWithWallet(w, statusCode)
 
 	if err := w.Open(""); err != nil {
 		cleanup()
@@ -112,59 +154,121 @@ func setupMockSealedVaultServerAndOpen(t *testing.T, w *wallet) func() {
 	return cleanup
 }
 
-// create a new mock server which returns mockResponse for all calls, updating w's config to use the mock server when opened.  Caller should call returned function when finished to shut down the mock server.
-// TODO make createSimpleHandler so that uses of this can be replaced with setupMockVaultServer2
-func setupMockVaultServer(w *wallet, mockResponse []byte) func() {
-	vaultServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write(mockResponse)
-	}))
+func createSimpleHandler(response []byte) pathHandler {
+	return pathHandler{
+		handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write(response)
+		}),
+	}
+}
+
+type pathHandler struct {
+	path    string
+	handler http.HandlerFunc
+}
+
+func newPathHandler(path string, handler http.HandlerFunc) pathHandler {
+	return pathHandler{
+		path:    path,
+		handler: handler,
+	}
+}
+
+func setupMockVaultServerAndRegisterWithWalletAndOpen(t *testing.T, w *wallet, handlers ...pathHandler) func() {
+	cleanup := setupMockVaultServerAndRegisterWithWallet(t, w, handlers...)
+
+	if err := w.Open(""); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+
+	return cleanup
+}
+
+// create a new mock server which uses handler for all calls, updating w's config to use the mock server when opened.  Caller should call returned function when finished to shut down the mock server.
+func setupMockVaultServerAndRegisterWithWallet(t *testing.T, w *wallet, handlers ...pathHandler) func() {
+	vaultServer := setupMockVaultServer(t, handlers...)
 
 	w.config.VaultUrl = vaultServer.URL
-
 	return vaultServer.Close
 }
 
-func setupMock404VaultServer(w *wallet) func() {
-	vaultServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(404)
-		//w.Write(mockResponse)
-	}))
+func setupMockTLSVaultServerAndRegisterWithWallet(t *testing.T, w *wallet, handlers ...pathHandler) func() {
+	vaultServer := setupMockTLSVaultServer(t, handlers...)
 
 	w.config.VaultUrl = vaultServer.URL
-
 	return vaultServer.Close
 }
 
 // create a new mock server which uses handler for all calls, updating w's config to use the mock server when opened.  Caller should call returned function when finished to shut down the mock server.
-func setupMockVaultServer2(w *wallet, handler http.HandlerFunc) func() {
-	vaultServer := httptest.NewServer(handler)
+func setupMockVaultServer(t *testing.T, handlers ...pathHandler) *httptest.Server {
+	var vaultServer *httptest.Server
 
-	w.config.VaultUrl = vaultServer.URL
-
-	return vaultServer.Close
-}
-
-func setupMockVaultServerAndOpen(t *testing.T, w *wallet, mockResponse []byte) func() {
-	cleanup := setupMockVaultServer(w, mockResponse)
-
-	if err := w.Open(""); err != nil {
-		cleanup()
-		t.Fatal(err)
+	require.NotZero(t, len(handlers))
+	if len(handlers) == 1 {
+		vaultServer = httptest.NewServer(handlers[0].handler)
+	} else {
+		mux := http.NewServeMux()
+		for i := range handlers {
+			mux.HandleFunc(handlers[i].path, handlers[i].handler)
+		}
+		vaultServer = httptest.NewServer(mux)
 	}
 
-	return cleanup
+	return vaultServer
 }
 
-func setupMock404VaultServerAndOpen(t *testing.T, w *wallet) func() {
-	cleanup := setupMock404VaultServer(w)
+func setupMockTLSVaultServer(t *testing.T, handlers ...pathHandler) *httptest.Server {
+	testrequire := require.New(t)
 
-	if err := w.Open(""); err != nil {
-		cleanup()
-		t.Fatal(err)
+	var vaultServer *httptest.Server
+
+	testrequire.NotZero(len(handlers))
+	if len(handlers) == 1 {
+		vaultServer = httptest.NewUnstartedServer(handlers[0].handler)
+	} else {
+		mux := http.NewServeMux()
+		for i := range handlers {
+			mux.HandleFunc(handlers[i].path, handlers[i].handler)
+		}
+		vaultServer = httptest.NewUnstartedServer(mux)
 	}
 
-	return cleanup
+	// read TLS certs
+	rootCert, err := ioutil.ReadFile(caCert)
+	testrequire.NoError(err)
+	certPool := x509.NewCertPool()
+	certPool.AppendCertsFromPEM(rootCert)
+
+	cert, err := ioutil.ReadFile(serverCert)
+	testrequire.NoError(err)
+
+	key, err := ioutil.ReadFile(serverKey)
+	testrequire.NoError(err)
+
+	keypair, err := tls.X509KeyPair(cert, key)
+	testrequire.NoError(err)
+
+	serverTlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{keypair},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    certPool,
+	}
+
+	// add TLS config to server and start
+	vaultServer.TLS = serverTlsConfig
+	vaultServer.StartTLS()
+
+	return vaultServer
 }
+
+const (
+	caCert     = "testdata/caRoot.pem"
+	clientCert = "testdata/quorum-client-chain.pem"
+	clientKey  = "testdata/quorum-client.key"
+	serverCert = "testdata/localhost-with-san-chain.pem"
+	serverKey  = "testdata/localhost-with-san.key"
+)
 
 // set the given environment variables with their own names.  Caller should call returned function when finished to unset the env variables
 func setEnvironmentVariables(toSet ...string) func() {
@@ -179,8 +283,10 @@ func setEnvironmentVariables(toSet ...string) func() {
 	}
 }
 
+const arbitraryPath = "some/arbitrary/path"
+
 // make an arbitrary read request using the Vault client setup in the wallet
 func makeArbitraryRequestUsingVaultClient(t *testing.T, w *wallet) {
-	_, err := w.client.Logical().Read("some/arbitrary/path")
+	_, err := w.client.Logical().Read(arbitraryPath)
 	require.NoError(t, err)
 }

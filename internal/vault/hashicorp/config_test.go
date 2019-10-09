@@ -31,7 +31,7 @@ func minimumValidHashicorpAccountConfig() HashicorpAccountConfig {
 		SecretPath:       "secretpath",
 		SecretVersion:    1,
 		SecretEnginePath: "secretenginepath",
-		Address:          acct1.addr,
+		Address:          acct1Data.addr,
 	}
 }
 

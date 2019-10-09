@@ -41,6 +41,7 @@ type wallet struct {
 }
 
 type unlocked struct {
+	// TODO consider not using keystore type, same as with keystore.ErrLocked
 	*keystore.Key
 	abort chan struct{}
 }
@@ -145,18 +146,8 @@ func (w *wallet) Close() error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
+	w.client.ClearToken()
 	w.client = nil
-
-	for _, k := range w.unlocked {
-		vault.ZeroKey(k.PrivateKey)
-	}
-	w.unlocked = nil
-	w.changes = nil
-
-	if w.cache != nil {
-		w.cache.Close()
-		w.cache = nil
-	}
 
 	return nil
 }

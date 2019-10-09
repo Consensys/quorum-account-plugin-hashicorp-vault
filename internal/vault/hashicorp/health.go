@@ -31,6 +31,12 @@ func (e hashicorpHealthcheckErr) Error() string {
 // Status implements accounts.Wallet, returning a custom status message from the
 // underlying vendor-specific vault service implementation.
 func (w *wallet) status() (string, error) {
+	if w.isClosed() {
+		return closed, w.failedOpenErr
+	}
+
+	w.reloadCache()
+
 	w.mutex.RLock()
 	defer w.mutex.RUnlock()
 

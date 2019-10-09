@@ -93,6 +93,10 @@ func (w *wallet) setupClient() error {
 		}
 
 		t, err := resp.TokenID()
+		if err != nil {
+			w.failedOpenErr = err
+			return err
+		}
 
 		c.SetToken(t)
 	} else {
