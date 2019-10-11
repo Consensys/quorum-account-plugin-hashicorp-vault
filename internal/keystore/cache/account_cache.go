@@ -18,9 +18,9 @@ package cache
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
-	//"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/keystore"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 	"os"
 	"path/filepath"
 	"sort"
@@ -73,14 +73,21 @@ type AccountCache struct {
 	throttle *time.Timer
 	notify   chan struct{}
 	fileC    fileCache
+
+	accountConfigUnmarshaller vault.AccountConfigUnmarshaller
+	unlocker                  vault.Unlocker
+	toUnlock                  []common.Address
 }
 
-func NewAccountCache(keydir string) (*AccountCache, chan struct{}) {
+func NewAccountCache(keydir string, unlocker vault.Unlocker, toUnlock []common.Address, unmarshaller vault.AccountConfigUnmarshaller) (*AccountCache, chan struct{}) {
 	ac := &AccountCache{
-		keydir: keydir,
-		byAddr: make(map[common.Address][]accounts.Account),
-		notify: make(chan struct{}, 1),
-		fileC:  fileCache{all: mapset.NewThreadUnsafeSet()},
+		keydir:                    keydir,
+		byAddr:                    make(map[common.Address][]accounts.Account),
+		notify:                    make(chan struct{}, 1),
+		fileC:                     fileCache{all: mapset.NewThreadUnsafeSet()},
+		unlocker:                  unlocker,
+		toUnlock:                  toUnlock,
+		accountConfigUnmarshaller: unmarshaller,
 	}
 	ac.watcher = newWatcher(ac)
 	return ac, ac.notify
@@ -243,10 +250,8 @@ func (ac *AccountCache) scanAccounts() error {
 	}
 	// Create a helper method to scan the contents of the key files
 	var (
-		buf = new(bufio.Reader)
-		key struct {
-			Address string `json:"address"`
-		}
+		buf        = new(bufio.Reader)
+		acctConfig vault.ValidatableAccountGetterConfig
 	)
 	readAccount := func(path string) *accounts.Account {
 		fd, err := os.Open(path)
@@ -257,18 +262,18 @@ func (ac *AccountCache) scanAccounts() error {
 		defer fd.Close()
 		buf.Reset(fd)
 		// Parse the address.
-		key.Address = ""
-		err = json.NewDecoder(buf).Decode(&key)
-		addr := common.HexToAddress(key.Address)
-		switch {
-		case err != nil:
+		acctConfig, err = ac.accountConfigUnmarshaller.Unmarshal(buf)
+		if err != nil {
 			log.Debug("Failed to decode keystore key", "path", path, "err", err)
-		case (addr == common.Address{}):
-			log.Debug("Failed to decode keystore key", "path", path, "err", "missing or zero address")
-		default:
-			return &accounts.Account{Address: addr, URL: accounts.URL{Scheme: keystore.KeyStoreScheme, Path: path}}
+			return nil
 		}
-		return nil
+
+		if err := acctConfig.Validate(); err != nil {
+			log.Debug("Invalid secret config", "path", path, "err", err)
+			return nil
+		}
+
+		return acctConfig.AsAccount(path)
 	}
 	// Process all the file diffs
 	start := time.Now()
@@ -276,6 +281,10 @@ func (ac *AccountCache) scanAccounts() error {
 	for _, p := range creates.ToSlice() {
 		if a := readAccount(p.(string)); a != nil {
 			ac.Add(*a)
+
+			if err := ac.unlockIfConfigured(*a); err != nil {
+				log.Debug("Failed to unlock account", "path", p.(string), "err", err)
+			}
 		}
 	}
 	for _, p := range deletes.ToSlice() {
@@ -286,6 +295,10 @@ func (ac *AccountCache) scanAccounts() error {
 		ac.deleteByFile(path)
 		if a := readAccount(path); a != nil {
 			ac.Add(*a)
+
+			if err := ac.unlockIfConfigured(*a); err != nil {
+				log.Debug("Failed to unlock account", "path", p.(string), "err", err)
+			}
 		}
 	}
 	end := time.Now()
@@ -295,5 +308,16 @@ func (ac *AccountCache) scanAccounts() error {
 	default:
 	}
 	log.Trace("Handled keystore changes", "time", end.Sub(start))
+	return nil
+}
+
+func (ac *AccountCache) unlockIfConfigured(acct accounts.Account) error {
+	for _, toUnlock := range ac.toUnlock {
+		if acct.Address == toUnlock {
+			if err := ac.unlocker.TimedUnlock(acct, 0); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
