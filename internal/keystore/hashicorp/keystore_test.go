@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package keystore
+package hashicorp
 
 import (
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -34,7 +35,7 @@ import (
 var testSigData = make([]byte, 32)
 
 func TestKeyStore(t *testing.T) {
-	dir, ks := tmpKeyStore(t, true)
+	dir, ks := TmpKeyStore(t, true)
 	defer os.RemoveAll(dir)
 
 	a, err := ks.NewAccount("foo")
@@ -69,7 +70,7 @@ func TestKeyStore(t *testing.T) {
 }
 
 func TestSign(t *testing.T) {
-	dir, ks := tmpKeyStore(t, true)
+	dir, ks := TmpKeyStore(t, true)
 	defer os.RemoveAll(dir)
 
 	pass := "" // not used but required by API
@@ -86,7 +87,7 @@ func TestSign(t *testing.T) {
 }
 
 func TestSignWithPassphrase(t *testing.T) {
-	dir, ks := tmpKeyStore(t, true)
+	dir, ks := TmpKeyStore(t, true)
 	defer os.RemoveAll(dir)
 
 	pass := "passwd"
@@ -114,7 +115,7 @@ func TestSignWithPassphrase(t *testing.T) {
 }
 
 func TestTimedUnlock(t *testing.T) {
-	dir, ks := tmpKeyStore(t, true)
+	dir, ks := TmpKeyStore(t, true)
 	defer os.RemoveAll(dir)
 
 	pass := "foo"
@@ -149,7 +150,7 @@ func TestTimedUnlock(t *testing.T) {
 }
 
 func TestOverrideUnlock(t *testing.T) {
-	dir, ks := tmpKeyStore(t, false)
+	dir, ks := TmpKeyStore(t, false)
 	defer os.RemoveAll(dir)
 
 	pass := "foo"
@@ -190,7 +191,7 @@ func TestOverrideUnlock(t *testing.T) {
 
 // This test should fail under -race if signing races the expiration goroutine.
 func TestSignRace(t *testing.T) {
-	dir, ks := tmpKeyStore(t, false)
+	dir, ks := TmpKeyStore(t, false)
 	defer os.RemoveAll(dir)
 
 	// Create a test account.
@@ -219,7 +220,7 @@ func TestSignRace(t *testing.T) {
 // addition and removal of wallet event subscriptions.
 func TestWalletNotifierLifecycle(t *testing.T) {
 	// Create a temporary kesytore to test with
-	dir, ks := tmpKeyStore(t, false)
+	dir, ks := TmpKeyStore(t, false)
 	defer os.RemoveAll(dir)
 
 	// Ensure that the notification updater is not running yet
@@ -280,7 +281,7 @@ type walletEvent struct {
 // Tests that wallet notifications and correctly fired when accounts are added
 // or deleted from the keystore.
 func TestWalletNotifications(t *testing.T) {
-	dir, ks := tmpKeyStore(t, false)
+	dir, ks := TmpKeyStore(t, false)
 	defer os.RemoveAll(dir)
 
 	// Subscribe to the wallet feed and collect events.
@@ -348,7 +349,7 @@ func checkAccounts(t *testing.T, live map[common.Address]accounts.Account, walle
 	for _, account := range live {
 		liveList = append(liveList, account)
 	}
-	sort.Sort(accountsByURL(liveList))
+	sort.Sort(vault.AccountsByURL(liveList))
 	for j, wallet := range wallets {
 		if accs := wallet.Accounts(); len(accs) != 1 {
 			t.Errorf("wallet %d: contains invalid number of accounts: have %d, want 1", j, len(accs))
@@ -374,7 +375,7 @@ func checkEvents(t *testing.T, want []walletEvent, have []walletEvent) {
 	}
 }
 
-func tmpKeyStore(t *testing.T, encrypted bool) (string, *KeyStore) {
+func TmpKeyStore(t *testing.T, encrypted bool) (string, *KeyStore) {
 	d, err := ioutil.TempDir("", "eth-keystore-test")
 	if err != nil {
 		t.Fatal(err)

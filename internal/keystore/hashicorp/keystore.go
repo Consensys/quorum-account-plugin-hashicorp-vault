@@ -18,7 +18,7 @@
 //
 // Keys are stored as encrypted JSON files according to the Web3 Secret Storage specification.
 // See https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition for more information.
-package keystore
+package hashicorp
 
 import (
 	"crypto/ecdsa"
@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/keystore/cache"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -58,9 +59,10 @@ const walletRefreshCycle = 3 * time.Second
 
 // KeyStore manages a key storage directory on disk.
 type KeyStore struct {
-	storage  keyStore                     // Storage backend, might be cleartext or encrypted
-	cache    *accountCache                // In-memory account cache over the filesystem storage
-	changes  chan struct{}                // Channel receiving change notifications from the cache
+	storage keyStore            // Storage backend, might be cleartext or encrypted
+	cache   *cache.AccountCache // In-memory account cache over the filesystem storage
+	//TODO has been exported for cache tests due to moving cache into a separate pkg.  Probably don't want to keep exported so review the cache tests
+	Changes  chan struct{}                // Channel receiving change notifications from the cache
 	unlocked map[common.Address]*unlocked // Currently unlocked account (decrypted private keys)
 
 	wallets     []accounts.Wallet       // Wallet wrappers around the individual key files
@@ -100,16 +102,16 @@ func (ks *KeyStore) init(keydir string) {
 
 	// Initialize the set of unlocked keys and the account cache
 	ks.unlocked = make(map[common.Address]*unlocked)
-	ks.cache, ks.changes = newAccountCache(keydir)
+	ks.cache, ks.Changes = cache.NewAccountCache(keydir)
 
 	// TODO: In order for this finalizer to work, there must be no references
 	// to ks. addressCache doesn't keep a reference but unlocked keys do,
 	// so the finalizer will not trigger until all timed unlocks have expired.
 	runtime.SetFinalizer(ks, func(m *KeyStore) {
-		m.cache.close()
+		m.cache.Close()
 	})
 	// Create the initial list of wallets from the cache
-	accs := ks.cache.accounts()
+	accs := ks.cache.Accounts()
 	ks.wallets = make([]accounts.Wallet, len(accs))
 	for i := 0; i < len(accs); i++ {
 		ks.wallets[i] = &keystoreWallet{account: accs[i], keystore: ks}
@@ -135,7 +137,7 @@ func (ks *KeyStore) Wallets() []accounts.Wallet {
 func (ks *KeyStore) refreshWallets() {
 	// Retrieve the current list of accounts
 	ks.mu.Lock()
-	accs := ks.cache.accounts()
+	accs := ks.cache.Accounts()
 
 	// Transform the current list of wallets into the new one
 	wallets := make([]accounts.Wallet, 0, len(accs))
@@ -202,7 +204,7 @@ func (ks *KeyStore) updater() {
 	for {
 		// Wait for an account update or a refresh timeout
 		select {
-		case <-ks.changes:
+		case <-ks.Changes:
 		case <-time.After(walletRefreshCycle):
 		}
 		// Run the wallet refresher
@@ -221,12 +223,12 @@ func (ks *KeyStore) updater() {
 
 // HasAddress reports whether a key with the given address is present.
 func (ks *KeyStore) HasAddress(addr common.Address) bool {
-	return ks.cache.hasAddress(addr)
+	return ks.cache.HasAddress(addr)
 }
 
 // Accounts returns all key files present in the directory.
 func (ks *KeyStore) Accounts() []accounts.Account {
-	return ks.cache.accounts()
+	return ks.cache.Accounts()
 }
 
 // Delete deletes the key matched by account if the passphrase is correct.
@@ -247,7 +249,7 @@ func (ks *KeyStore) Delete(a accounts.Account, passphrase string) error {
 	// between won't insert it into the cache again.
 	err = os.Remove(a.URL.Path)
 	if err == nil {
-		ks.cache.delete(a)
+		ks.cache.Delete(a)
 		ks.refreshWallets()
 	}
 	return err
@@ -378,10 +380,10 @@ func (ks *KeyStore) TimedUnlock(a accounts.Account, passphrase string, timeout t
 
 // Find resolves the given account into a unique entry in the keystore.
 func (ks *KeyStore) Find(a accounts.Account) (accounts.Account, error) {
-	ks.cache.maybeReload()
-	ks.cache.mu.Lock()
-	a, err := ks.cache.find(a)
-	ks.cache.mu.Unlock()
+	ks.cache.MaybeReload()
+	ks.cache.Mu.Lock()
+	a, err := ks.cache.Find(a)
+	ks.cache.Mu.Unlock()
 	return a, err
 }
 
@@ -423,7 +425,7 @@ func (ks *KeyStore) NewAccount(passphrase string) (accounts.Account, error) {
 	}
 	// Add the account to the cache immediately rather
 	// than waiting for file system notifications to pick it up.
-	ks.cache.add(account)
+	ks.cache.Add(account)
 	ks.refreshWallets()
 	return account, nil
 }
@@ -458,7 +460,7 @@ func (ks *KeyStore) Import(keyJSON []byte, passphrase, newPassphrase string) (ac
 // ImportECDSA stores the given key into the key directory, encrypting it with the passphrase.
 func (ks *KeyStore) ImportECDSA(priv *ecdsa.PrivateKey, passphrase string) (accounts.Account, error) {
 	key := newKeyFromECDSA(priv)
-	if ks.cache.hasAddress(key.Address) {
+	if ks.cache.HasAddress(key.Address) {
 		return accounts.Account{}, fmt.Errorf("account already exists")
 	}
 	return ks.importKey(key, passphrase)
@@ -469,7 +471,7 @@ func (ks *KeyStore) importKey(key *Key, passphrase string) (accounts.Account, er
 	if err := ks.storage.StoreKey(a.URL.Path, key, passphrase); err != nil {
 		return accounts.Account{}, err
 	}
-	ks.cache.add(a)
+	ks.cache.Add(a)
 	ks.refreshWallets()
 	return a, nil
 }
@@ -490,7 +492,7 @@ func (ks *KeyStore) ImportPreSaleKey(keyJSON []byte, passphrase string) (account
 	if err != nil {
 		return a, err
 	}
-	ks.cache.add(a)
+	ks.cache.Add(a)
 	ks.refreshWallets()
 	return a, nil
 }

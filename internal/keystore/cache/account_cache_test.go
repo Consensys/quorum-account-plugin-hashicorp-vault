@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package keystore
+package cache
 
 import (
 	"fmt"
@@ -38,15 +38,15 @@ var (
 	cachetestAccounts = []accounts.Account{
 		{
 			Address: common.HexToAddress("7ef5a6135f1fd6a02593eedc869c6d41d934aef8"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: filepath.Join(cachetestDir, "UTC--2016-03-22T12-57-55.920751759Z--7ef5a6135f1fd6a02593eedc869c6d41d934aef8")},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(cachetestDir, "UTC--2016-03-22T12-57-55.920751759Z--7ef5a6135f1fd6a02593eedc869c6d41d934aef8")},
 		},
 		{
 			Address: common.HexToAddress("f466859ead1932d743d622cb74fc058882e8648a"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: filepath.Join(cachetestDir, "aaa")},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(cachetestDir, "aaa")},
 		},
 		{
 			Address: common.HexToAddress("289d485d9771714cce91d3393d764e1311907acc"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: filepath.Join(cachetestDir, "zzz")},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(cachetestDir, "zzz")},
 		},
 	}
 )
@@ -54,7 +54,7 @@ var (
 func TestWatchNewFile(t *testing.T) {
 	t.Parallel()
 
-	dir, ks := tmpKeyStore(t, false)
+	dir, ks := TmpKeyStore(t, false)
 	defer os.RemoveAll(dir)
 
 	// Ensure the watcher is started before adding any files.
@@ -66,7 +66,7 @@ func TestWatchNewFile(t *testing.T) {
 	for i := range cachetestAccounts {
 		wantAccounts[i] = accounts.Account{
 			Address: cachetestAccounts[i].Address,
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: filepath.Join(dir, filepath.Base(cachetestAccounts[i].URL.Path))},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(dir, filepath.Base(cachetestAccounts[i].URL.Path))},
 		}
 		if err := cp.CopyFile(wantAccounts[i].URL.Path, cachetestAccounts[i].URL.Path); err != nil {
 			t.Fatal(err)
@@ -80,7 +80,7 @@ func TestWatchNewFile(t *testing.T) {
 		if reflect.DeepEqual(list, wantAccounts) {
 			// ks should have also received change notifications
 			select {
-			case <-ks.changes:
+			case <-ks.Changes:
 			default:
 				t.Fatalf("wasn't notified of new accounts")
 			}
@@ -97,7 +97,7 @@ func TestWatchNoDir(t *testing.T) {
 	// Create ks but not the directory that it watches.
 	rand.Seed(time.Now().UnixNano())
 	dir := filepath.Join(os.TempDir(), fmt.Sprintf("eth-keystore-watch-test-%d-%d", os.Getpid(), rand.Int()))
-	ks := NewKeyStore(dir, LightScryptN, LightScryptP)
+	ks := hashicorp.NewKeyStore(dir, hashicorp.LightScryptN, hashicorp.LightScryptP)
 
 	list := ks.Accounts()
 	if len(list) > 0 {
@@ -115,13 +115,13 @@ func TestWatchNoDir(t *testing.T) {
 
 	// ks should see the account.
 	wantAccounts := []accounts.Account{cachetestAccounts[0]}
-	wantAccounts[0].URL = accounts.URL{Scheme: KeyStoreScheme, Path: file}
+	wantAccounts[0].URL = accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: file}
 	for d := 200 * time.Millisecond; d < 8*time.Second; d *= 2 {
 		list = ks.Accounts()
 		if reflect.DeepEqual(list, wantAccounts) {
 			// ks should have also received change notifications
 			select {
-			case <-ks.changes:
+			case <-ks.Changes:
 			default:
 				t.Fatalf("wasn't notified of new accounts")
 			}
@@ -133,76 +133,76 @@ func TestWatchNoDir(t *testing.T) {
 }
 
 func TestCacheInitialReload(t *testing.T) {
-	cache, _ := newAccountCache(cachetestDir)
-	accounts := cache.accounts()
+	cache, _ := NewAccountCache(cachetestDir)
+	accounts := cache.Accounts()
 	if !reflect.DeepEqual(accounts, cachetestAccounts) {
 		t.Fatalf("got initial accounts: %swant %s", spew.Sdump(accounts), spew.Sdump(cachetestAccounts))
 	}
 }
 
 func TestCacheAddDeleteOrder(t *testing.T) {
-	cache, _ := newAccountCache("testdata/no-such-dir")
+	cache, _ := NewAccountCache("testdata/no-such-dir")
 	cache.watcher.running = true // prevent unexpected reloads
 
 	accs := []accounts.Account{
 		{
 			Address: common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: "-309830980"},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "-309830980"},
 		},
 		{
 			Address: common.HexToAddress("2cac1adea150210703ba75ed097ddfe24e14f213"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: "ggg"},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "ggg"},
 		},
 		{
 			Address: common.HexToAddress("8bda78331c916a08481428e4b07c96d3e916d165"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: "zzzzzz-the-very-last-one.keyXXX"},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "zzzzzz-the-very-last-one.keyXXX"},
 		},
 		{
 			Address: common.HexToAddress("d49ff4eeb0b2686ed89c0fc0f2b6ea533ddbbd5e"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: "SOMETHING.key"},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "SOMETHING.key"},
 		},
 		{
 			Address: common.HexToAddress("7ef5a6135f1fd6a02593eedc869c6d41d934aef8"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: "UTC--2016-03-22T12-57-55.920751759Z--7ef5a6135f1fd6a02593eedc869c6d41d934aef8"},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "UTC--2016-03-22T12-57-55.920751759Z--7ef5a6135f1fd6a02593eedc869c6d41d934aef8"},
 		},
 		{
 			Address: common.HexToAddress("f466859ead1932d743d622cb74fc058882e8648a"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: "aaa"},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "aaa"},
 		},
 		{
 			Address: common.HexToAddress("289d485d9771714cce91d3393d764e1311907acc"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: "zzz"},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "zzz"},
 		},
 	}
 	for _, a := range accs {
-		cache.add(a)
+		cache.Add(a)
 	}
 	// Add some of them twice to check that they don't get reinserted.
-	cache.add(accs[0])
-	cache.add(accs[2])
+	cache.Add(accs[0])
+	cache.Add(accs[2])
 
 	// Check that the account list is sorted by filename.
 	wantAccounts := make([]accounts.Account, len(accs))
 	copy(wantAccounts, accs)
 	sort.Sort(accountsByURL(wantAccounts))
-	list := cache.accounts()
+	list := cache.Accounts()
 	if !reflect.DeepEqual(list, wantAccounts) {
 		t.Fatalf("got accounts: %s\nwant %s", spew.Sdump(accs), spew.Sdump(wantAccounts))
 	}
 	for _, a := range accs {
-		if !cache.hasAddress(a.Address) {
+		if !cache.HasAddress(a.Address) {
 			t.Errorf("expected hasAccount(%x) to return true", a.Address)
 		}
 	}
-	if cache.hasAddress(common.HexToAddress("fd9bd350f08ee3c0c19b85a8e16114a11a60aa4e")) {
+	if cache.HasAddress(common.HexToAddress("fd9bd350f08ee3c0c19b85a8e16114a11a60aa4e")) {
 		t.Errorf("expected hasAccount(%x) to return false", common.HexToAddress("fd9bd350f08ee3c0c19b85a8e16114a11a60aa4e"))
 	}
 
 	// Delete a few keys from the cache.
 	for i := 0; i < len(accs); i += 2 {
-		cache.delete(wantAccounts[i])
+		cache.Delete(wantAccounts[i])
 	}
-	cache.delete(accounts.Account{Address: common.HexToAddress("fd9bd350f08ee3c0c19b85a8e16114a11a60aa4e"), URL: accounts.URL{Scheme: KeyStoreScheme, Path: "something"}})
+	cache.Delete(accounts.Account{Address: common.HexToAddress("fd9bd350f08ee3c0c19b85a8e16114a11a60aa4e"), URL: accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "something"}})
 
 	// Check content again after deletion.
 	wantAccountsAfterDelete := []accounts.Account{
@@ -210,50 +210,50 @@ func TestCacheAddDeleteOrder(t *testing.T) {
 		wantAccounts[3],
 		wantAccounts[5],
 	}
-	list = cache.accounts()
+	list = cache.Accounts()
 	if !reflect.DeepEqual(list, wantAccountsAfterDelete) {
 		t.Fatalf("got accounts after delete: %s\nwant %s", spew.Sdump(list), spew.Sdump(wantAccountsAfterDelete))
 	}
 	for _, a := range wantAccountsAfterDelete {
-		if !cache.hasAddress(a.Address) {
+		if !cache.HasAddress(a.Address) {
 			t.Errorf("expected hasAccount(%x) to return true", a.Address)
 		}
 	}
-	if cache.hasAddress(wantAccounts[0].Address) {
+	if cache.HasAddress(wantAccounts[0].Address) {
 		t.Errorf("expected hasAccount(%x) to return false", wantAccounts[0].Address)
 	}
 }
 
 func TestCacheFind(t *testing.T) {
 	dir := filepath.Join("testdata", "dir")
-	cache, _ := newAccountCache(dir)
+	cache, _ := NewAccountCache(dir)
 	cache.watcher.running = true // prevent unexpected reloads
 
 	accs := []accounts.Account{
 		{
 			Address: common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: filepath.Join(dir, "a.key")},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(dir, "a.key")},
 		},
 		{
 			Address: common.HexToAddress("2cac1adea150210703ba75ed097ddfe24e14f213"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: filepath.Join(dir, "b.key")},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(dir, "b.key")},
 		},
 		{
 			Address: common.HexToAddress("d49ff4eeb0b2686ed89c0fc0f2b6ea533ddbbd5e"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: filepath.Join(dir, "c.key")},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(dir, "c.key")},
 		},
 		{
 			Address: common.HexToAddress("d49ff4eeb0b2686ed89c0fc0f2b6ea533ddbbd5e"),
-			URL:     accounts.URL{Scheme: KeyStoreScheme, Path: filepath.Join(dir, "c2.key")},
+			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(dir, "c2.key")},
 		},
 	}
 	for _, a := range accs {
-		cache.add(a)
+		cache.Add(a)
 	}
 
 	nomatchAccount := accounts.Account{
 		Address: common.HexToAddress("f466859ead1932d743d622cb74fc058882e8648a"),
-		URL:     accounts.URL{Scheme: KeyStoreScheme, Path: filepath.Join(dir, "something")},
+		URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(dir, "something")},
 	}
 	tests := []struct {
 		Query      accounts.Account
@@ -265,7 +265,7 @@ func TestCacheFind(t *testing.T) {
 		// by file
 		{Query: accounts.Account{URL: accs[0].URL}, WantResult: accs[0]},
 		// by basename
-		{Query: accounts.Account{URL: accounts.URL{Scheme: KeyStoreScheme, Path: filepath.Base(accs[0].URL.Path)}}, WantResult: accs[0]},
+		{Query: accounts.Account{URL: accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Base(accs[0].URL.Path)}}, WantResult: accs[0]},
 		// by file and address
 		{Query: accs[0], WantResult: accs[0]},
 		// ambiguous address, tie resolved by file
@@ -279,13 +279,13 @@ func TestCacheFind(t *testing.T) {
 			},
 		},
 		// no match error
-		{Query: nomatchAccount, WantError: ErrNoMatch},
-		{Query: accounts.Account{URL: nomatchAccount.URL}, WantError: ErrNoMatch},
-		{Query: accounts.Account{URL: accounts.URL{Scheme: KeyStoreScheme, Path: filepath.Base(nomatchAccount.URL.Path)}}, WantError: ErrNoMatch},
-		{Query: accounts.Account{Address: nomatchAccount.Address}, WantError: ErrNoMatch},
+		{Query: nomatchAccount, WantError: hashicorp.ErrNoMatch},
+		{Query: accounts.Account{URL: nomatchAccount.URL}, WantError: hashicorp.ErrNoMatch},
+		{Query: accounts.Account{URL: accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Base(nomatchAccount.URL.Path)}}, WantError: hashicorp.ErrNoMatch},
+		{Query: accounts.Account{Address: nomatchAccount.Address}, WantError: hashicorp.ErrNoMatch},
 	}
 	for i, test := range tests {
-		a, err := cache.find(test.Query)
+		a, err := cache.Find(test.Query)
 		if !reflect.DeepEqual(err, test.WantError) {
 			t.Errorf("test %d: error mismatch for query %v\ngot %q\nwant %q", i, test.Query, err, test.WantError)
 			continue
@@ -297,14 +297,14 @@ func TestCacheFind(t *testing.T) {
 	}
 }
 
-func waitForAccounts(wantAccounts []accounts.Account, ks *KeyStore) error {
+func waitForAccounts(wantAccounts []accounts.Account, ks *hashicorp.KeyStore) error {
 	var list []accounts.Account
 	for d := 200 * time.Millisecond; d < 16*time.Second; d *= 2 {
 		list = ks.Accounts()
 		if reflect.DeepEqual(list, wantAccounts) {
 			// ks should have also received change notifications
 			select {
-			case <-ks.changes:
+			case <-ks.Changes:
 			default:
 				return fmt.Errorf("wasn't notified of new accounts")
 			}
@@ -323,7 +323,7 @@ func TestUpdatedKeyfileContents(t *testing.T) {
 	// Create a temporary kesytore to test with
 	rand.Seed(time.Now().UnixNano())
 	dir := filepath.Join(os.TempDir(), fmt.Sprintf("eth-keystore-watch-test-%d-%d", os.Getpid(), rand.Int()))
-	ks := NewKeyStore(dir, LightScryptN, LightScryptP)
+	ks := hashicorp.NewKeyStore(dir, hashicorp.LightScryptN, hashicorp.LightScryptP)
 
 	list := ks.Accounts()
 	if len(list) > 0 {
@@ -343,7 +343,7 @@ func TestUpdatedKeyfileContents(t *testing.T) {
 
 	// ks should see the account.
 	wantAccounts := []accounts.Account{cachetestAccounts[0]}
-	wantAccounts[0].URL = accounts.URL{Scheme: KeyStoreScheme, Path: file}
+	wantAccounts[0].URL = accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: file}
 	if err := waitForAccounts(wantAccounts, ks); err != nil {
 		t.Error(err)
 		return
@@ -358,7 +358,7 @@ func TestUpdatedKeyfileContents(t *testing.T) {
 		return
 	}
 	wantAccounts = []accounts.Account{cachetestAccounts[1]}
-	wantAccounts[0].URL = accounts.URL{Scheme: KeyStoreScheme, Path: file}
+	wantAccounts[0].URL = accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: file}
 	if err := waitForAccounts(wantAccounts, ks); err != nil {
 		t.Errorf("First replacement failed")
 		t.Error(err)
@@ -374,7 +374,7 @@ func TestUpdatedKeyfileContents(t *testing.T) {
 		return
 	}
 	wantAccounts = []accounts.Account{cachetestAccounts[2]}
-	wantAccounts[0].URL = accounts.URL{Scheme: KeyStoreScheme, Path: file}
+	wantAccounts[0].URL = accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: file}
 	if err := waitForAccounts(wantAccounts, ks); err != nil {
 		t.Errorf("Second replacement failed")
 		t.Error(err)
@@ -403,4 +403,23 @@ func forceCopyFile(dst, src string) error {
 		return err
 	}
 	return ioutil.WriteFile(dst, data, 0644)
+}
+
+const (
+	veryLightScryptN = 2
+	veryLightScryptP = 1
+)
+
+func TmpKeyStore(t *testing.T, encrypted bool) (string, *hashicorp.KeyStore) {
+	d, err := ioutil.TempDir("", "eth-keystore-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	new := hashicorp.NewPlaintextKeyStore
+	if encrypted {
+		new = func(kd string) *hashicorp.KeyStore {
+			return hashicorp.NewKeyStore(kd, veryLightScryptN, veryLightScryptP)
+		}
+	}
+	return d, new(d)
 }
