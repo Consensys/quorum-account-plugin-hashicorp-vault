@@ -27,11 +27,13 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/keystore/cache"
+	althashi "github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
 	"math/big"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -79,10 +81,10 @@ type unlocked struct {
 }
 
 // NewKeyStore creates a keystore for the given directory.
-func NewKeyStore(keydir string, scryptN, scryptP int) *KeyStore {
-	keydir, _ = filepath.Abs(keydir)
-	ks := &KeyStore{storage: &keyStorePassphrase{keydir, scryptN, scryptP, false}}
-	ks.init(keydir)
+func NewKeyStore(config VaultConfig) *KeyStore {
+	keydir, _ := filepath.Abs(config.AccountConfigDir)
+	ks := &KeyStore{storage: &keystoreHashicorp{}}
+	ks.init(keydir, config.Unlock)
 	return ks
 }
 
@@ -91,18 +93,18 @@ func NewKeyStore(keydir string, scryptN, scryptP int) *KeyStore {
 func NewPlaintextKeyStore(keydir string) *KeyStore {
 	keydir, _ = filepath.Abs(keydir)
 	ks := &KeyStore{storage: &keyStorePlain{keydir}}
-	ks.init(keydir)
+	ks.init(keydir, "")
 	return ks
 }
 
-func (ks *KeyStore) init(keydir string) {
+func (ks *KeyStore) init(keydir string, unlock string) {
 	// Lock the mutex since the account cache might call back with events
 	ks.mu.Lock()
 	defer ks.mu.Unlock()
 
 	// Initialize the set of unlocked keys and the account cache
 	ks.unlocked = make(map[common.Address]*unlocked)
-	ks.cache, ks.Changes = cache.NewAccountCache(keydir)
+	ks.cache, ks.Changes = cache.NewAccountCache(keydir, althashi.JsonAccountConfigUnmarshaller{})
 
 	// TODO: In order for this finalizer to work, there must be no references
 	// to ks. addressCache doesn't keep a reference but unlocked keys do,
@@ -113,8 +115,33 @@ func (ks *KeyStore) init(keydir string) {
 	// Create the initial list of wallets from the cache
 	accs := ks.cache.Accounts()
 	ks.wallets = make([]accounts.Wallet, len(accs))
+
+	addrs := strings.Split(unlock, ",")
+	var toUnlock []common.Address
+
+	for _, addr := range addrs {
+		if trimmed := strings.TrimSpace(addr); trimmed != "" {
+			if common.IsHexAddress(trimmed) {
+				toUnlock = append(toUnlock, common.HexToAddress(trimmed))
+			} else {
+				// TODO use standard log package
+				log.Error("Failed to unlock account", "addr", trimmed, "err", "invalid hex-encoded ethereum address")
+			}
+		}
+	}
+
+	// create the wallets and unlock if configured
 	for i := 0; i < len(accs); i++ {
-		ks.wallets[i] = &keystoreWallet{account: accs[i], keystore: ks}
+		w := &keystoreWallet{account: accs[i], keystore: ks}
+		ks.wallets[i] = w
+		for _, u := range toUnlock {
+			if accs[i].Address == u {
+				if err := ks.Unlock(accs[i], ""); err != nil {
+					log.Error("Failed to unlock account", "addr", accs[i].Address.Hex(), "err", err)
+				}
+			}
+		}
+
 	}
 }
 

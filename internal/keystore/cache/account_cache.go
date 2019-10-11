@@ -75,18 +75,14 @@ type AccountCache struct {
 	fileC    fileCache
 
 	accountConfigUnmarshaller vault.AccountConfigUnmarshaller
-	unlocker                  vault.Unlocker
-	toUnlock                  []common.Address
 }
 
-func NewAccountCache(keydir string, unlocker vault.Unlocker, toUnlock []common.Address, unmarshaller vault.AccountConfigUnmarshaller) (*AccountCache, chan struct{}) {
+func NewAccountCache(keydir string, unmarshaller vault.AccountConfigUnmarshaller) (*AccountCache, chan struct{}) {
 	ac := &AccountCache{
 		keydir:                    keydir,
 		byAddr:                    make(map[common.Address][]accounts.Account),
 		notify:                    make(chan struct{}, 1),
 		fileC:                     fileCache{all: mapset.NewThreadUnsafeSet()},
-		unlocker:                  unlocker,
-		toUnlock:                  toUnlock,
 		accountConfigUnmarshaller: unmarshaller,
 	}
 	ac.watcher = newWatcher(ac)
@@ -281,10 +277,6 @@ func (ac *AccountCache) scanAccounts() error {
 	for _, p := range creates.ToSlice() {
 		if a := readAccount(p.(string)); a != nil {
 			ac.Add(*a)
-
-			if err := ac.unlockIfConfigured(*a); err != nil {
-				log.Debug("Failed to unlock account", "path", p.(string), "err", err)
-			}
 		}
 	}
 	for _, p := range deletes.ToSlice() {
@@ -295,10 +287,6 @@ func (ac *AccountCache) scanAccounts() error {
 		ac.deleteByFile(path)
 		if a := readAccount(path); a != nil {
 			ac.Add(*a)
-
-			if err := ac.unlockIfConfigured(*a); err != nil {
-				log.Debug("Failed to unlock account", "path", p.(string), "err", err)
-			}
 		}
 	}
 	end := time.Now()
@@ -308,16 +296,5 @@ func (ac *AccountCache) scanAccounts() error {
 	default:
 	}
 	log.Trace("Handled keystore changes", "time", end.Sub(start))
-	return nil
-}
-
-func (ac *AccountCache) unlockIfConfigured(acct accounts.Account) error {
-	for _, toUnlock := range ac.toUnlock {
-		if acct.Address == toUnlock {
-			if err := ac.unlocker.TimedUnlock(acct, 0); err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
