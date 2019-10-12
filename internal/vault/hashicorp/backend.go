@@ -65,9 +65,8 @@ const walletRefreshCycle = 3 * time.Second
 
 // Backend manages a key storage directory on disk.
 type Backend struct {
-	authManager authManager
-	storage     keyStore            // Storage backend, might be cleartext or encrypted
-	cache       *cache.AccountCache // In-memory account cache over the filesystem storage
+	storage keyStore            // Storage backend, might be cleartext or encrypted
+	cache   *cache.AccountCache // In-memory account cache over the filesystem storage
 	//TODO has been exported for cache tests due to moving cache into a separate pkg.  Probably don't want to keep exported so review the cache tests
 	Changes  chan struct{}                // Channel receiving change notifications from the cache
 	unlocked map[common.Address]*unlocked // Currently unlocked account (decrypted private keys)
@@ -123,9 +122,6 @@ func (b *Backend) init(keydir string, config VaultConfig) {
 	// Create the initial list of wallets from the cache
 	accs := b.cache.Accounts()
 	b.wallets = make([]accounts.Wallet, len(accs))
-
-	// create the vault client and authenticate
-	b.authManager.init(config.Auth)
 
 	// create the wallets and unlock if configured
 	addrs := strings.Split(config.Unlock, ",")

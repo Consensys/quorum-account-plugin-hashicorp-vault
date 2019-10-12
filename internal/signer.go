@@ -17,21 +17,22 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+type WalletFinder interface {
+	Wallet(url string) (accounts.Wallet, error)
+}
+
 type signer struct {
-	hashicorp.WalletFinder
+	WalletFinder
 }
 
 func (s *signer) init(config hashicorp.HashicorpAccountStoreConfig) error {
-	// TODO support for multiple vault backends - i.e. vault backend manager and that becomes the signer's WalletFinder
-
-	b := hashicorp.NewHashicorpBackend(config.Vaults[0])
-
+	b := hashicorp.NewManager(config.Vaults)
 	s.WalletFinder = b
 	return nil
 }
 
 func (s *signer) Status(_ context.Context, req *proto.StatusRequest) (*proto.StatusResponse, error) {
-	w, err := s.FindWalletByUrl(req.WalletUrl)
+	w, err := s.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -45,7 +46,7 @@ func (s *signer) Status(_ context.Context, req *proto.StatusRequest) (*proto.Sta
 }
 
 func (s *signer) Open(_ context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
-	w, err := s.FindWalletByUrl(req.WalletUrl)
+	w, err := s.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -58,7 +59,7 @@ func (s *signer) Open(_ context.Context, req *proto.OpenRequest) (*proto.OpenRes
 }
 
 func (s *signer) Close(_ context.Context, req *proto.CloseRequest) (*proto.CloseResponse, error) {
-	w, err := s.FindWalletByUrl(req.WalletUrl)
+	w, err := s.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -71,7 +72,7 @@ func (s *signer) Close(_ context.Context, req *proto.CloseRequest) (*proto.Close
 }
 
 func (s *signer) Accounts(_ context.Context, req *proto.AccountsRequest) (*proto.AccountsResponse, error) {
-	w, err := s.FindWalletByUrl(req.WalletUrl)
+	w, err := s.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -87,7 +88,7 @@ func (s *signer) Accounts(_ context.Context, req *proto.AccountsRequest) (*proto
 }
 
 func (s *signer) Contains(_ context.Context, req *proto.ContainsRequest) (*proto.ContainsResponse, error) {
-	w, err := s.FindWalletByUrl(req.WalletUrl)
+	w, err := s.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -101,7 +102,7 @@ func (s *signer) Contains(_ context.Context, req *proto.ContainsRequest) (*proto
 }
 
 func (s *signer) SignHash(_ context.Context, req *proto.SignHashRequest) (*proto.SignHashResponse, error) {
-	w, err := s.FindWalletByUrl(req.WalletUrl)
+	w, err := s.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -120,7 +121,7 @@ func (s *signer) SignHash(_ context.Context, req *proto.SignHashRequest) (*proto
 }
 
 func (s *signer) SignTx(_ context.Context, req *proto.SignTxRequest) (*proto.SignTxResponse, error) {
-	w, err := s.FindWalletByUrl(req.WalletUrl)
+	w, err := s.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -152,7 +153,7 @@ func (s *signer) SignTx(_ context.Context, req *proto.SignTxRequest) (*proto.Sig
 }
 
 func (s *signer) SignHashWithPassphrase(_ context.Context, req *proto.SignHashWithPassphraseRequest) (*proto.SignHashResponse, error) {
-	w, err := s.FindWalletByUrl(req.WalletUrl)
+	w, err := s.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -171,7 +172,7 @@ func (s *signer) SignHashWithPassphrase(_ context.Context, req *proto.SignHashWi
 }
 
 func (s *signer) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPassphraseRequest) (*proto.SignTxResponse, error) {
-	w, err := s.FindWalletByUrl(req.WalletUrl)
+	w, err := s.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
