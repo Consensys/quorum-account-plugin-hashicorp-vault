@@ -22,10 +22,9 @@ type signer struct {
 }
 
 func (s *signer) init(config hashicorp.HashicorpAccountStoreConfig) error {
-	b, err := hashicorp.NewHashicorpBackend(config.Wallets)
-	if err != nil {
-		return err
-	}
+	// TODO support for multiple vault backends - i.e. vault backend manager and that becomes the signer's WalletFinder
+
+	b := hashicorp.NewHashicorpBackend(config.Vaults[0])
 
 	s.WalletFinder = b
 	return nil
@@ -201,6 +200,11 @@ func (s *signer) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPa
 	}
 
 	return &proto.SignTxResponse{RlpTx: rlpTx}, nil
+}
+
+func (s *signer) Subscribe(*proto.SubscribeRequest, proto.Signer_SubscribeServer) error {
+	// TODO
+	return nil
 }
 
 // TODO duplicated from quorum plugin/accounts/gateway.go

@@ -381,8 +381,8 @@ func TmpKeyStore(t *testing.T, encrypted bool) (string, *KeyStore) {
 		t.Fatal(err)
 	}
 	new := NewPlaintextKeyStore
-	if encrypted {
-		new = func(kd string) *KeyStore { return NewKeyStore(kd, veryLightScryptN, veryLightScryptP) }
-	}
+	//if encrypted {
+	//	new = func(kd string) *KeyStore { return NewKeyStore(kd, veryLightScryptN, veryLightScryptP) }
+	//}
 	return d, new(d)
 }

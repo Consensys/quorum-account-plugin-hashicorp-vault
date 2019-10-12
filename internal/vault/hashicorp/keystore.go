@@ -26,8 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/keystore/cache"
-	althashi "github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/cache"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -56,6 +55,11 @@ var KeyStoreType = reflect.TypeOf(&KeyStore{})
 // KeyStoreScheme is the protocol scheme prefixing account and wallet URLs.
 const KeyStoreScheme = "keystore"
 
+const (
+	WalletScheme = "hashiwlt"
+	AcctScheme   = "hashiacct"
+)
+
 // Maximum time between wallet refreshes (if filesystem notifications don't work).
 const walletRefreshCycle = 3 * time.Second
 
@@ -78,6 +82,44 @@ type KeyStore struct {
 type unlocked struct {
 	*Key
 	abort chan struct{}
+}
+
+type WalletFinder interface {
+	FindWalletByUrl(url string) (accounts.Wallet, error)
+}
+
+type Backend struct {
+	*KeyStore
+}
+
+func NewHashicorpBackend(config VaultConfig) *Backend {
+	return &Backend{KeyStore: NewKeyStore(config)}
+}
+
+func (b *Backend) FindWalletByUrl(url string) (accounts.Wallet, error) {
+	u, err := parseURL(url)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, wallet := range b.Wallets() {
+		if wallet.URL() == u {
+			return wallet, nil
+		}
+	}
+	return nil, accounts.ErrUnknownWallet
+}
+
+// parseURL converts a user supplied URL into the accounts specific structure.
+func parseURL(url string) (accounts.URL, error) {
+	parts := strings.Split(url, "://")
+	if len(parts) != 2 || parts[0] == "" {
+		return accounts.URL{}, errors.New("protocol scheme missing")
+	}
+	return accounts.URL{
+		Scheme: parts[0],
+		Path:   parts[1],
+	}, nil
 }
 
 // NewKeyStore creates a keystore for the given directory.
@@ -104,7 +146,7 @@ func (ks *KeyStore) init(keydir string, unlock string) {
 
 	// Initialize the set of unlocked keys and the account cache
 	ks.unlocked = make(map[common.Address]*unlocked)
-	ks.cache, ks.Changes = cache.NewAccountCache(keydir, althashi.JsonAccountConfigUnmarshaller{})
+	ks.cache, ks.Changes = cache.NewAccountCache(keydir, JsonAccountConfigUnmarshaller{})
 
 	// TODO: In order for this finalizer to work, there must be no references
 	// to ks. addressCache doesn't keep a reference but unlocked keys do,
@@ -141,7 +183,6 @@ func (ks *KeyStore) init(keydir string, unlock string) {
 				}
 			}
 		}
-
 	}
 }
 
