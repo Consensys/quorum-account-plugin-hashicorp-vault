@@ -31,7 +31,7 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
+	"log"
 )
 
 // Minimum amount of time between cache reloads. This limit applies if the platform does
@@ -106,6 +106,7 @@ func (ac *AccountCache) HasAddress(addr common.Address) bool {
 }
 
 func (ac *AccountCache) Add(newAccount accounts.Account) {
+	log.Println("[DEBUG] Plugin AccountCache Add: ", newAccount.URL)
 	ac.Mu.Lock()
 	defer ac.Mu.Unlock()
 
@@ -196,6 +197,7 @@ func (ac *AccountCache) Find(a accounts.Account) (accounts.Account, error) {
 }
 
 func (ac *AccountCache) MaybeReload() {
+	log.Println("[DEBUG] PLUGIN AccountCache MaybeReload")
 	ac.Mu.Lock()
 
 	if ac.watcher.running {
@@ -235,10 +237,12 @@ func (ac *AccountCache) Close() {
 // scanAccounts checks if any changes have occurred on the filesystem, and
 // updates the account cache accordingly
 func (ac *AccountCache) scanAccounts() error {
+	log.Println("[Debug AccountCache] scanAccounts")
 	// Scan the entire folder metadata for file changes
 	creates, deletes, updates, err := ac.fileC.scan(ac.keydir)
+	log.Println("[Debug AccountCache] scanAccounts: creates", creates, "deletes", deletes, "updates", updates, "err", err)
 	if err != nil {
-		log.Debug("Failed to reload keystore contents", "err", err)
+		log.Println("[ERROR] Failed to reload keystore contents", "err", err)
 		return err
 	}
 	if creates.Cardinality() == 0 && deletes.Cardinality() == 0 && updates.Cardinality() == 0 {
@@ -247,12 +251,14 @@ func (ac *AccountCache) scanAccounts() error {
 	// Create a helper method to scan the contents of the key files
 	var (
 		buf        = new(bufio.Reader)
-		acctConfig vault.ValidatableAccountGetterConfig
+		acctConfig vault.ValidatableAccountParsableConfig
 	)
 	readAccount := func(path string) *accounts.Account {
+		log.Println("[DEBUG] PLUGIN AccountCache readAccount")
 		fd, err := os.Open(path)
 		if err != nil {
-			log.Trace("Failed to open keystore file", "path", path, "err", err)
+			log.Println("[DEBUG] PLUGIN AccountCache failed to open keystore file: ", err)
+			log.Println("[INFO] Failed to open keystore file", "path", path, "err", err)
 			return nil
 		}
 		defer fd.Close()
@@ -260,22 +266,25 @@ func (ac *AccountCache) scanAccounts() error {
 		// Parse the address.
 		acctConfig, err = ac.accountConfigUnmarshaller.Unmarshal(buf)
 		if err != nil {
-			log.Debug("Failed to decode keystore key", "path", path, "err", err)
+			log.Println("[Debug] PLUGIN AccountCache failed to decode keystore key:", err)
+			log.Println("[INFO] Failed to decode keystore key", "path", path, "err", err)
 			return nil
 		}
 
 		if err := acctConfig.Validate(); err != nil {
-			log.Debug("Invalid secret config", "path", path, "err", err)
+			log.Println("[DEBUG] PLUGIN AccountCache invalid secret config:", err)
+			log.Println("[INFO] Invalid secret config", "path", path, "err", err)
 			return nil
 		}
 
-		return acctConfig.AsAccount(path)
+		return acctConfig.ParseAccount(path)
 	}
 	// Process all the file diffs
 	start := time.Now()
 
 	for _, p := range creates.ToSlice() {
 		if a := readAccount(p.(string)); a != nil {
+			log.Println("[DEBUG] PLUGIN AccountCache Adding: ", a.URL.String())
 			ac.Add(*a)
 		}
 	}
@@ -295,6 +304,6 @@ func (ac *AccountCache) scanAccounts() error {
 	case ac.notify <- struct{}{}:
 	default:
 	}
-	log.Trace("Handled keystore changes", "time", end.Sub(start))
+	log.Println("[DEBUG] Handled keystore changes", "time", end.Sub(start))
 	return nil
 }

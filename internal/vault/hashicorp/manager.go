@@ -18,6 +18,7 @@ package hashicorp
 
 import (
 	"github.com/ethereum/go-ethereum/accounts"
+	"log"
 	"sort"
 	"sync"
 
@@ -41,6 +42,7 @@ type Manager struct {
 // NewManager creates a generic account manager to sign transaction via various
 // supported backends.
 func NewManager(config []VaultConfig) *Manager {
+	log.Println("[PLUGIN Manager] NewManager")
 	var backends []accounts.Backend
 
 	for _, conf := range config {

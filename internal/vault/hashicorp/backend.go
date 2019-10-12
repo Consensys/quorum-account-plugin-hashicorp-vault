@@ -25,8 +25,8 @@ import (
 	crand "crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/cache"
+	"log"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -86,10 +86,11 @@ type unlocked struct {
 
 // NewKeyStore creates a keystore for the given directory.
 func NewBackend(config VaultConfig) *Backend {
+	log.Println("[DEBUG] PLUGIN BACKEND NewBackend")
 	keydir, _ := filepath.Abs(config.AccountConfigDir)
-	ks := &Backend{storage: &keystoreHashicorp{}}
-	ks.init(keydir, config)
-	return ks
+	b := &Backend{storage: &keystoreHashicorp{}}
+	b.init(keydir, config)
+	return b
 }
 
 // parseURL converts a user supplied URL into the accounts specific structure.
@@ -132,8 +133,7 @@ func (b *Backend) init(keydir string, config VaultConfig) {
 			if common.IsHexAddress(trimmed) {
 				toUnlock = append(toUnlock, common.HexToAddress(trimmed))
 			} else {
-				// TODO use standard log package
-				log.Error("Failed to unlock account", "addr", trimmed, "err", "invalid hex-encoded ethereum address")
+				log.Println("[ERROR] Failed to unlock account", "addr", trimmed, "err", "invalid hex-encoded ethereum address")
 			}
 		}
 	}
@@ -144,7 +144,7 @@ func (b *Backend) init(keydir string, config VaultConfig) {
 		for _, u := range toUnlock {
 			if accs[i].Address == u {
 				if err := b.Unlock(accs[i], ""); err != nil {
-					log.Error("Failed to unlock account", "addr", accs[i].Address.Hex(), "err", err)
+					log.Println("[ERROR] Failed to unlock account", "addr", accs[i].Address.Hex(), "err", err)
 				}
 			}
 		}
@@ -168,9 +168,11 @@ func (b *Backend) Wallets() []accounts.Wallet {
 // refreshWallets retrieves the current account list and based on that does any
 // necessary wallet refreshes.
 func (b *Backend) refreshWallets() {
+	log.Println("[PLUGIN Backend] refreshWallets")
 	// Retrieve the current list of accounts
 	b.mu.Lock()
 	accs := b.cache.Accounts()
+	log.Println("[PLUGIN Backend] refreshWallets: cache len(accts)", len(accs))
 
 	// Transform the current list of wallets into the new one
 	wallets := make([]accounts.Wallet, 0, len(accs))
@@ -206,6 +208,7 @@ func (b *Backend) refreshWallets() {
 
 	// Fire all wallet events and return
 	for _, event := range events {
+		log.Println("[PLUGIN Backend] sending event: ", event.Kind, event.Wallet.URL().String())
 		b.updateFeed.Send(event)
 	}
 }
@@ -240,6 +243,7 @@ func (b *Backend) updater() {
 		case <-b.Changes:
 		case <-time.After(walletRefreshCycle):
 		}
+		log.Println("[PLUGIN Backend] updater: change detected")
 		// Run the wallet refresher
 		b.refreshWallets()
 
@@ -316,7 +320,7 @@ func (b *Backend) SignTx(a accounts.Account, tx *types.Transaction, chainID *big
 
 	// start quorum specific
 	if tx.IsPrivate() {
-		log.Info("Private transaction signing with QuorumPrivateTxSigner")
+		log.Println("[INFO] Private transaction signing with QuorumPrivateTxSigner")
 		return types.SignTx(tx, types.QuorumPrivateTxSigner{}, unlockedKey.PrivateKey)
 	} // End quorum specific
 

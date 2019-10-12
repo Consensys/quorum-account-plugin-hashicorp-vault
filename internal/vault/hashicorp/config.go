@@ -80,23 +80,24 @@ type VaultConfig struct {
 }
 
 type VaultAuth struct {
-	AuthID, ApprolePath string
+	AuthID      string `toml:",omitempty"`
+	ApprolePath string `toml:",omitempty"`
 }
 
 func (c VaultConfig) Validate() error {
-	//var errs []string
-	//
-	//if c.VaultUrl == "" {
-	//	errs = append(errs, invalidVaultUrlMsg)
-	//}
-	//
-	//if c.AccountConfigDir == "" {
-	//	errs = append(errs, invalidAccountConfigDirMsg)
-	//}
-	//
-	//if len(errs) > 0 {
-	//	return fmt.Errorf("Invalid Hashicorp Vault wallet config:\n%v", strings.Join(errs, "\n"))
-	//}
+	var errs []string
+
+	if c.Addr == "" {
+		errs = append(errs, invalidVaultUrlMsg)
+	}
+
+	if c.AccountConfigDir == "" {
+		errs = append(errs, invalidAccountConfigDirMsg)
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("Invalid Hashicorp Vault wallet config:\n%v", strings.Join(errs, "\n"))
+	}
 
 	return nil
 }
@@ -133,40 +134,40 @@ func (c AccountConfig) ValidateForAccountCreation() error {
 }
 
 func (c AccountConfig) validate(skipAddrAndVersion bool) error {
-	//var errs []string
-	//
-	//if c.SecretPath == "" {
-	//	errs = append(errs, invalidSecretPathMsg)
-	//}
-	//
-	//if c.SecretEnginePath == "" {
-	//	errs = append(errs, invalidSecretEnginePathMsg)
-	//}
-	//
-	//if !skipAddrAndVersion {
-	//	if c.Address == "" || !common.IsHexAddress(c.Address) {
-	//		errs = append(errs, invalidAddressMsg)
-	//	}
-	//
-	//	if c.SecretVersion <= 0 {
-	//		errs = append(errs, invalidSecretVersionMsg)
-	//	}
-	//}
-	//
-	//if len(errs) > 0 {
-	//	return fmt.Errorf("Invalid Hashicorp Vault account config:\n%v", strings.Join(errs, "\n"))
-	//}
+	var errs []string
+
+	if c.VaultLocation.SecretPath == "" {
+		errs = append(errs, invalidSecretPathMsg)
+	}
+
+	if c.VaultLocation.SecretEnginePath == "" {
+		errs = append(errs, invalidSecretEnginePathMsg)
+	}
+
+	if !skipAddrAndVersion {
+		if c.Address == "" || !common.IsHexAddress(c.Address) {
+			errs = append(errs, invalidAddressMsg)
+		}
+
+		if c.VaultLocation.SecretVersion <= 0 {
+			errs = append(errs, invalidSecretVersionMsg)
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("Invalid Hashicorp Vault account config:\n%v", strings.Join(errs, "\n"))
+	}
 
 	return nil
 }
 
-func (c AccountConfig) AsAccount(urlPath string) *accounts.Account {
-	return &accounts.Account{Address: common.HexToAddress(c.Address), URL: accounts.URL{Scheme: AcctScheme, Path: urlPath}}
+func (c AccountConfig) ParseAccount(filepath string) *accounts.Account {
+	return &accounts.Account{Address: common.HexToAddress(c.Address), URL: accounts.URL{Scheme: AcctScheme, Path: filepath}}
 }
 
 type JsonAccountConfigUnmarshaller struct{}
 
-func (JsonAccountConfigUnmarshaller) Unmarshal(r io.Reader) (vault.ValidatableAccountGetterConfig, error) {
+func (JsonAccountConfigUnmarshaller) Unmarshal(r io.Reader) (vault.ValidatableAccountParsableConfig, error) {
 	acctConfig := AccountConfig{}
 	if err := json.NewDecoder(r).Decode(&acctConfig); err != nil {
 		return nil, err

@@ -5,9 +5,9 @@ import (
 	"io"
 )
 
-type ValidatableAccountGetterConfig interface {
+type ValidatableAccountParsableConfig interface {
 	ValidatableConfig
-	AccountGetter
+	AccountParser
 }
 
 type ValidatableConfig interface {
@@ -15,10 +15,10 @@ type ValidatableConfig interface {
 	ValidateForAccountCreation() error
 }
 
-type AccountGetter interface {
-	AsAccount(urlPath string) *accounts.Account
+type AccountParser interface {
+	ParseAccount(filepath string) *accounts.Account
 }
 
 type AccountConfigUnmarshaller interface {
-	Unmarshal(r io.Reader) (ValidatableAccountGetterConfig, error)
+	Unmarshal(r io.Reader) (ValidatableAccountParsableConfig, error)
 }

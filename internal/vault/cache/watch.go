@@ -21,8 +21,8 @@ package cache
 import (
 	"time"
 
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/rjeczalik/notify"
+	"log"
 )
 
 type watcher struct {
@@ -63,15 +63,14 @@ func (w *watcher) loop() {
 		w.starting = false
 		w.ac.Mu.Unlock()
 	}()
-	logger := log.New("path", w.ac.keydir)
 
 	if err := notify.Watch(w.ac.keydir, w.ev, notify.All); err != nil {
-		logger.Trace("Failed to watch keystore folder", "err", err)
+		log.Println("[DEBUG] Failed to watch keystore folder", "path", w.ac.keydir, "err", err)
 		return
 	}
 	defer notify.Stop(w.ev)
-	logger.Trace("Started watching keystore folder")
-	defer logger.Trace("Stopped watching keystore folder")
+	log.Println("[DEBUG] Started watching keystore folder", "path", w.ac.keydir)
+	defer log.Println("[DEBUG] Stopped watching keystore folder")
 
 	w.ac.Mu.Lock()
 	w.running = true

@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
+	"log"
 	"math/big"
 	"strings"
 
@@ -26,6 +27,7 @@ type signer struct {
 }
 
 func (s *signer) init(config hashicorp.HashicorpAccountStoreConfig) error {
+	log.Println("[PLUGIN SIGNER] init")
 	b := hashicorp.NewManager(config.Vaults)
 	s.WalletFinder = b
 	return nil
