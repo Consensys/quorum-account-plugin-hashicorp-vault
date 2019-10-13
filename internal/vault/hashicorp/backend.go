@@ -71,10 +71,13 @@ type Backend struct {
 	Changes  chan struct{}                // Channel receiving change notifications from the cache
 	unlocked map[common.Address]*unlocked // Currently unlocked account (decrypted private keys)
 
-	wallets     []accounts.Wallet       // Wallet wrappers around the individual key files
-	updateFeed  event.Feed              // Event feed to notify wallet additions/removals
-	updateScope event.SubscriptionScope // Subscription scope tracking current live listeners
-	updating    bool                    // Whether the event notification loop is running
+	wallets        []accounts.Wallet       // Wallet wrappers around the individual key files
+	updateFeed     event.Feed              // Event feed to notify wallet additions/removals
+	updateScope    event.SubscriptionScope // Subscription scope tracking current live listeners
+	initialised    bool
+	updating       bool // Whether the event notification loop is running
+	toUnlock       []common.Address
+	unlocksApplied bool
 
 	mu sync.RWMutex
 }
@@ -85,12 +88,11 @@ type unlocked struct {
 }
 
 // NewKeyStore creates a keystore for the given directory.
-func NewBackend(config VaultConfig) *Backend {
-	log.Println("[DEBUG] PLUGIN BACKEND NewBackend")
+func (b *Backend) Init(config VaultConfig) {
+	log.Println("[DEBUG] PLUGIN BACKEND Init")
 	keydir, _ := filepath.Abs(config.AccountConfigDir)
-	b := &Backend{storage: &keystoreHashicorp{}}
 	b.init(keydir, config)
-	return b
+	b.initialised = true
 }
 
 // parseURL converts a user supplied URL into the accounts specific structure.
@@ -120,35 +122,40 @@ func (b *Backend) init(keydir string, config VaultConfig) {
 	runtime.SetFinalizer(b, func(m *Backend) {
 		m.cache.Close()
 	})
-	// Create the initial list of wallets from the cache
-	accs := b.cache.Accounts()
-	b.wallets = make([]accounts.Wallet, len(accs))
 
-	// create the wallets and unlock if configured
-	addrs := strings.Split(config.Unlock, ",")
-	var toUnlock []common.Address
-
-	for _, addr := range addrs {
+	//// create the initial set of wallets and unlock if configured
+	//log.Println("[INFO] backend init - initial wallet creation")
+	//b.refreshWalletsNoLock()
+	//
+	//log.Println("[INFO] backend init - unlock:", config.Unlock)
+	unlockAddrs := strings.Split(config.Unlock, ",")
+	toUnlock := make([]common.Address, len(unlockAddrs))
+	for _, addr := range unlockAddrs {
 		if trimmed := strings.TrimSpace(addr); trimmed != "" {
-			if common.IsHexAddress(trimmed) {
-				toUnlock = append(toUnlock, common.HexToAddress(trimmed))
-			} else {
+			if !common.IsHexAddress(trimmed) {
 				log.Println("[ERROR] Failed to unlock account", "addr", trimmed, "err", "invalid hex-encoded ethereum address")
 			}
-		}
-	}
 
-	for i := 0; i < len(accs); i++ {
-		w := &wallet{account: accs[i], backend: b}
-		b.wallets[i] = w
-		for _, u := range toUnlock {
-			if accs[i].Address == u {
-				if err := b.Unlock(accs[i], ""); err != nil {
-					log.Println("[ERROR] Failed to unlock account", "addr", accs[i].Address.Hex(), "err", err)
-				}
-			}
+			toUnlock = append(toUnlock, common.HexToAddress(addr))
 		}
 	}
+	b.toUnlock = toUnlock
+	//for _, addr := range toUnlock {
+	//	log.Println("[INFO] backend init - attempting to unlock:", addr)
+	//	if trimmed := strings.TrimSpace(addr); trimmed != "" {
+	//		if !common.IsHexAddress(trimmed) {
+	//			log.Println("[ERROR] Failed to unlock account", "addr", trimmed, "err", "invalid hex-encoded ethereum address")
+	//		}
+	//
+	//		for _, w := range b.wallets {
+	//			if acct := w.Accounts()[0]; acct.Address == common.HexToAddress(addr) {
+	//				if err := b.Unlock(acct, ""); err != nil {
+	//					log.Println("[ERROR] Failed to unlock account", "addr", acct.Address.Hex(), "err", err)
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
 }
 
 // Wallets implements accounts.Backend, returning all single-key wallets from the
@@ -172,7 +179,7 @@ func (b *Backend) refreshWallets() {
 	// Retrieve the current list of accounts
 	b.mu.Lock()
 	accs := b.cache.Accounts()
-	log.Println("[PLUGIN Backend] refreshWallets: cache len(accts)", len(accs))
+	log.Println("[PLUGIN Backend] refreshWallets: cache len(accts)", len(accs), ", backend len(wallets)", len(b.wallets))
 
 	// Transform the current list of wallets into the new one
 	wallets := make([]accounts.Wallet, 0, len(accs))
@@ -187,7 +194,7 @@ func (b *Backend) refreshWallets() {
 		// If there are no more wallets or the account is before the next, wrap new wallet
 		if len(b.wallets) == 0 || b.wallets[0].URL().Cmp(account.URL) > 0 {
 			wallet := &wallet{account: account, backend: b}
-
+			log.Println("[PLUGIN Backend] refreshWallets: new wallet wrapped", wallet)
 			events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletArrived})
 			wallets = append(wallets, wallet)
 			continue
@@ -204,7 +211,70 @@ func (b *Backend) refreshWallets() {
 		events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletDropped})
 	}
 	b.wallets = wallets
+
+	// if this is the first time, try unlocking accts
+	if !b.unlocksApplied {
+		log.Println("[INFO] backend refreshwallets: applying unlocks")
+		for _, w := range b.wallets {
+			log.Println("[INFO] backend refreshwallets: checking if wallet should be unlocked: ", w.URL().String())
+			for _, addr := range b.toUnlock {
+				if acct := w.Accounts()[0]; acct.Address == addr {
+					log.Println("[INFO] backend refreshwallets - attempting to unlock:", addr)
+					if err := b.Unlock(acct, ""); err != nil {
+						log.Println("[ERROR] Failed to unlock account", "addr", acct.Address.Hex(), "err", err)
+					}
+				}
+			}
+		}
+		b.unlocksApplied = true
+	}
+
 	b.mu.Unlock()
+
+	// Fire all wallet events and return
+	for _, event := range events {
+		log.Println("[PLUGIN Backend] sending event: ", event.Kind, event.Wallet.URL().String())
+		b.updateFeed.Send(event)
+	}
+}
+
+func (b *Backend) refreshWalletsNoLock() {
+	log.Println("[PLUGIN Backend] refreshWallets")
+	// Retrieve the current list of accounts
+
+	accs := b.cache.Accounts()
+	log.Println("[PLUGIN Backend] refreshWallets: cache len(accts)", len(accs), ", backend len(wallets)", len(b.wallets))
+
+	// Transform the current list of wallets into the new one
+	wallets := make([]accounts.Wallet, 0, len(accs))
+	events := []accounts.WalletEvent{}
+
+	for _, account := range accs {
+		// Drop wallets while they were in front of the next account
+		for len(b.wallets) > 0 && b.wallets[0].URL().Cmp(account.URL) < 0 {
+			events = append(events, accounts.WalletEvent{Wallet: b.wallets[0], Kind: accounts.WalletDropped})
+			b.wallets = b.wallets[1:]
+		}
+		// If there are no more wallets or the account is before the next, wrap new wallet
+		if len(b.wallets) == 0 || b.wallets[0].URL().Cmp(account.URL) > 0 {
+			wallet := &wallet{account: account, backend: b}
+			log.Println("[PLUGIN Backend] refreshWallets: new wallet wrapped", wallet)
+			events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletArrived})
+			wallets = append(wallets, wallet)
+			continue
+		}
+		// If the account is the same as the first wallet, keep it
+		if b.wallets[0].Accounts()[0] == account {
+			wallets = append(wallets, b.wallets[0])
+			b.wallets = b.wallets[1:]
+			continue
+		}
+	}
+	// Drop any leftover wallets and set the new batch
+	for _, wallet := range b.wallets {
+		events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletDropped})
+	}
+	b.wallets = wallets
 
 	// Fire all wallet events and return
 	for _, event := range events {
@@ -224,7 +294,7 @@ func (b *Backend) Subscribe(sink chan<- accounts.WalletEvent) event.Subscription
 	sub := b.updateScope.Track(b.updateFeed.Subscribe(sink))
 
 	// Subscribers require an active notification loop, start it
-	if !b.updating {
+	if !b.updating && b.initialised {
 		b.updating = true
 		go b.updater()
 	}

@@ -237,10 +237,8 @@ func (ac *AccountCache) Close() {
 // scanAccounts checks if any changes have occurred on the filesystem, and
 // updates the account cache accordingly
 func (ac *AccountCache) scanAccounts() error {
-	log.Println("[Debug AccountCache] scanAccounts")
 	// Scan the entire folder metadata for file changes
 	creates, deletes, updates, err := ac.fileC.scan(ac.keydir)
-	log.Println("[Debug AccountCache] scanAccounts: creates", creates, "deletes", deletes, "updates", updates, "err", err)
 	if err != nil {
 		log.Println("[ERROR] Failed to reload keystore contents", "err", err)
 		return err
@@ -289,9 +287,11 @@ func (ac *AccountCache) scanAccounts() error {
 		}
 	}
 	for _, p := range deletes.ToSlice() {
+		log.Println("[DEBUG] PLUGIN AccountCache Deleting: ", p.(string))
 		ac.deleteByFile(p.(string))
 	}
 	for _, p := range updates.ToSlice() {
+		log.Println("[DEBUG] PLUGIN AccountCache Updating: ", p.(string))
 		path := p.(string)
 		ac.deleteByFile(path)
 		if a := readAccount(path); a != nil {

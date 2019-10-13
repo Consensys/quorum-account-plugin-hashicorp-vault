@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
@@ -24,12 +25,18 @@ type WalletFinder interface {
 
 type signer struct {
 	WalletFinder
+	events            chan accounts.WalletEvent
+	eventSubscription event.Subscription
 }
 
 func (s *signer) init(config hashicorp.HashicorpAccountStoreConfig) error {
 	log.Println("[PLUGIN SIGNER] init")
 	b := hashicorp.NewManager(config.Vaults)
 	s.WalletFinder = b
+	events := make(chan accounts.WalletEvent, 4*len(config.Vaults))
+	eventSubscription := b.Subscribe(events)
+	s.events = events
+	s.eventSubscription = eventSubscription
 	return nil
 }
 
@@ -205,9 +212,24 @@ func (s *signer) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPa
 	return &proto.SignTxResponse{RlpTx: rlpTx}, nil
 }
 
-func (s *signer) Subscribe(*proto.SubscribeRequest, proto.Signer_SubscribeServer) error {
-	// TODO
-	return nil
+func (s *signer) Subscribe(req *proto.SubscribeRequest, stream proto.Signer_SubscribeServer) error {
+	defer func() {
+		s.eventSubscription.Unsubscribe()
+		s.eventSubscription = nil
+	}()
+
+	log.Println("[SIGNER] received subscription request from geth")
+
+	for {
+		e := <-s.events
+		log.Println("[SIGNER] read event: ", e)
+
+		if err := stream.Send(asProtoWalletEvent(e)); err != nil {
+			log.Println("[SIGNER] error sending event: ", e, "err: ", err)
+			return err
+		}
+		log.Println("[SIGNER] sent event: ", e)
+	}
 }
 
 // TODO duplicated from quorum plugin/accounts/gateway.go
@@ -239,3 +261,21 @@ func asProtoAccount(acct accounts.Account) *proto.Account {
 }
 
 // TODO end duplication
+
+func asProtoWalletEvent(event accounts.WalletEvent) *proto.SubscribeResponse {
+	var t proto.SubscribeResponse_WalletEvent
+
+	switch event.Kind {
+	case accounts.WalletArrived:
+		t = proto.SubscribeResponse_WALLET_ARRIVED
+	case accounts.WalletOpened:
+		t = proto.SubscribeResponse_WALLET_OPENED
+	case accounts.WalletDropped:
+		t = proto.SubscribeResponse_WALLET_DROPPED
+	}
+
+	return &proto.SubscribeResponse{
+		WalletEvent: t,
+		WalletUrl:   event.Wallet.URL().String(),
+	}
+}

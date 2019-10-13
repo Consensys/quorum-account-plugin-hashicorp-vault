@@ -43,10 +43,16 @@ type Manager struct {
 // supported backends.
 func NewManager(config []VaultConfig) *Manager {
 	log.Println("[PLUGIN Manager] NewManager")
-	var backends []accounts.Backend
 
-	for _, conf := range config {
-		backends = append(backends, NewBackend(conf))
+	// create, subscribe to, and initialise all backend
+	backends := make([]accounts.Backend, len(config))
+	updates := make(chan accounts.WalletEvent, 4*len(backends))
+	subs := make([]event.Subscription, len(backends))
+	for i, conf := range config {
+		backend := &Backend{storage: &keystoreHashicorp{}}
+		subs[i] = backend.Subscribe(updates)
+		backend.Init(conf)
+		backends[i] = backend
 	}
 
 	// Retrieve the initial list of wallets from the backends and sort by URL
@@ -54,14 +60,15 @@ func NewManager(config []VaultConfig) *Manager {
 	for _, backend := range backends {
 		wallets = merge(wallets, backend.Wallets()...)
 	}
-	// Subscribe to wallet notifications from all backends
-	updates := make(chan accounts.WalletEvent, 4*len(backends))
-
-	subs := make([]event.Subscription, len(backends))
-	for i, backend := range backends {
-		subs[i] = backend.Subscribe(updates)
-	}
+	//// Subscribe to wallet notifications from all backends
+	//updates := make(chan accounts.WalletEvent, 4*len(backends))
+	//
+	//subs := make([]event.Subscription, len(backends))
+	//for i, backend := range backends {
+	//	subs[i] = backend.Subscribe(updates)
+	//}
 	// Assemble the account manager and return
+	log.Println("[PLUGIN Manager] Assembling manager: len(wallets)", len(wallets), "len(updates)", len(updates))
 	am := &Manager{
 		backends: backends,
 		updaters: subs,
@@ -99,6 +106,7 @@ func (am *Manager) update() {
 		select {
 		case event := <-am.updates:
 			// Wallet event arrived, update local cache
+			log.Println("[MANAGER] wallet event arrived")
 			am.lock.Lock()
 			switch event.Kind {
 			case accounts.WalletArrived:
