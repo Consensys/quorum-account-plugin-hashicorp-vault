@@ -71,12 +71,16 @@ func (c HashicorpAccountStoreConfig) validate(isAcctCreation bool) error {
 
 type VaultConfig struct {
 	Addr             string      `toml:",omitempty"`
-	CaCert           string      `toml:",omitempty"`
-	ClientCert       string      `toml:",omitempty"`
-	ClientKey        string      `toml:",omitempty"`
+	TLS              TLS         `toml:",omitempty"`
 	AccountConfigDir string      `toml:",omitempty"`
 	Unlock           string      `toml:",omitempty"`
 	Auth             []VaultAuth `toml:",omitempty"`
+}
+
+type TLS struct {
+	CaCert     string `toml:",omitempty"`
+	ClientCert string `toml:",omitempty"`
+	ClientKey  string `toml:",omitempty"`
 }
 
 type VaultAuth struct {

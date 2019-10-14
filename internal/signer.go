@@ -32,11 +32,12 @@ type signer struct {
 
 func (s *signer) init(config hashicorp.HashicorpAccountStoreConfig) error {
 	log.Println("[PLUGIN SIGNER] init")
-	manager := hashicorp.NewManager(config.Vaults)
+	manager, err := hashicorp.NewManager(config.Vaults)
+	if err != nil {
+		return err
+	}
 	s.WalletFinderBackend = manager
 	s.events = make(chan accounts.WalletEvent, 4*len(config.Vaults))
-	//eventSubscription := manager.Subscribe(events)
-	//s.eventSubscription = eventSubscription
 	return nil
 }
 

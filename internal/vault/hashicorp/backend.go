@@ -88,13 +88,15 @@ type unlocked struct {
 }
 
 // NewKeyStore creates a keystore for the given directory.
-func NewBackend(config VaultConfig) *Backend {
+func NewBackend(config VaultConfig) (*Backend, error) {
 	log.Println("[DEBUG] PLUGIN BACKEND Init")
 	keydir, _ := filepath.Abs(config.AccountConfigDir)
-	b := &Backend{storage: &keystoreHashicorp{}}
-	b.init(keydir, config)
+	b := &Backend{}
+	if err := b.init(keydir, config); err != nil {
+		return nil, err
+	}
 	b.initialised = true
-	return b
+	return b, nil
 }
 
 // parseURL converts a user supplied URL into the accounts specific structure.
@@ -109,10 +111,17 @@ func parseURL(url string) (accounts.URL, error) {
 	}, nil
 }
 
-func (b *Backend) init(keydir string, config VaultConfig) {
+func (b *Backend) init(keydir string, config VaultConfig) error {
 	// Lock the mutex since the account cache might call back with events
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	// First thing we do is check the authentication credentials and setup the vault clients.  No point continuing if incorrect vault credentials have been provided.
+	clientManager, err := newVaultClientManager(config)
+	if err != nil {
+		return err
+	}
+	b.storage = clientManager
 
 	// Initialize the set of unlocked keys and the account cache
 	//b.unlocked = make(map[common.Address]*unlocked)
@@ -132,6 +141,7 @@ func (b *Backend) init(keydir string, config VaultConfig) {
 		b.wallets[i] = &wallet{account: accs[i], backend: b}
 	}
 
+	return nil
 	//// create the initial set of wallets and unlock if configured
 	//log.Println("[INFO] backend init - initial wallet creation")
 	//b.refreshWalletsNoLock()

@@ -41,7 +41,7 @@ type Manager struct {
 
 // NewManager creates a generic account manager to sign transaction via various
 // supported backends.
-func NewManager(config []VaultConfig) *Manager {
+func NewManager(config []VaultConfig) (*Manager, error) {
 	log.Println("[PLUGIN Manager] NewManager")
 
 	backends := make([]accounts.Backend, len(config))
@@ -50,7 +50,10 @@ func NewManager(config []VaultConfig) *Manager {
 	var wallets []accounts.Wallet
 
 	for i, conf := range config {
-		backend := NewBackend(conf)
+		backend, err := NewBackend(conf)
+		if err != nil {
+			return nil, err
+		}
 		backends[i] = backend
 
 		// Retrieve the initial list of wallets from the backends and sort by URL
@@ -71,7 +74,7 @@ func NewManager(config []VaultConfig) *Manager {
 
 	go am.update()
 
-	return am
+	return am, nil
 }
 
 // Close terminates the account manager's internal notification processes.
