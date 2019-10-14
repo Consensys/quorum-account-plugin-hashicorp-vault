@@ -21,6 +21,7 @@ import (
 	"log"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/event"
 )
@@ -210,4 +211,36 @@ func drop(slice []accounts.Wallet, wallets ...accounts.Wallet) []accounts.Wallet
 		slice = append(slice[:n], slice[n+1:]...)
 	}
 	return slice
+}
+
+// Lock removes the private key with the given address from memory.
+func (am *Manager) Lock(account accounts.Account) error {
+	b, err := am.Backend(account)
+	if err != nil {
+		return err
+	}
+	pb := b.(*Backend)
+	if err := pb.Lock(account.Address); err != nil {
+		return err
+	}
+	return nil
+}
+
+// TimedUnlock unlocks the given account with the passphrase. The account
+// stays unlocked for the duration of timeout. A timeout of 0 unlocks the account
+// until the program exits. The account must match a unique key file.
+//
+// If the account address is already unlocked for a duration, TimedUnlock extends or
+// shortens the active unlock timeout. If the address was previously unlocked
+// indefinitely the timeout is not altered.
+func (am *Manager) TimedUnlock(account accounts.Account, passphrase string, timeout time.Duration) error {
+	b, err := am.Backend(account)
+	if err != nil {
+		return err
+	}
+	pb := b.(*Backend)
+	if err := pb.TimedUnlock(account, passphrase, timeout); err != nil {
+		return err
+	}
+	return nil
 }

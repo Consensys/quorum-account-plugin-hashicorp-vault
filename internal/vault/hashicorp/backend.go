@@ -124,7 +124,7 @@ func (b *Backend) init(keydir string, config VaultConfig) error {
 	b.storage = clientManager
 
 	// Initialize the set of unlocked keys and the account cache
-	//b.unlocked = make(map[common.Address]*unlocked)
+	b.unlocked = make(map[common.Address]*unlocked)
 	b.cache, b.Changes = cache.NewAccountCache(keydir, JsonAccountConfigUnmarshaller{})
 
 	// TODO: In order for this finalizer to work, there must be no references

@@ -10,6 +10,7 @@ import (
 	"log"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,13 +20,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type WalletFinderBackend interface {
-	Wallet(url string) (accounts.Wallet, error)
+type WalletFinderLockerBackend interface {
 	accounts.Backend
+	Wallet(url string) (accounts.Wallet, error)
+	TimedUnlock(acct accounts.Account, passphrase string, timeout time.Duration) error
+	Lock(acct accounts.Account) error
 }
 
 type signer struct {
-	WalletFinderBackend
+	WalletFinderLockerBackend
 	events            chan accounts.WalletEvent
 	eventSubscription event.Subscription
 }
@@ -36,7 +39,7 @@ func (s *signer) init(config hashicorp.HashicorpAccountStoreConfig) error {
 	if err != nil {
 		return err
 	}
-	s.WalletFinderBackend = manager
+	s.WalletFinderLockerBackend = manager
 	s.events = make(chan accounts.WalletEvent, 4*len(config.Vaults))
 	return nil
 }
@@ -226,7 +229,7 @@ func (s *signer) Subscribe(req *proto.SubscribeRequest, stream proto.Signer_Subs
 	wallets := s.Wallets()
 
 	// now that we have the initial set of wallets, subscribe to the acct manager backend to be notified when changes occur
-	s.eventSubscription = s.WalletFinderBackend.Subscribe(s.events)
+	s.eventSubscription = s.WalletFinderLockerBackend.Subscribe(s.events)
 
 	// stream the currently held wallets to the caller
 	for _, w := range wallets {
@@ -253,6 +256,34 @@ func (s *signer) Subscribe(req *proto.SubscribeRequest, stream proto.Signer_Subs
 		}
 		log.Println("[SIGNER] sent event: ", e)
 	}
+}
+
+func (s *signer) TimedUnlock(_ context.Context, req *proto.TimedUnlockRequest) (*proto.TimedUnlockResponse, error) {
+	a, err := asAccount(req.Account)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	err = s.WalletFinderLockerBackend.TimedUnlock(a, req.Password, time.Duration(req.Duration))
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &proto.TimedUnlockResponse{}, nil
+}
+
+func (s *signer) Lock(_ context.Context, req *proto.LockRequest) (*proto.LockResponse, error) {
+	a, err := asAccount(req.Account)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	err = s.WalletFinderLockerBackend.Lock(a)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &proto.LockResponse{}, nil
 }
 
 // TODO duplicated from quorum plugin/accounts/gateway.go
