@@ -212,6 +212,7 @@ func (s *signer) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPa
 	return &proto.SignTxResponse{RlpTx: rlpTx}, nil
 }
 
+// TODO CancelSubscribe method which calls unsubscribe and stops this loop
 func (s *signer) Subscribe(req *proto.SubscribeRequest, stream proto.Signer_SubscribeServer) error {
 	defer func() {
 		s.eventSubscription.Unsubscribe()

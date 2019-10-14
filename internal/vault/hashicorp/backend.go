@@ -131,12 +131,10 @@ func (b *Backend) init(keydir string, config VaultConfig) {
 	unlockAddrs := strings.Split(config.Unlock, ",")
 	toUnlock := make([]common.Address, len(unlockAddrs))
 	for _, addr := range unlockAddrs {
-		if trimmed := strings.TrimSpace(addr); trimmed != "" {
-			if !common.IsHexAddress(trimmed) {
-				log.Println("[ERROR] Failed to unlock account", "addr", trimmed, "err", "invalid hex-encoded ethereum address")
-			}
-
+		if trimmed := strings.TrimSpace(addr); trimmed != "" && common.IsHexAddress(trimmed) {
 			toUnlock = append(toUnlock, common.HexToAddress(addr))
+		} else {
+			log.Println("[ERROR] Failed to unlock account", "addr", trimmed, "err", "invalid hex-encoded ethereum address")
 		}
 	}
 	b.toUnlock = toUnlock
@@ -320,6 +318,7 @@ func (b *Backend) updater() {
 		// If all our subscribers left, stop the updater
 		b.mu.Lock()
 		if b.updateScope.Count() == 0 {
+			log.Println("[PLUGIN Backend] updater: stopping updater")
 			b.updating = false
 			b.mu.Unlock()
 			return
