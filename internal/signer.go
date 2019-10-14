@@ -19,24 +19,24 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type WalletFinder interface {
+type WalletFinderBackend interface {
 	Wallet(url string) (accounts.Wallet, error)
+	accounts.Backend
 }
 
 type signer struct {
-	WalletFinder
+	WalletFinderBackend
 	events            chan accounts.WalletEvent
 	eventSubscription event.Subscription
 }
 
 func (s *signer) init(config hashicorp.HashicorpAccountStoreConfig) error {
 	log.Println("[PLUGIN SIGNER] init")
-	b := hashicorp.NewManager(config.Vaults)
-	s.WalletFinder = b
-	events := make(chan accounts.WalletEvent, 4*len(config.Vaults))
-	eventSubscription := b.Subscribe(events)
-	s.events = events
-	s.eventSubscription = eventSubscription
+	manager := hashicorp.NewManager(config.Vaults)
+	s.WalletFinderBackend = manager
+	s.events = make(chan accounts.WalletEvent, 4*len(config.Vaults))
+	//eventSubscription := manager.Subscribe(events)
+	//s.eventSubscription = eventSubscription
 	return nil
 }
 
@@ -213,6 +213,7 @@ func (s *signer) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPa
 }
 
 // TODO CancelSubscribe method which calls unsubscribe and stops this loop
+// TODO Rename e.g. RegisterListener
 func (s *signer) Subscribe(req *proto.SubscribeRequest, stream proto.Signer_SubscribeServer) error {
 	defer func() {
 		s.eventSubscription.Unsubscribe()
@@ -221,6 +222,26 @@ func (s *signer) Subscribe(req *proto.SubscribeRequest, stream proto.Signer_Subs
 
 	log.Println("[SIGNER] received subscription request from geth")
 
+	wallets := s.Wallets()
+
+	// now that we have the initial set of wallets, subscribe to the acct manager backend to be notified when changes occur
+	s.eventSubscription = s.WalletFinderBackend.Subscribe(s.events)
+
+	// stream the currently held wallets to the caller
+	for _, w := range wallets {
+		pluginEvent := &proto.SubscribeResponse{
+			WalletEvent: proto.SubscribeResponse_WALLET_ARRIVED,
+			WalletUrl:   w.URL().String(),
+		}
+
+		if err := stream.Send(pluginEvent); err != nil {
+			log.Println("[SIGNER] error sending event: ", pluginEvent, "err: ", err)
+			return err
+		}
+		log.Println("[SIGNER] sent event: ", pluginEvent)
+	}
+
+	// listen for wallet events and stream to the caller until termination
 	for {
 		e := <-s.events
 		log.Println("[SIGNER] read event: ", e)

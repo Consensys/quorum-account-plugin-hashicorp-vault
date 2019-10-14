@@ -88,11 +88,13 @@ type unlocked struct {
 }
 
 // NewKeyStore creates a keystore for the given directory.
-func (b *Backend) Init(config VaultConfig) {
+func NewBackend(config VaultConfig) *Backend {
 	log.Println("[DEBUG] PLUGIN BACKEND Init")
 	keydir, _ := filepath.Abs(config.AccountConfigDir)
+	b := &Backend{storage: &keystoreHashicorp{}}
 	b.init(keydir, config)
 	b.initialised = true
+	return b
 }
 
 // parseURL converts a user supplied URL into the accounts specific structure.
@@ -113,7 +115,7 @@ func (b *Backend) init(keydir string, config VaultConfig) {
 	defer b.mu.Unlock()
 
 	// Initialize the set of unlocked keys and the account cache
-	b.unlocked = make(map[common.Address]*unlocked)
+	//b.unlocked = make(map[common.Address]*unlocked)
 	b.cache, b.Changes = cache.NewAccountCache(keydir, JsonAccountConfigUnmarshaller{})
 
 	// TODO: In order for this finalizer to work, there must be no references
@@ -123,21 +125,28 @@ func (b *Backend) init(keydir string, config VaultConfig) {
 		m.cache.Close()
 	})
 
+	// Create the initial list of wallets from the cache
+	accs := b.cache.Accounts()
+	b.wallets = make([]accounts.Wallet, len(accs))
+	for i := 0; i < len(accs); i++ {
+		b.wallets[i] = &wallet{account: accs[i], backend: b}
+	}
+
 	//// create the initial set of wallets and unlock if configured
 	//log.Println("[INFO] backend init - initial wallet creation")
 	//b.refreshWalletsNoLock()
 	//
 	//log.Println("[INFO] backend init - unlock:", config.Unlock)
-	unlockAddrs := strings.Split(config.Unlock, ",")
-	toUnlock := make([]common.Address, len(unlockAddrs))
-	for _, addr := range unlockAddrs {
-		if trimmed := strings.TrimSpace(addr); trimmed != "" && common.IsHexAddress(trimmed) {
-			toUnlock = append(toUnlock, common.HexToAddress(addr))
-		} else {
-			log.Println("[ERROR] Failed to unlock account", "addr", trimmed, "err", "invalid hex-encoded ethereum address")
-		}
-	}
-	b.toUnlock = toUnlock
+	//unlockAddrs := strings.Split(config.Unlock, ",")
+	//toUnlock := make([]common.Address, len(unlockAddrs))
+	//for _, addr := range unlockAddrs {
+	//	if trimmed := strings.TrimSpace(addr); trimmed != "" && common.IsHexAddress(trimmed) {
+	//		toUnlock = append(toUnlock, common.HexToAddress(addr))
+	//	} else {
+	//		log.Println("[ERROR] Failed to unlock account", "addr", trimmed, "err", "invalid hex-encoded ethereum address")
+	//	}
+	//}
+	//b.toUnlock = toUnlock
 	//for _, addr := range toUnlock {
 	//	log.Println("[INFO] backend init - attempting to unlock:", addr)
 	//	if trimmed := strings.TrimSpace(addr); trimmed != "" {
