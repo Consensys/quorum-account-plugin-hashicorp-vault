@@ -107,15 +107,21 @@ func (c VaultConfig) Validate() error {
 }
 
 type AccountConfig struct {
-	Address       string        `json:"address,omitempty"`
-	VaultLocation VaultLocation `json:"vaultlocation,omitempty"`
-	AuthID        string        `json:"authid,omitempty"`
-	SkipCas       bool          `json:"-"` // is not marshalled to json - only populated by CLI flags during account creation
-	CasValue      uint64        `json:"-"` // is not marshalled to json - only populated by CLI flags during account creation
-	secretUrl     string        `json:"-"` // is not marshalled to json - used only to keep track of the HTTP url of the new secret during account creation
+	Address        string             `json:"address,omitempty"`
+	HashicorpVault VaultAccountConfig `json:"hashicorpvault,omitempty"`
+	Id             string             `json:"id"`
+	Version        int                `json:"version"`
 }
 
-type VaultLocation struct {
+type VaultAccountConfig struct {
+	PathParams PathParams `json:"pathparams,omitempty"`
+	AuthID     string     `json:"authid,omitempty"`
+	SkipCas    bool       `json:"-"` // is not marshalled to json - only populated by CLI flags during account creation
+	CasValue   uint64     `json:"-"` // is not marshalled to json - only populated by CLI flags during account creation
+	secretUrl  string     `json:"-"` // is not marshalled to json - used only to keep track of the HTTP url of the new secret during account creation
+}
+
+type PathParams struct {
 	SecretEnginePath string `json:"secretenginepath,omitempty"`
 	SecretPath       string `json:"secretpath,omitempty"`
 	SecretVersion    int64  `json:"secretversion,omitempty"`
@@ -140,11 +146,11 @@ func (c AccountConfig) ValidateForAccountCreation() error {
 func (c AccountConfig) validate(skipAddrAndVersion bool) error {
 	var errs []string
 
-	if c.VaultLocation.SecretPath == "" {
+	if c.HashicorpVault.PathParams.SecretPath == "" {
 		errs = append(errs, invalidSecretPathMsg)
 	}
 
-	if c.VaultLocation.SecretEnginePath == "" {
+	if c.HashicorpVault.PathParams.SecretEnginePath == "" {
 		errs = append(errs, invalidSecretEnginePathMsg)
 	}
 
@@ -153,7 +159,7 @@ func (c AccountConfig) validate(skipAddrAndVersion bool) error {
 			errs = append(errs, invalidAddressMsg)
 		}
 
-		if c.VaultLocation.SecretVersion <= 0 {
+		if c.HashicorpVault.PathParams.SecretVersion <= 0 {
 			errs = append(errs, invalidSecretVersionMsg)
 		}
 	}

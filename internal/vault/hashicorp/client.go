@@ -1,11 +1,17 @@
 package hashicorp
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/vault/api"
+	"github.com/pborman/uuid"
+	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 )
 
 // Environment variable name for Hashicorp Vault authentication credential
@@ -32,7 +38,7 @@ func (e invalidApproleAuthErr) Error() string {
 }
 
 type authenticatedClient struct {
-	client     *api.Client
+	*api.Client
 	renewer    *api.Renewer
 	authConfig VaultAuth
 }
@@ -64,7 +70,7 @@ func newAuthenticatedClient(vaultAddr string, authConfig VaultAuth, tls TLS) (*a
 	if !creds.usingApproleAuth() {
 		// authenticate the client with the token provided
 		c.SetToken(creds.token)
-		return &authenticatedClient{client: c}, nil
+		return &authenticatedClient{Client: c}, nil
 	}
 
 	// authenticate the client using approle
@@ -84,7 +90,7 @@ func newAuthenticatedClient(vaultAddr string, authConfig VaultAuth, tls TLS) (*a
 		return nil, err
 	}
 
-	ac := &authenticatedClient{client: c, renewer: r, authConfig: authConfig}
+	ac := &authenticatedClient{Client: c, renewer: r, authConfig: authConfig}
 	go ac.renew()
 
 	return ac, nil
@@ -152,7 +158,7 @@ func (ac *authenticatedClient) renew() {
 			}
 
 			// authenticate the client using approle
-			resp, err := approleLogin(ac.client, creds, ac.authConfig.ApprolePath)
+			resp, err := approleLogin(ac.Client, creds, ac.authConfig.ApprolePath)
 			if err != nil {
 				log.Println("[ERROR] Vault re-authentication failed: ", err)
 			}
@@ -161,7 +167,7 @@ func (ac *authenticatedClient) renew() {
 			if err != nil {
 				log.Println("[ERROR] Vault re-authentication failed: ", err)
 			}
-			ac.client.SetToken(t)
+			ac.Client.SetToken(t)
 			go ac.renewer.Renew()
 
 		case renewal := <-ac.renewer.RenewCh():
@@ -179,7 +185,8 @@ func applyPrefix(pre, val string) string {
 }
 
 type vaultClientManager struct {
-	clients map[string]*authenticatedClient
+	vaultAddr string
+	clients   map[string]*authenticatedClient
 }
 
 func newVaultClientManager(config VaultConfig) (*vaultClientManager, error) {
@@ -191,17 +198,88 @@ func newVaultClientManager(config VaultConfig) (*vaultClientManager, error) {
 		}
 		clients[auth.AuthID] = client
 	}
-	return &vaultClientManager{clients: clients}, nil
+	return &vaultClientManager{
+		vaultAddr: config.Addr,
+		clients:   clients,
+	}, nil
 }
 
-func (ks vaultClientManager) GetKey(addr common.Address, filename string, auth string) (*Key, error) {
+func (m *vaultClientManager) GetKey(addr common.Address, filename string, auth string) (*Key, error) {
+	fileBytes, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var config AccountConfig
+	if err := json.Unmarshal(fileBytes, &config); err != nil {
+		return nil, err
+	}
+
+	if config == (AccountConfig{}) {
+		return nil, fmt.Errorf("unable to read vault account config from file %v", filename)
+	}
+
+	hexKey, err := m.getSecretFromVault(config)
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := crypto.HexToECDSA(hexKey)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse data from Hashicorp Vault to *ecdsa.PrivateKey: %v", err)
+	}
+
+	return &Key{
+		Id:         uuid.UUID(config.Id),
+		Address:    crypto.PubkeyToAddress(key.PublicKey),
+		PrivateKey: key,
+	}, nil
+}
+
+// getSecretFromVault retrieves a particular version of the secret 'name' from the provided secret engine. Expects RLock to be held.
+func (m *vaultClientManager) getSecretFromVault(config AccountConfig) (string, error) {
+	path := fmt.Sprintf("%s/data/%s", config.HashicorpVault.PathParams.SecretEnginePath, config.HashicorpVault.PathParams.SecretPath)
+
+	versionData := make(map[string][]string)
+	versionData["version"] = []string{strconv.FormatInt(config.HashicorpVault.PathParams.SecretVersion, 10)}
+
+	client, ok := m.clients[config.HashicorpVault.AuthID]
+	if !ok {
+		return "", fmt.Errorf("no client configured for Vault %v and authID %v", m.vaultAddr, config.HashicorpVault.AuthID)
+	}
+	resp, err := client.Logical().ReadWithData(path, versionData)
+	if err != nil {
+		return "", fmt.Errorf("unable to get secret from Hashicorp Vault: %v", err)
+	}
+	if resp == nil {
+		return "", fmt.Errorf("no data for secret in Hashicorp Vault")
+	}
+
+	respData, ok := resp.Data["data"].(map[string]interface{})
+	if !ok {
+		return "", errors.New("Hashicorp Vault response does not contain data")
+	}
+	if len(respData) != 1 {
+		return "", errors.New("only one key/value pair is allowed in each Hashicorp Vault secret")
+	}
+
+	// get secret regardless of key in map
+	var s interface{}
+	for _, d := range respData {
+		s = d
+	}
+	secret, ok := s.(string)
+	if !ok {
+		return "", errors.New("Hashicorp Vault response data is not in string format")
+	}
+
+	return secret, nil
+}
+
+func (m vaultClientManager) StoreKey(filename string, k *Key, auth string) error {
 	panic("implement me")
 }
 
-func (ks vaultClientManager) StoreKey(filename string, k *Key, auth string) error {
-	panic("implement me")
-}
-
-func (ks vaultClientManager) JoinPath(filename string) string {
+func (m vaultClientManager) JoinPath(filename string) string {
 	panic("implement me")
 }
