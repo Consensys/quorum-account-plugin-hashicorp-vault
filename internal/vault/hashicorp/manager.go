@@ -17,6 +17,7 @@
 package hashicorp
 
 import (
+	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"log"
 	"sort"
@@ -133,6 +134,19 @@ func (am *Manager) Backend(account accounts.Account) (accounts.Backend, error) {
 		}
 	}
 	return nil, accounts.ErrUnknownWallet
+}
+
+func (am *Manager) BackendForVault(vaultAddr string) (*Backend, error) {
+	for _, backend := range am.backends {
+		switch b := backend.(type) {
+		case *Backend:
+			a := b.storage.(*vaultClientManager).vaultAddr
+			if vaultAddr == a {
+				return b, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("plugin signer not configured to use Vault %v", vaultAddr)
 }
 
 // Wallets returns all signer accounts registered under this account manager.

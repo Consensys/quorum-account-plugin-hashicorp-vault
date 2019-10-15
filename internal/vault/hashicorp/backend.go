@@ -24,7 +24,6 @@ import (
 	"crypto/ecdsa"
 	crand "crypto/rand"
 	"errors"
-	"fmt"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/cache"
 	"log"
 	"math/big"
@@ -543,84 +542,89 @@ func (b *Backend) expire(addr common.Address, u *unlocked, timeout time.Duration
 
 // NewAccount generates a new key and stores it into the key directory,
 // encrypting it with the passphrase.
-func (b *Backend) NewAccount(passphrase string) (accounts.Account, error) {
-	_, account, err := storeNewKey(b.storage, crand.Reader, passphrase)
+func (b *Backend) NewAccount(vaultAccountConfig VaultAccountConfig) (accounts.Account, string, error) {
+	toValidate := AccountConfig{HashicorpVault: vaultAccountConfig}
+	if err := toValidate.ValidateForAccountCreation(); err != nil {
+		return accounts.Account{}, "", err
+	}
+
+	_, account, secretUri, err := storeNewKey(b.storage, crand.Reader, vaultAccountConfig)
 	if err != nil {
-		return accounts.Account{}, err
+		return accounts.Account{}, "", err
 	}
 	// Add the account to the cache immediately rather
 	// than waiting for file system notifications to pick it up.
 	b.cache.Add(account)
 	b.refreshWallets()
-	return account, nil
+	return account, secretUri, nil
 }
 
-// Export exports as a JSON key, encrypted with newPassphrase.
-func (b *Backend) Export(a accounts.Account, passphrase, newPassphrase string) (keyJSON []byte, err error) {
-	_, key, err := b.getDecryptedKey(a, passphrase)
-	if err != nil {
-		return nil, err
-	}
-	var N, P int
-	if store, ok := b.storage.(*keyStorePassphrase); ok {
-		N, P = store.scryptN, store.scryptP
-	} else {
-		N, P = StandardScryptN, StandardScryptP
-	}
-	return EncryptKey(key, newPassphrase, N, P)
-}
+//// Export exports as a JSON key, encrypted with newPassphrase.
+//func (b *Backend) Export(a accounts.Account, passphrase, newPassphrase string) (keyJSON []byte, err error) {
+//	_, key, err := b.getDecryptedKey(a, passphrase)
+//	if err != nil {
+//		return nil, err
+//	}
+//	var N, P int
+//	if store, ok := b.storage.(*keyStorePassphrase); ok {
+//		N, P = store.scryptN, store.scryptP
+//	} else {
+//		N, P = StandardScryptN, StandardScryptP
+//	}
+//	return EncryptKey(key, newPassphrase, N, P)
+//}
 
-// Import stores the given encrypted JSON key into the key directory.
-func (b *Backend) Import(keyJSON []byte, passphrase, newPassphrase string) (accounts.Account, error) {
-	key, err := DecryptKey(keyJSON, passphrase)
-	if key != nil && key.PrivateKey != nil {
-		defer zeroKey(key.PrivateKey)
-	}
-	if err != nil {
-		return accounts.Account{}, err
-	}
-	return b.importKey(key, newPassphrase)
-}
-
-// ImportECDSA stores the given key into the key directory, encrypting it with the passphrase.
-func (b *Backend) ImportECDSA(priv *ecdsa.PrivateKey, passphrase string) (accounts.Account, error) {
-	key := newKeyFromECDSA(priv)
-	if b.cache.HasAddress(key.Address) {
-		return accounts.Account{}, fmt.Errorf("account already exists")
-	}
-	return b.importKey(key, passphrase)
-}
-
-func (b *Backend) importKey(key *Key, passphrase string) (accounts.Account, error) {
-	a := accounts.Account{Address: key.Address, URL: accounts.URL{Scheme: KeyStoreScheme, Path: b.storage.JoinPath(keyFileName(key.Address))}}
-	if err := b.storage.StoreKey(a.URL.Path, key, passphrase); err != nil {
-		return accounts.Account{}, err
-	}
-	b.cache.Add(a)
-	b.refreshWallets()
-	return a, nil
-}
-
-// Update changes the passphrase of an existing account.
-func (b *Backend) Update(a accounts.Account, passphrase, newPassphrase string) error {
-	a, key, err := b.getDecryptedKey(a, passphrase)
-	if err != nil {
-		return err
-	}
-	return b.storage.StoreKey(a.URL.Path, key, newPassphrase)
-}
-
-// ImportPreSaleKey decrypts the given Ethereum presale wallet and stores
-// a key file in the key directory. The key file is encrypted with the same passphrase.
-func (b *Backend) ImportPreSaleKey(keyJSON []byte, passphrase string) (accounts.Account, error) {
-	a, _, err := importPreSaleKey(b.storage, keyJSON, passphrase)
-	if err != nil {
-		return a, err
-	}
-	b.cache.Add(a)
-	b.refreshWallets()
-	return a, nil
-}
+//// Import stores the given encrypted JSON key into the key directory.
+//func (b *Backend) Import(keyJSON []byte, passphrase, newPassphrase string) (accounts.Account, error) {
+//	key, err := DecryptKey(keyJSON, passphrase)
+//	if key != nil && key.PrivateKey != nil {
+//		defer zeroKey(key.PrivateKey)
+//	}
+//	if err != nil {
+//		return accounts.Account{}, err
+//	}
+//	return b.importKey(key, newPassphrase)
+//}
+//
+//// ImportECDSA stores the given key into the key directory, encrypting it with the passphrase.
+//func (b *Backend) ImportECDSA(priv *ecdsa.PrivateKey, passphrase string) (accounts.Account, error) {
+//	key := newKeyFromECDSA(priv)
+//	if b.cache.HasAddress(key.Address) {
+//		return accounts.Account{}, fmt.Errorf("account already exists")
+//	}
+//	return b.importKey(key, passphrase)
+//}
+//
+//func (b *Backend) importKey(key *Key, passphrase string) (accounts.Account, error) {
+//	a := accounts.Account{Address: key.Address, URL: accounts.URL{Scheme: KeyStoreScheme, Path: b.storage.JoinPath(keyFileName(key.Address))}}
+//	if err := b.storage.StoreKey(a.URL.Path, key, passphrase); err != nil {
+//		return accounts.Account{}, err
+//	}
+//	b.cache.Add(a)
+//	b.refreshWallets()
+//	return a, nil
+//}
+//
+//// Update changes the passphrase of an existing account.
+//func (b *Backend) Update(a accounts.Account, passphrase, newPassphrase string) error {
+//	a, key, err := b.getDecryptedKey(a, passphrase)
+//	if err != nil {
+//		return err
+//	}
+//	return b.storage.StoreKey(a.URL.Path, key, newPassphrase)
+//}
+//
+//// ImportPreSaleKey decrypts the given Ethereum presale wallet and stores
+//// a key file in the key directory. The key file is encrypted with the same passphrase.
+//func (b *Backend) ImportPreSaleKey(keyJSON []byte, passphrase string) (accounts.Account, error) {
+//	a, _, err := importPreSaleKey(b.storage, keyJSON, passphrase)
+//	if err != nil {
+//		return a, err
+//	}
+//	b.cache.Add(a)
+//	b.refreshWallets()
+//	return a, nil
+//}
 
 // zeroKey zeroes a private key in memory.
 func zeroKey(k *ecdsa.PrivateKey) {

@@ -1,6 +1,7 @@
 package hashicorp
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -185,8 +187,9 @@ func applyPrefix(pre, val string) string {
 }
 
 type vaultClientManager struct {
-	vaultAddr string
-	clients   map[string]*authenticatedClient
+	vaultAddr     string
+	acctConfigDir string
+	clients       map[string]*authenticatedClient
 }
 
 func newVaultClientManager(config VaultConfig) (*vaultClientManager, error) {
@@ -199,8 +202,9 @@ func newVaultClientManager(config VaultConfig) (*vaultClientManager, error) {
 		clients[auth.AuthID] = client
 	}
 	return &vaultClientManager{
-		vaultAddr: config.Addr,
-		clients:   clients,
+		vaultAddr:     config.Addr,
+		acctConfigDir: config.AccountConfigDir,
+		clients:       clients,
 	}, nil
 }
 
@@ -219,7 +223,7 @@ func (m *vaultClientManager) GetKey(addr common.Address, filename string, auth s
 		return nil, fmt.Errorf("unable to read vault account config from file %v", filename)
 	}
 
-	hexKey, err := m.getSecretFromVault(config)
+	hexKey, err := m.getSecretFromVault(config.HashicorpVault)
 	if err != nil {
 		return nil, err
 	}
@@ -237,16 +241,17 @@ func (m *vaultClientManager) GetKey(addr common.Address, filename string, auth s
 }
 
 // getSecretFromVault retrieves a particular version of the secret 'name' from the provided secret engine. Expects RLock to be held.
-func (m *vaultClientManager) getSecretFromVault(config AccountConfig) (string, error) {
-	path := fmt.Sprintf("%s/data/%s", config.HashicorpVault.PathParams.SecretEnginePath, config.HashicorpVault.PathParams.SecretPath)
+func (m *vaultClientManager) getSecretFromVault(vaultAccountConfig VaultAccountConfig) (string, error) {
+	client, ok := m.clients[vaultAccountConfig.AuthID]
+	if !ok {
+		return "", fmt.Errorf("no client configured for Vault %v and authID %v", m.vaultAddr, vaultAccountConfig.AuthID)
+	}
+
+	path := fmt.Sprintf("%s/data/%s", vaultAccountConfig.PathParams.SecretEnginePath, vaultAccountConfig.PathParams.SecretPath)
 
 	versionData := make(map[string][]string)
-	versionData["version"] = []string{strconv.FormatInt(config.HashicorpVault.PathParams.SecretVersion, 10)}
+	versionData["version"] = []string{strconv.FormatInt(vaultAccountConfig.PathParams.SecretVersion, 10)}
 
-	client, ok := m.clients[config.HashicorpVault.AuthID]
-	if !ok {
-		return "", fmt.Errorf("no client configured for Vault %v and authID %v", m.vaultAddr, config.HashicorpVault.AuthID)
-	}
 	resp, err := client.Logical().ReadWithData(path, versionData)
 	if err != nil {
 		return "", fmt.Errorf("unable to get secret from Hashicorp Vault: %v", err)
@@ -276,10 +281,91 @@ func (m *vaultClientManager) getSecretFromVault(config AccountConfig) (string, e
 	return secret, nil
 }
 
-func (m vaultClientManager) StoreKey(filename string, k *Key, auth string) error {
-	panic("implement me")
+func (m vaultClientManager) StoreKey(filename string, vaultConfig VaultAccountConfig, k *Key) (string, error) {
+	secretUri, secretVersion, err := m.storeInVault(vaultConfig, k)
+	if err != nil {
+		return "", err
+	}
+
+	// include the version of the newly created vault secret in the data written to file
+	vaultConfig.PathParams.SecretVersion = secretVersion
+	if err := m.storeInFile(filename, vaultConfig, k); err != nil {
+		return "", fmt.Errorf("secret written to Vault but unable to write data to file: secret uri: %v, err: %v", secretUri, err)
+	}
+
+	return secretUri, nil
+}
+
+func (m vaultClientManager) storeInVault(vaultConfig VaultAccountConfig, k *Key) (string, int64, error) {
+	client, ok := m.clients[vaultConfig.AuthID]
+	if !ok {
+		return "", 0, fmt.Errorf("no client configured for Vault %v and authID %v", m.vaultAddr, vaultConfig.AuthID)
+	}
+
+	path := fmt.Sprintf("%s/data/%s", vaultConfig.PathParams.SecretEnginePath, vaultConfig.PathParams.SecretPath)
+
+	address := k.Address
+	addrHex := hex.EncodeToString(address[:])
+
+	keyBytes := crypto.FromECDSA(k.PrivateKey)
+	keyHex := hex.EncodeToString(keyBytes)
+
+	data := make(map[string]interface{})
+	data["data"] = map[string]interface{}{
+		addrHex: keyHex,
+	}
+
+	if !vaultConfig.InsecureSkipCas {
+		data["options"] = map[string]interface{}{
+			"cas": vaultConfig.CasValue,
+		}
+	}
+
+	resp, err := client.Logical().Write(path, data)
+	if err != nil {
+		return "", 0, fmt.Errorf("unable to write secret to Vault: %v", err)
+	}
+
+	v, ok := resp.Data["version"]
+	if !ok {
+		secretUri := fmt.Sprintf("%v/v1/%v", client.Address(), path)
+		return "", 0, fmt.Errorf("secret written to Vault but unable to get version: secret uri: %v, err %v", secretUri, err)
+	}
+	vJson, ok := v.(json.Number)
+	secretVersion, err := vJson.Int64()
+	if err != nil {
+		secretUri := fmt.Sprintf("%v/v1/%v", client.Address(), path)
+		return "", 0, fmt.Errorf("secret written to Vault but unable to convert version in Vault response to int64: secret: %v, version: %v", secretUri, vJson.String())
+	}
+
+	secretUri := fmt.Sprintf("%v/v1/%v?version=%v", client.Address(), path, secretVersion)
+	return secretUri, secretVersion, nil
+}
+
+func (m vaultClientManager) storeInFile(filename string, vaultConfig VaultAccountConfig, k *Key) error {
+	toStore, err := json.Marshal(
+		AccountConfig{
+			Address:        hex.EncodeToString(k.Address[:]),
+			HashicorpVault: vaultConfig,
+			Id:             k.Id.String(),
+			Version:        version,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	// Write into temporary file
+	tmpName, err := writeTemporaryKeyFile(filename, toStore)
+	if err != nil {
+		return err
+	}
+
+	return os.Rename(tmpName, filename)
 }
 
 func (m vaultClientManager) JoinPath(filename string) string {
-	panic("implement me")
+	if filepath.IsAbs(filename) {
+		return filename
+	}
+	return filepath.Join(m.acctConfigDir, filename)
 }

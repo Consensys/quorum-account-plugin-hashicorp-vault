@@ -22,6 +22,7 @@ import (
 
 type WalletFinderLockerBackend interface {
 	accounts.Backend
+	BackendForVault(vaultAddr string) (*hashicorp.Backend, error)
 	Wallet(url string) (accounts.Wallet, error)
 	TimedUnlock(acct accounts.Account, passphrase string, timeout time.Duration) error
 	Lock(acct accounts.Account) error
@@ -286,6 +287,20 @@ func (s *signer) Lock(_ context.Context, req *proto.LockRequest) (*proto.LockRes
 	return &proto.LockResponse{}, nil
 }
 
+func (s *signer) NewAccount(_ context.Context, req *proto.NewAccountRequest) (*proto.NewAccountResponse, error) {
+	b, err := s.BackendForVault(req.VaultAddress)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	acct, secretUri, err := b.NewAccount(asVaultAccountConfig(req))
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &proto.NewAccountResponse{Account: asProtoAccount(acct), SecretUri: secretUri}, nil
+}
+
 // TODO duplicated from quorum plugin/accounts/gateway.go
 func asAccount(pAcct *proto.Account) (accounts.Account, error) {
 	addr := strings.TrimSpace(common.Bytes2Hex(pAcct.Address))
@@ -331,5 +346,17 @@ func asProtoWalletEvent(event accounts.WalletEvent) *proto.SubscribeResponse {
 	return &proto.SubscribeResponse{
 		WalletEvent: t,
 		WalletUrl:   event.Wallet.URL().String(),
+	}
+}
+
+func asVaultAccountConfig(req *proto.NewAccountRequest) hashicorp.VaultAccountConfig {
+	return hashicorp.VaultAccountConfig{
+		PathParams: hashicorp.PathParams{
+			SecretEnginePath: req.SecretEnginePath,
+			SecretPath:       req.SecretPath,
+		},
+		AuthID:          req.AuthID,
+		InsecureSkipCas: req.InsecureSkipCas,
+		CasValue:        req.CasValue,
 	}
 }

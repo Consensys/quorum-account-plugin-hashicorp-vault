@@ -114,11 +114,11 @@ type AccountConfig struct {
 }
 
 type VaultAccountConfig struct {
-	PathParams PathParams `json:"pathparams,omitempty"`
-	AuthID     string     `json:"authid,omitempty"`
-	SkipCas    bool       `json:"-"` // is not marshalled to json - only populated by CLI flags during account creation
-	CasValue   uint64     `json:"-"` // is not marshalled to json - only populated by CLI flags during account creation
-	secretUrl  string     `json:"-"` // is not marshalled to json - used only to keep track of the HTTP url of the new secret during account creation
+	PathParams      PathParams `json:"pathparams,omitempty"`
+	AuthID          string     `json:"authid,omitempty"`
+	InsecureSkipCas bool       `json:"-"` // is not marshalled to json - only populated by CLI flags during account creation
+	CasValue        uint64     `json:"-"` // is not marshalled to json - only populated by CLI flags during account creation
+	secretUrl       string     `json:"-"` // is not marshalled to json - used only to keep track of the HTTP url of the new secret during account creation
 }
 
 type PathParams struct {

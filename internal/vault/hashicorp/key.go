@@ -52,7 +52,7 @@ type keyStore interface {
 	// Loads and decrypts the key from disk.
 	GetKey(addr common.Address, filename string, auth string) (*Key, error)
 	// Writes and encrypts the key.
-	StoreKey(filename string, k *Key, auth string) error
+	StoreKey(filename string, vaultConfig VaultAccountConfig, k *Key) (string, error)
 	// Joins filename with the key directory unless it is already absolute.
 	JoinPath(filename string) string
 }
@@ -166,17 +166,20 @@ func newKey(rand io.Reader) (*Key, error) {
 	return newKeyFromECDSA(privateKeyECDSA), nil
 }
 
-func storeNewKey(ks keyStore, rand io.Reader, auth string) (*Key, accounts.Account, error) {
+func storeNewKey(ks keyStore, rand io.Reader, vaultAccountConfig VaultAccountConfig) (*Key, accounts.Account, string, error) {
 	key, err := newKey(rand)
 	if err != nil {
-		return nil, accounts.Account{}, err
+		return nil, accounts.Account{}, "", err
 	}
-	a := accounts.Account{Address: key.Address, URL: accounts.URL{Scheme: KeyStoreScheme, Path: ks.JoinPath(keyFileName(key.Address))}}
-	if err := ks.StoreKey(a.URL.Path, key, auth); err != nil {
+
+	a := accounts.Account{Address: key.Address, URL: accounts.URL{Scheme: AcctScheme, Path: ks.JoinPath(keyFileName(key.Address))}}
+
+	secretUri, err := ks.StoreKey(a.URL.Path, vaultAccountConfig, key)
+	if err != nil {
 		zeroKey(key.PrivateKey)
-		return nil, a, err
+		return nil, a, "", err
 	}
-	return key, a, err
+	return key, a, secretUri, err
 }
 
 func writeTemporaryKeyFile(file string, content []byte) (string, error) {
