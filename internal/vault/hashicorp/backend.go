@@ -55,8 +55,9 @@ var KeyStoreType = reflect.TypeOf(&Backend{})
 const KeyStoreScheme = "keystore"
 
 const (
-	WalletScheme = "hashiwlt"
-	AcctScheme   = "hashiacct"
+	WalletScheme   = "hashiwlt"
+	AcctScheme     = "hashiacct"
+	HashiVltScheme = "hashivlt"
 )
 
 // Maximum time between wallet refreshes (if filesystem notifications don't work).
@@ -124,7 +125,7 @@ func (b *Backend) init(keydir string, config VaultConfig) error {
 
 	// Initialize the set of unlocked keys and the account cache
 	b.unlocked = make(map[common.Address]*unlocked)
-	b.cache, b.Changes = cache.NewAccountCache(keydir, JsonAccountConfigUnmarshaller{})
+	b.cache, b.Changes = cache.NewAccountCache(keydir, b.storage.(*vaultClientManager).vaultAddr, JsonAccountConfigUnmarshaller{})
 
 	// TODO: In order for this finalizer to work, there must be no references
 	// to b. addressCache doesn't keep a reference but unlocked keys do,

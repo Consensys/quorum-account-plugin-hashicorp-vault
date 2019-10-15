@@ -74,15 +74,17 @@ type AccountCache struct {
 	notify   chan struct{}
 	fileC    fileCache
 
+	vaultAddr                 string
 	accountConfigUnmarshaller vault.AccountConfigUnmarshaller
 }
 
-func NewAccountCache(keydir string, unmarshaller vault.AccountConfigUnmarshaller) (*AccountCache, chan struct{}) {
+func NewAccountCache(keydir string, vaultAddr string, unmarshaller vault.AccountConfigUnmarshaller) (*AccountCache, chan struct{}) {
 	ac := &AccountCache{
 		keydir:                    keydir,
 		byAddr:                    make(map[common.Address][]accounts.Account),
 		notify:                    make(chan struct{}, 1),
 		fileC:                     fileCache{all: mapset.NewThreadUnsafeSet()},
+		vaultAddr:                 vaultAddr,
 		accountConfigUnmarshaller: unmarshaller,
 	}
 	ac.watcher = newWatcher(ac)
@@ -275,7 +277,12 @@ func (ac *AccountCache) scanAccounts() error {
 			return nil
 		}
 
-		return acctConfig.ParseAccount(path)
+		acct, err := acctConfig.ParseAccount(ac.vaultAddr, path)
+		if err != nil {
+			log.Println("[INFO] Failed to create account from secret config", "path", path, "err", err)
+			return nil
+		}
+		return &acct
 	}
 	// Process all the file diffs
 	start := time.Now()

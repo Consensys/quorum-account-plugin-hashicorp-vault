@@ -127,6 +127,10 @@ type PathParams struct {
 	SecretVersion    int64  `json:"secretversion,omitempty"`
 }
 
+func (p PathParams) combine() string {
+	return fmt.Sprintf("v1/%v/data/%v?version=%v", p.SecretEnginePath, p.SecretPath, p.SecretVersion)
+}
+
 // Validate checks that the VaultConfig has the minimum fields defined to be a valid configuration.  If the configuration is invalid an error is returned describing which fields have not been defined otherwise nil is returned.
 //
 // This should be used to validate configs intended to be used for retrieving from a Vault (i.e. in normal node operation).  For configs intended to be used for writing to a Vault use ValidateForAccountCreation.
@@ -171,8 +175,28 @@ func (c AccountConfig) validate(skipAddrAndVersion bool) error {
 	return nil
 }
 
-func (c AccountConfig) ParseAccount(filepath string) *accounts.Account {
-	return &accounts.Account{Address: common.HexToAddress(c.Address), URL: accounts.URL{Scheme: AcctScheme, Path: filepath}}
+func (c AccountConfig) ParseAccount(vaultUrl, filepath string) (accounts.Account, error) {
+	//hashivlt://FOO@localhost:8202/v1/kv/data/myacct?version=1#config=/Users/chrishounsom/Desktop/myaccts/UTC--2019-09-17T14-11-28.531943000Z--4d6d744b6da435b5bbdde2526dc20e9a41cb72e5
+	vaultAddr, err := vault.ToUrl(vaultUrl)
+	if err != nil {
+		return accounts.Account{}, err
+	}
+
+	uriPath := fmt.Sprintf(
+		"%v/%v#config=%v",
+		vaultAddr.Path,
+		c.HashicorpVault.PathParams.combine(),
+		filepath,
+	)
+
+	if c.HashicorpVault.AuthID != "" {
+		uriPath = fmt.Sprintf("%v@%v", c.HashicorpVault.AuthID, uriPath)
+	}
+
+	return accounts.Account{
+		Address: common.HexToAddress(c.Address),
+		URL:     accounts.URL{Scheme: HashiVltScheme, Path: uriPath},
+	}, nil
 }
 
 type JsonAccountConfigUnmarshaller struct{}

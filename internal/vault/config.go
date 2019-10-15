@@ -16,7 +16,7 @@ type ValidatableConfig interface {
 }
 
 type AccountParser interface {
-	ParseAccount(filepath string) *accounts.Account
+	ParseAccount(vaultAddr, filepath string) (accounts.Account, error)
 }
 
 type AccountConfigUnmarshaller interface {
