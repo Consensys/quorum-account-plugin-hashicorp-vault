@@ -71,13 +71,11 @@ type Backend struct {
 	Changes  chan struct{}                // Channel receiving change notifications from the cache
 	unlocked map[common.Address]*unlocked // Currently unlocked account (decrypted private keys)
 
-	wallets        []accounts.Wallet       // Wallet wrappers around the individual key files
-	updateFeed     event.Feed              // Event feed to notify wallet additions/removals
-	updateScope    event.SubscriptionScope // Subscription scope tracking current live listeners
-	initialised    bool
-	updating       bool // Whether the event notification loop is running
-	toUnlock       []common.Address
-	unlocksApplied bool
+	wallets     []accounts.Wallet       // Wallet wrappers around the individual key files
+	updateFeed  event.Feed              // Event feed to notify wallet additions/removals
+	updateScope event.SubscriptionScope // Subscription scope tracking current live listeners
+	initialised bool
+	updating    bool // Whether the event notification loop is running
 
 	mu sync.RWMutex
 }
@@ -228,23 +226,6 @@ func (b *Backend) refreshWallets() {
 		events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletDropped})
 	}
 	b.wallets = wallets
-
-	// if this is the first time, try unlocking accts
-	if !b.unlocksApplied {
-		log.Println("[INFO] backend refreshwallets: applying unlocks")
-		for _, w := range b.wallets {
-			log.Println("[INFO] backend refreshwallets: checking if wallet should be unlocked: ", w.URL().String())
-			for _, addr := range b.toUnlock {
-				if acct := w.Accounts()[0]; acct.Address == addr {
-					log.Println("[INFO] backend refreshwallets - attempting to unlock:", addr)
-					if err := b.Unlock(acct, ""); err != nil {
-						log.Println("[ERROR] Failed to unlock account", "addr", acct.Address.Hex(), "err", err)
-					}
-				}
-			}
-		}
-		b.unlocksApplied = true
-	}
 
 	b.mu.Unlock()
 
@@ -517,7 +498,8 @@ func (b *Backend) getDecryptedKey(a accounts.Account, auth string) (accounts.Acc
 	if err != nil {
 		return a, nil, err
 	}
-	key, err := b.storage.GetKey(a.Address, a.URL.Path, auth)
+	file := strings.Split(a.URL.Path, "#config=")
+	key, err := b.storage.GetKey(a.Address, file[1], auth)
 	return a, key, err
 }
 

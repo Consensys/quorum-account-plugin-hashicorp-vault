@@ -19,8 +19,10 @@ package hashicorp
 import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
 	"log"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -60,6 +62,18 @@ func NewManager(config []VaultConfig) (*Manager, error) {
 
 		// Retrieve the initial list of wallets from the backends and sort by URL
 		wallets = merge(wallets, backend.Wallets()...)
+
+		// unlock necessary wallets
+		unlockAddrs := strings.Split(conf.Unlock, ",")
+		for _, addr := range unlockAddrs {
+			if trimmed := strings.TrimSpace(addr); trimmed != "" && common.IsHexAddress(trimmed) {
+				if err := backend.Unlock(accounts.Account{Address: common.HexToAddress(addr)}, ""); err != nil {
+					log.Println("[ERROR] Failed to unlock account", "addr", trimmed, "err", err)
+				}
+			} else {
+				log.Println("[ERROR] Failed to unlock account", "addr", trimmed, "err", "invalid hex-encoded ethereum address")
+			}
+		}
 
 		// Subscribe to wallet notifications from the backend
 		subs[i] = backend.Subscribe(updates)
