@@ -21,6 +21,7 @@
 package hashicorp
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	crand "crypto/rand"
 	"errors"
@@ -452,6 +453,10 @@ func (b *Backend) Find(a accounts.Account) (accounts.Account, error) {
 	return a, err
 }
 
+var (
+	incorrectKeyForAddrErr = errors.New("the address of the account provided does not match the address derived from the private key retrieved from the Vault.  Ensure the correct secret names and versions are specified in the node config.")
+)
+
 func (b *Backend) getDecryptedKey(a accounts.Account, auth string) (accounts.Account, *Key, error) {
 	a, err := b.Find(a)
 	if err != nil {
@@ -459,6 +464,16 @@ func (b *Backend) getDecryptedKey(a accounts.Account, auth string) (accounts.Acc
 	}
 	//file := strings.Split(a.URL.Path, "#config=")
 	key, err := b.storage.GetKey(a.Address, a.URL.Path, auth)
+	if err != nil {
+		return a, nil, err
+	}
+
+	// validate that the retrieved key is correct for the provided account
+	log.Println("validating key: sign requested with", a, "acct from vault is", key.Address)
+	if !bytes.Equal(key.Address.Bytes(), a.Address.Bytes()) {
+		zeroKey(key.PrivateKey)
+		return a, nil, incorrectKeyForAddrErr
+	}
 	return a, key, err
 }
 
