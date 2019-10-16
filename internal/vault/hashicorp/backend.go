@@ -27,7 +27,6 @@ import (
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/cache"
 	"log"
 	"math/big"
-	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -136,7 +135,7 @@ func (b *Backend) init(keydir string, config VaultConfig) error {
 	accs := b.cache.Accounts()
 	b.wallets = make([]accounts.Wallet, len(accs))
 	for i := 0; i < len(accs); i++ {
-		b.wallets[i] = &wallet{account: accs[i], backend: b}
+		b.wallets[i] = &wallet{url: accs[i].WalletUrl, account: accs[i].Account, backend: b}
 	}
 
 	return nil
@@ -202,20 +201,20 @@ func (b *Backend) refreshWallets() {
 
 	for _, account := range accs {
 		// Drop wallets while they were in front of the next account
-		for len(b.wallets) > 0 && b.wallets[0].URL().Cmp(account.URL) < 0 {
+		for len(b.wallets) > 0 && b.wallets[0].URL().Cmp(account.WalletUrl) < 0 {
 			events = append(events, accounts.WalletEvent{Wallet: b.wallets[0], Kind: accounts.WalletDropped})
 			b.wallets = b.wallets[1:]
 		}
 		// If there are no more wallets or the account is before the next, wrap new wallet
-		if len(b.wallets) == 0 || b.wallets[0].URL().Cmp(account.URL) > 0 {
-			wallet := &wallet{account: account, backend: b}
+		if len(b.wallets) == 0 || b.wallets[0].URL().Cmp(account.WalletUrl) > 0 {
+			wallet := &wallet{url: account.WalletUrl, account: account.Account, backend: b}
 			log.Println("[PLUGIN Backend] refreshWallets: new wallet wrapped", wallet)
 			events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletArrived})
 			wallets = append(wallets, wallet)
 			continue
 		}
 		// If the account is the same as the first wallet, keep it
-		if b.wallets[0].Accounts()[0] == account {
+		if b.wallets[0].Accounts()[0] == account.Account {
 			wallets = append(wallets, b.wallets[0])
 			b.wallets = b.wallets[1:]
 			continue
@@ -228,51 +227,6 @@ func (b *Backend) refreshWallets() {
 	b.wallets = wallets
 
 	b.mu.Unlock()
-
-	// Fire all wallet events and return
-	for _, event := range events {
-		log.Println("[PLUGIN Backend] sending event: ", event.Kind, event.Wallet.URL().String())
-		b.updateFeed.Send(event)
-	}
-}
-
-func (b *Backend) refreshWalletsNoLock() {
-	log.Println("[PLUGIN Backend] refreshWallets")
-	// Retrieve the current list of accounts
-
-	accs := b.cache.Accounts()
-	log.Println("[PLUGIN Backend] refreshWallets: cache len(accts)", len(accs), ", backend len(wallets)", len(b.wallets))
-
-	// Transform the current list of wallets into the new one
-	wallets := make([]accounts.Wallet, 0, len(accs))
-	events := []accounts.WalletEvent{}
-
-	for _, account := range accs {
-		// Drop wallets while they were in front of the next account
-		for len(b.wallets) > 0 && b.wallets[0].URL().Cmp(account.URL) < 0 {
-			events = append(events, accounts.WalletEvent{Wallet: b.wallets[0], Kind: accounts.WalletDropped})
-			b.wallets = b.wallets[1:]
-		}
-		// If there are no more wallets or the account is before the next, wrap new wallet
-		if len(b.wallets) == 0 || b.wallets[0].URL().Cmp(account.URL) > 0 {
-			wallet := &wallet{account: account, backend: b}
-			log.Println("[PLUGIN Backend] refreshWallets: new wallet wrapped", wallet)
-			events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletArrived})
-			wallets = append(wallets, wallet)
-			continue
-		}
-		// If the account is the same as the first wallet, keep it
-		if b.wallets[0].Accounts()[0] == account {
-			wallets = append(wallets, b.wallets[0])
-			b.wallets = b.wallets[1:]
-			continue
-		}
-	}
-	// Drop any leftover wallets and set the new batch
-	for _, wallet := range b.wallets {
-		events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletDropped})
-	}
-	b.wallets = wallets
 
 	// Fire all wallet events and return
 	for _, event := range events {
@@ -334,32 +288,37 @@ func (b *Backend) HasAddress(addr common.Address) bool {
 
 // Accounts returns all key files present in the directory.
 func (b *Backend) Accounts() []accounts.Account {
-	return b.cache.Accounts()
+	a := b.cache.Accounts()
+	accts := make([]accounts.Account, len(a))
+	for i := range a {
+		accts[i] = a[i].Account
+	}
+	return accts
 }
 
-// Delete deletes the key matched by account if the passphrase is correct.
-// If the account contains no filename, the address must match a unique key.
-func (b *Backend) Delete(a accounts.Account, passphrase string) error {
-	// Decrypting the key isn't really necessary, but we do
-	// it anyway to check the password and zero out the key
-	// immediately afterwards.
-	a, key, err := b.getDecryptedKey(a, passphrase)
-	if key != nil {
-		zeroKey(key.PrivateKey)
-	}
-	if err != nil {
-		return err
-	}
-	// The order is crucial here. The key is dropped from the
-	// cache after the file is gone so that a reload happening in
-	// between won't insert it into the cache again.
-	err = os.Remove(a.URL.Path)
-	if err == nil {
-		b.cache.Delete(a)
-		b.refreshWallets()
-	}
-	return err
-}
+//// Delete deletes the key matched by account if the passphrase is correct.
+//// If the account contains no filename, the address must match a unique key.
+//func (b *Backend) Delete(a accounts.Account, passphrase string) error {
+//	// Decrypting the key isn't really necessary, but we do
+//	// it anyway to check the password and zero out the key
+//	// immediately afterwards.
+//	a, key, err := b.getDecryptedKey(a, passphrase)
+//	if key != nil {
+//		zeroKey(key.PrivateKey)
+//	}
+//	if err != nil {
+//		return err
+//	}
+//	// The order is crucial here. The key is dropped from the
+//	// cache after the file is gone so that a reload happening in
+//	// between won't insert it into the cache again.
+//	err = os.Remove(a.URL.Path)
+//	if err == nil {
+//		b.cache.Delete(a)
+//		b.refreshWallets()
+//	}
+//	return err
+//}
 
 // SignHash calculates a ECDSA signature for the given hash. The produced
 // signature is in the [R || S || V] format where V is 0 or 1.
@@ -498,8 +457,8 @@ func (b *Backend) getDecryptedKey(a accounts.Account, auth string) (accounts.Acc
 	if err != nil {
 		return a, nil, err
 	}
-	file := strings.Split(a.URL.Path, "#config=")
-	key, err := b.storage.GetKey(a.Address, file[1], auth)
+	//file := strings.Split(a.URL.Path, "#config=")
+	key, err := b.storage.GetKey(a.Address, a.URL.Path, auth)
 	return a, key, err
 }
 
@@ -539,7 +498,7 @@ func (b *Backend) NewAccount(vaultAccountConfig VaultAccountConfig) (accounts.Ac
 	// than waiting for file system notifications to pick it up.
 	b.cache.Add(account)
 	b.refreshWallets()
-	return account, secretUri, nil
+	return account.Account, secretUri, nil
 }
 
 //// Export exports as a JSON key, encrypted with newPassphrase.

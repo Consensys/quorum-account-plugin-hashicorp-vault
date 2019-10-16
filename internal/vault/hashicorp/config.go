@@ -175,27 +175,30 @@ func (c AccountConfig) validate(skipAddrAndVersion bool) error {
 	return nil
 }
 
-func (c AccountConfig) ParseAccount(vaultUrl, filepath string) (accounts.Account, error) {
+func (c AccountConfig) ParseAccount(vaultUrl, filepath string) (vault.AccountAndWalletUrl, error) {
 	//hashivlt://FOO@localhost:8202/v1/kv/data/myacct?version=1#config=/Users/chrishounsom/Desktop/myaccts/UTC--2019-09-17T14-11-28.531943000Z--4d6d744b6da435b5bbdde2526dc20e9a41cb72e5
 	vaultAddr, err := vault.ToUrl(vaultUrl)
 	if err != nil {
-		return accounts.Account{}, err
+		return vault.AccountAndWalletUrl{}, err
 	}
 
-	uriPath := fmt.Sprintf(
-		"%v/%v#config=%v",
+	walletPath := fmt.Sprintf(
+		"%v/%v#addr=%v",
 		vaultAddr.Path,
 		c.HashicorpVault.PathParams.combine(),
-		filepath,
+		c.Address,
 	)
 
 	if c.HashicorpVault.AuthID != "" {
-		uriPath = fmt.Sprintf("%v@%v", c.HashicorpVault.AuthID, uriPath)
+		walletPath = fmt.Sprintf("%v@%v", c.HashicorpVault.AuthID, walletPath)
 	}
 
-	return accounts.Account{
-		Address: common.HexToAddress(c.Address),
-		URL:     accounts.URL{Scheme: HashiVltScheme, Path: uriPath},
+	return vault.AccountAndWalletUrl{
+		Account: accounts.Account{
+			Address: common.HexToAddress(c.Address),
+			URL:     accounts.URL{Scheme: AcctScheme, Path: filepath},
+		},
+		WalletUrl: accounts.URL{Scheme: WalletScheme, Path: walletPath},
 	}, nil
 }
 

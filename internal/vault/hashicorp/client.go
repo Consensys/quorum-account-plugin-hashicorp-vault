@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 	"github.com/hashicorp/vault/api"
 	"github.com/pborman/uuid"
 	"io/ioutil"
@@ -281,19 +282,31 @@ func (m *vaultClientManager) getSecretFromVault(vaultAccountConfig VaultAccountC
 	return secret, nil
 }
 
-func (m vaultClientManager) StoreKey(filename string, vaultConfig VaultAccountConfig, k *Key) (string, error) {
+func (m vaultClientManager) StoreKey(filename string, vaultConfig VaultAccountConfig, k *Key) (vault.AccountAndWalletUrl, string, error) {
 	secretUri, secretVersion, err := m.storeInVault(vaultConfig, k)
 	if err != nil {
-		return "", err
+		return vault.AccountAndWalletUrl{}, "", err
 	}
 
 	// include the version of the newly created vault secret in the data written to file
 	vaultConfig.PathParams.SecretVersion = secretVersion
-	if err := m.storeInFile(filename, vaultConfig, k); err != nil {
-		return "", fmt.Errorf("secret written to Vault but unable to write data to file: secret uri: %v, err: %v", secretUri, err)
+	acctConfig := AccountConfig{
+		Address:        hex.EncodeToString(k.Address[:]),
+		HashicorpVault: vaultConfig,
+		Id:             k.Id.String(),
+		Version:        version,
 	}
 
-	return secretUri, nil
+	if err := m.storeInFile(filename, acctConfig, k); err != nil {
+		return vault.AccountAndWalletUrl{}, "", fmt.Errorf("secret written to Vault but unable to write data to file: secret uri: %v, err: %v", secretUri, err)
+	}
+
+	acct, err := acctConfig.ParseAccount(m.vaultAddr, filename)
+	if err := m.storeInFile(filename, acctConfig, k); err != nil {
+		return vault.AccountAndWalletUrl{}, "", fmt.Errorf("secret written to Vault but unable to parse as account: secret uri: %v, err: %v", secretUri, err)
+	}
+
+	return acct, secretUri, nil
 }
 
 func (m vaultClientManager) storeInVault(vaultConfig VaultAccountConfig, k *Key) (string, int64, error) {
@@ -342,15 +355,8 @@ func (m vaultClientManager) storeInVault(vaultConfig VaultAccountConfig, k *Key)
 	return secretUri, secretVersion, nil
 }
 
-func (m vaultClientManager) storeInFile(filename string, vaultConfig VaultAccountConfig, k *Key) error {
-	toStore, err := json.Marshal(
-		AccountConfig{
-			Address:        hex.EncodeToString(k.Address[:]),
-			HashicorpVault: vaultConfig,
-			Id:             k.Id.String(),
-			Version:        version,
-		},
-	)
+func (m vaultClientManager) storeInFile(filename string, acctConfig AccountConfig, k *Key) error {
+	toStore, err := json.Marshal(acctConfig)
 	if err != nil {
 		return err
 	}

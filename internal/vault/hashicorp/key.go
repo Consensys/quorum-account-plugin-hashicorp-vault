@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 	"io"
 	"io/ioutil"
 	"os"
@@ -29,7 +30,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pborman/uuid"
@@ -52,7 +52,7 @@ type keyStore interface {
 	// Loads and decrypts the key from disk.
 	GetKey(addr common.Address, filename string, auth string) (*Key, error)
 	// Writes and encrypts the key.
-	StoreKey(filename string, vaultConfig VaultAccountConfig, k *Key) (string, error)
+	StoreKey(filename string, vaultConfig VaultAccountConfig, k *Key) (vault.AccountAndWalletUrl, string, error)
 	// Joins filename with the key directory unless it is already absolute.
 	JoinPath(filename string) string
 }
@@ -166,20 +166,21 @@ func newKey(rand io.Reader) (*Key, error) {
 	return newKeyFromECDSA(privateKeyECDSA), nil
 }
 
-func storeNewKey(ks keyStore, rand io.Reader, vaultAccountConfig VaultAccountConfig) (*Key, accounts.Account, string, error) {
+func storeNewKey(ks keyStore, rand io.Reader, vaultAccountConfig VaultAccountConfig) (*Key, vault.AccountAndWalletUrl, string, error) {
 	key, err := newKey(rand)
 	if err != nil {
-		return nil, accounts.Account{}, "", err
+		return nil, vault.AccountAndWalletUrl{}, "", err
 	}
 
-	a := accounts.Account{Address: key.Address, URL: accounts.URL{Scheme: AcctScheme, Path: ks.JoinPath(keyFileName(key.Address))}}
+	//a := accounts.Account{Address: key.Address, URL: accounts.URL{Scheme: AcctScheme, Path: ks.JoinPath(keyFileName(key.Address))}}
+	configfilepath := ks.JoinPath(keyFileName(key.Address))
 
-	secretUri, err := ks.StoreKey(a.URL.Path, vaultAccountConfig, key)
+	acct, secretUri, err := ks.StoreKey(configfilepath, vaultAccountConfig, key)
 	if err != nil {
 		zeroKey(key.PrivateKey)
-		return nil, a, "", err
+		return nil, acct, "", err
 	}
-	return key, a, secretUri, err
+	return key, acct, secretUri, err
 }
 
 func writeTemporaryKeyFile(file string, content []byte) (string, error) {

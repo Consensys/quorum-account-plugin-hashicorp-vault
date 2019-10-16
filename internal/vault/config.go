@@ -15,8 +15,13 @@ type ValidatableConfig interface {
 	ValidateForAccountCreation() error
 }
 
+type AccountAndWalletUrl struct {
+	Account   accounts.Account
+	WalletUrl accounts.URL
+}
+
 type AccountParser interface {
-	ParseAccount(vaultAddr, filepath string) (accounts.Account, error)
+	ParseAccount(vaultAddr, filepath string) (AccountAndWalletUrl, error)
 }
 
 type AccountConfigUnmarshaller interface {

@@ -27,13 +27,14 @@ import (
 // wallet implements the accounts.Wallet interface for the original
 // keystore.
 type wallet struct {
+	url     accounts.URL
 	account accounts.Account // Single account contained in this wallet
 	backend *Backend         // Keystore where the account originates from
 }
 
 // URL implements accounts.Wallet, returning the URL of the account within.
 func (w *wallet) URL() accounts.URL {
-	return w.account.URL
+	return w.url
 }
 
 // Status implements accounts.Wallet, returning whether the account held by the
