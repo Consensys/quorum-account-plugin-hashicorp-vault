@@ -25,6 +25,7 @@ import (
 	"crypto/ecdsa"
 	crand "crypto/rand"
 	"errors"
+	"fmt"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/cache"
 	"log"
 	"math/big"
@@ -530,7 +531,7 @@ func (b *Backend) NewAccount(vaultAccountConfig VaultAccountConfig) (accounts.Ac
 //	}
 //	return EncryptKey(key, newPassphrase, N, P)
 //}
-
+//
 //// Import stores the given encrypted JSON key into the key directory.
 //func (b *Backend) Import(keyJSON []byte, passphrase, newPassphrase string) (accounts.Account, error) {
 //	key, err := DecryptKey(keyJSON, passphrase)
@@ -542,25 +543,29 @@ func (b *Backend) NewAccount(vaultAccountConfig VaultAccountConfig) (accounts.Ac
 //	}
 //	return b.importKey(key, newPassphrase)
 //}
-//
-//// ImportECDSA stores the given key into the key directory, encrypting it with the passphrase.
-//func (b *Backend) ImportECDSA(priv *ecdsa.PrivateKey, passphrase string) (accounts.Account, error) {
-//	key := newKeyFromECDSA(priv)
-//	if b.cache.HasAddress(key.Address) {
-//		return accounts.Account{}, fmt.Errorf("account already exists")
-//	}
-//	return b.importKey(key, passphrase)
-//}
-//
-//func (b *Backend) importKey(key *Key, passphrase string) (accounts.Account, error) {
-//	a := accounts.Account{Address: key.Address, URL: accounts.URL{Scheme: KeyStoreScheme, Path: b.storage.JoinPath(keyFileName(key.Address))}}
-//	if err := b.storage.StoreKey(a.URL.Path, key, passphrase); err != nil {
-//		return accounts.Account{}, err
-//	}
-//	b.cache.Add(a)
-//	b.refreshWallets()
-//	return a, nil
-//}
+
+// ImportECDSA stores the given key into the key directory, encrypting it with the passphrase.
+func (b *Backend) ImportECDSA(priv *ecdsa.PrivateKey, vaultAccountConfig VaultAccountConfig) (accounts.Account, string, error) {
+	key := newKeyFromECDSA(priv)
+	if b.cache.HasAddress(key.Address) {
+		return accounts.Account{}, "", fmt.Errorf("account already exists")
+	}
+	return b.importKey(key, vaultAccountConfig)
+}
+
+func (b *Backend) importKey(key *Key, vaultAccountConfig VaultAccountConfig) (accounts.Account, string, error) {
+	configfilepath := b.storage.JoinPath(keyFileName(key.Address))
+
+	acct, secretUri, err := b.storage.StoreKey(configfilepath, vaultAccountConfig, key)
+	if err != nil {
+		zeroKey(key.PrivateKey)
+		return accounts.Account{}, "", err
+	}
+	b.cache.Add(acct)
+	b.refreshWallets()
+	return acct.Account, secretUri, nil
+}
+
 //
 //// Update changes the passphrase of an existing account.
 //func (b *Backend) Update(a accounts.Account, passphrase, newPassphrase string) error {

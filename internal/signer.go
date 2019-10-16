@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
@@ -288,17 +289,36 @@ func (s *signer) Lock(_ context.Context, req *proto.LockRequest) (*proto.LockRes
 }
 
 func (s *signer) NewAccount(_ context.Context, req *proto.NewAccountRequest) (*proto.NewAccountResponse, error) {
-	b, err := s.BackendForVault(req.VaultAddress)
+	b, err := s.BackendForVault(req.NewVaultAccount.VaultAddress)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	acct, secretUri, err := b.NewAccount(asVaultAccountConfig(req))
+	acct, secretUri, err := b.NewAccount(asVaultAccountConfig(req.NewVaultAccount))
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &proto.NewAccountResponse{Account: asProtoAccount(acct), SecretUri: secretUri}, nil
+}
+
+func (s *signer) ImportRawKey(_ context.Context, req *proto.ImportRawKeyRequest) (*proto.ImportRawKeyResponse, error) {
+	b, err := s.BackendForVault(req.NewVaultAccount.VaultAddress)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	key, err := crypto.HexToECDSA(req.RawKey)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	acct, secretUri, err := b.ImportECDSA(key, asVaultAccountConfig(req.NewVaultAccount))
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &proto.ImportRawKeyResponse{Account: asProtoAccount(acct), SecretUri: secretUri}, nil
 }
 
 // TODO duplicated from quorum plugin/accounts/gateway.go
@@ -349,7 +369,7 @@ func asProtoWalletEvent(event accounts.WalletEvent) *proto.SubscribeResponse {
 	}
 }
 
-func asVaultAccountConfig(req *proto.NewAccountRequest) hashicorp.VaultAccountConfig {
+func asVaultAccountConfig(req *proto.NewVaultAccount) hashicorp.VaultAccountConfig {
 	return hashicorp.VaultAccountConfig{
 		PathParams: hashicorp.PathParams{
 			SecretEnginePath: req.SecretEnginePath,
