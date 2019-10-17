@@ -107,24 +107,24 @@ func (c VaultConfig) Validate() error {
 }
 
 type AccountConfig struct {
-	Address        string             `json:"address,omitempty"`
-	HashicorpVault VaultAccountConfig `json:"hashicorpvault,omitempty"`
+	Address        string             `json:"address"`
+	HashicorpVault VaultAccountConfig `json:"hashicorpvault"`
 	Id             string             `json:"id"`
 	Version        int                `json:"version"`
 }
 
 type VaultAccountConfig struct {
-	PathParams      PathParams `json:"pathparams,omitempty"`
-	AuthID          string     `json:"authid,omitempty"`
+	PathParams      PathParams `json:"pathparams"`
+	AuthID          string     `json:"authid"`
 	InsecureSkipCas bool       `json:"-"` // is not marshalled to json - only populated by CLI flags during account creation
 	CasValue        uint64     `json:"-"` // is not marshalled to json - only populated by CLI flags during account creation
 	secretUrl       string     `json:"-"` // is not marshalled to json - used only to keep track of the HTTP url of the new secret during account creation
 }
 
 type PathParams struct {
-	SecretEnginePath string `json:"secretenginepath,omitempty"`
-	SecretPath       string `json:"secretpath,omitempty"`
-	SecretVersion    int64  `json:"secretversion,omitempty"`
+	SecretEnginePath string `json:"secretenginepath"`
+	SecretPath       string `json:"secretpath"`
+	SecretVersion    int64  `json:"secretversion"`
 }
 
 func (p PathParams) combine() string {
