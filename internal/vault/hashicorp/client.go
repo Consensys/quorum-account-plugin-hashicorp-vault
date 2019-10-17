@@ -302,7 +302,7 @@ func (m vaultClientManager) StoreKey(filename string, vaultConfig VaultAccountCo
 	}
 
 	acct, err := acctConfig.ParseAccount(m.vaultAddr, filename)
-	if err := m.storeInFile(filename, acctConfig, k); err != nil {
+	if err != nil {
 		return vault.AccountAndWalletUrl{}, "", fmt.Errorf("secret written to Vault but unable to parse as account: secret uri: %v, err: %v", secretUri, err)
 	}
 
