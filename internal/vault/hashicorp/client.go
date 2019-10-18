@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -143,6 +144,8 @@ func getAuthCredentials(authID string) (authCredentials, error) {
 	}, nil
 }
 
+const reauthRetryInterval time.Duration = 5000
+
 func (ac *authenticatedClient) renew() {
 	go ac.renewer.Renew()
 
@@ -151,33 +154,55 @@ func (ac *authenticatedClient) renew() {
 		case err := <-ac.renewer.DoneCh():
 			// Renewal has stopped either due to an unexpected reason (i.e. some error) or an expected reason
 			// (e.g. token TTL exceeded).  Either way we must re-authenticate and get a new token.
-			if err != nil {
-				log.Println("[DEBUG] renewal of Vault auth token failed, attempting re-authentication: ", err)
+			switch err {
+			case nil:
+				log.Printf("[DEBUG] renewal of Vault auth token failed, attempting re-authentication: auth = %v", ac.authConfig)
+			default:
+				log.Printf("[DEBUG] renewal of Vault auth token failed, attempting re-authentication: auth = %v, err = %v", ac.authConfig, err)
 			}
 
-			// TODO what to do if re-authentication fails?  wait some time and retry?
-			creds, err := getAuthCredentials(ac.authConfig.AuthID)
-			if err != nil {
-				log.Println("[ERROR] Vault re-authentication failed: ", err)
+			for i := 1; ; i++ {
+				err := ac.reauthenticate()
+				if err == nil {
+					log.Printf("[DEBUG] successfully re-authenticated with Vault: auth = %v", ac.authConfig)
+					break
+				}
+				log.Printf("[ERROR] unable to reauthenticate with Vault (attempt %v): auth = %v, err = %v", i, ac.authConfig, err)
+				time.Sleep(reauthRetryInterval * time.Millisecond)
 			}
-
-			// authenticate the client using approle
-			resp, err := approleLogin(ac.Client, creds, ac.authConfig.ApprolePath)
-			if err != nil {
-				log.Println("[ERROR] Vault re-authentication failed: ", err)
-			}
-
-			t, err := resp.TokenID()
-			if err != nil {
-				log.Println("[ERROR] Vault re-authentication failed: ", err)
-			}
-			ac.Client.SetToken(t)
 			go ac.renewer.Renew()
 
-		case renewal := <-ac.renewer.RenewCh():
-			log.Printf("[DEBUG] Successfully renewed Vault auth token: %#v", renewal)
+		case _ = <-ac.renewer.RenewCh():
+			log.Println("[DEBUG] successfully renewed Vault auth token: auth = %v", ac.authConfig)
 		}
 	}
+}
+
+func (ac *authenticatedClient) reauthenticate() error {
+	creds, err := getAuthCredentials(ac.authConfig.AuthID)
+	if err != nil {
+		return err
+	}
+
+	// authenticate the client using approle
+	resp, err := approleLogin(ac.Client, creds, ac.authConfig.ApprolePath)
+	if err != nil {
+		return err
+	}
+
+	t, err := resp.TokenID()
+	if err != nil {
+		return err
+	}
+	ac.Client.SetToken(t)
+
+	r, err := ac.Client.NewRenewer(&api.RenewerInput{Secret: resp})
+	if err != nil {
+		return err
+	}
+	ac.renewer = r
+
+	return nil
 }
 
 func applyPrefix(pre, val string) string {
