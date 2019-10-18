@@ -6,10 +6,7 @@ OUTPUT_DIR := "$(shell pwd)/build"
 VERSION := "1.0.0"
 LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
 -X main.Executable=${EXECUTABLE} -X main.Version=${VERSION} -X main.OutputDir=${OUTPUT_DIR}"
-XC_ARCH := amd64
-# XC_OS := linux darwin windows # TODO(cjh) enable cross compilation builds using cgo
-XC_OS := darwin
-TARGET_DIRS := $(addsuffix -$(XC_ARCH), $(XC_OS))
+TARGET_DIR := target
 
 .PHONY: ${OUTPUT_DIR}
 
@@ -33,21 +30,19 @@ dist:
 	@mkdir -p ${PLUGIN_DEST_PATH}
 	@cp ${OUTPUT_DIR}/$(shell go env GOOS)-$(shell go env GOARCH)/${EXECUTABLE}-${VERSION}.zip ${PLUGIN_DEST_PATH}/${EXECUTABLE}-${VERSION}.zip
 
+# TODO enable cgo compatible cross-compilation builds (requires providing C toolchain when using gox)
 build: checkfmt
-	@mkdir -p ${OUTPUT_DIR}
+	@mkdir -p ${OUTPUT_DIR}/${TARGET_DIR}
 	@echo Output to ${OUTPUT_DIR}
 	@LD_FLAGS=${LD_FLAGS} go generate ./internal/metadata
-	@gox \
-		-parallel=3 \
-		-os="${XC_OS}" \
-		-arch="${XC_ARCH}" \
-		-ldflags="-s -w" \
-		-output "${OUTPUT_DIR}/{{.OS}}-{{.Arch}}/${EXECUTABLE}" \
-		.
+	@go build \
+	    -ldflags="-s -w" \
+	    -o "${OUTPUT_DIR}/${TARGET_DIR}/${EXECUTABLE}" \
+	    .
 
-zip: build $(TARGET_DIRS)
+zip: build $(TARGET_DIR)
 
-$(TARGET_DIRS):
+$(TARGET_DIR):
 	@zip -j -FS -q ${OUTPUT_DIR}/$@/${EXECUTABLE}-${VERSION}.zip ${OUTPUT_DIR}/*.json ${OUTPUT_DIR}/$@/*
 
 tools: goimports gox
