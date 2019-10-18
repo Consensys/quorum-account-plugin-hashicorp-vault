@@ -1,9 +1,10 @@
 package vault
 
 import (
+	"testing"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 const walletScheme = "wlt"

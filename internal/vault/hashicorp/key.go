@@ -22,7 +22,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 	"io"
 	"io/ioutil"
 	"os"
@@ -32,6 +31,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 	"github.com/pborman/uuid"
 )
 

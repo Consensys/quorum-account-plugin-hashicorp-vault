@@ -3,12 +3,12 @@ package hashicorp
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 	"io"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 )
 
 const (

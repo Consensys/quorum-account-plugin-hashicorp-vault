@@ -19,10 +19,10 @@
 package cache
 
 import (
+	"log"
 	"time"
 
 	"github.com/rjeczalik/notify"
-	"log"
 )
 
 type watcher struct {

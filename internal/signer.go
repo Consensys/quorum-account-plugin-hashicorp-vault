@@ -3,11 +3,6 @@ package internal
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
 	"log"
 	"math/big"
 	"strings"
@@ -16,7 +11,12 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -218,7 +218,6 @@ func (s *signer) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPa
 	return &proto.SignTxResponse{RlpTx: rlpTx}, nil
 }
 
-// TODO CancelSubscribe method which calls unsubscribe and stops this loop
 // TODO Rename e.g. RegisterListener
 func (s *signer) Subscribe(req *proto.SubscribeRequest, stream proto.Signer_SubscribeServer) error {
 	defer func() {

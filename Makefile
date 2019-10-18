@@ -2,25 +2,41 @@ GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 GIT_REPO := $(shell git ls-remote --get-url)
 EXECUTABLE := "quorum-plugin-hashicorp-account-store"
-OUTPUT_DIR := "build"
+OUTPUT_DIR := "$(shell pwd)/build"
 VERSION := "1.0.0"
 LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
 -X main.Executable=${EXECUTABLE} -X main.Version=${VERSION} -X main.OutputDir=${OUTPUT_DIR}"
 XC_ARCH := amd64
+# XC_OS := linux darwin windows # TODO(cjh) enable cross compilation builds using cgo
 XC_OS := darwin
-# TODO enable builds on linux and windows, requires enabling cgo ('gox -cgo' or $CGO_ENABLED=1) and specifying the C cross-compiler for cgo to use.  See https://golang.org/cmd/cgo/
-# XC_OS := linux darwin windows
 TARGET_DIRS := $(addsuffix -$(XC_ARCH), $(XC_OS))
 
 .PHONY: ${OUTPUT_DIR}
 
+# default: clean test build zip
 default: clean build zip
 	@echo Done!
-	@ls -lha ${OUTPUT_DIR}/*
+	@ls ${OUTPUT_DIR}/*
 
-build: tools
+checkfmt: tools
+	@GO_FMT_FILES="$$(goimports -l `find . -name '*.go' | grep -v vendor | grep -v proto`)"; \
+	[ "$${GO_FMT_FILES}" == "" ] || ( echo "Please run 'make fixfmt' to format the following files: \n$${GO_FMT_FILES}"; exit 1 )
+
+fixfmt: tools
+	@goimports -w `find . -name '*.go' | grep -v vendor | grep -v proto`
+
+test: tools
+	@go test ./...
+
+dist:
+	@[ "${PLUGIN_DEST_PATH}" ] || ( echo "Please provide PLUGIN_DEST_PATH env variable" ; exit 1)
+	@mkdir -p ${PLUGIN_DEST_PATH}
+	@cp ${OUTPUT_DIR}/$(shell go env GOOS)-$(shell go env GOARCH)/${EXECUTABLE}-${VERSION}.zip ${PLUGIN_DEST_PATH}/${EXECUTABLE}-${VERSION}.zip
+
+build: checkfmt
 	@mkdir -p ${OUTPUT_DIR}
-	@LD_FLAGS=${LD_FLAGS} go generate ./metadata
+	@echo Output to ${OUTPUT_DIR}
+	@LD_FLAGS=${LD_FLAGS} go generate ./internal/metadata
 	@gox \
 		-parallel=3 \
 		-os="${XC_OS}" \
@@ -32,9 +48,17 @@ build: tools
 zip: build $(TARGET_DIRS)
 
 $(TARGET_DIRS):
-	@zip -j -FS -q ${OUTPUT_DIR}/$@/${EXECUTABLE}-go-${VERSION}.zip ${OUTPUT_DIR}/*.json ${OUTPUT_DIR}/$@/*
+	@zip -j -FS -q ${OUTPUT_DIR}/$@/${EXECUTABLE}-${VERSION}.zip ${OUTPUT_DIR}/*.json ${OUTPUT_DIR}/$@/*
 
-tools:
+tools: goimports gox
+	@go mod download
+
+goimports:
+ifeq (, $(shell which goimports))
+	@go get -u golang.org/x/tools/cmd/goimports
+endif
+
+gox:
 ifeq (, $(shell which gox))
 	@go get -u github.com/mitchellh/gox
 endif

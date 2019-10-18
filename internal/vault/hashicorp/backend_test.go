@@ -17,7 +17,6 @@
 package hashicorp
 
 import (
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 	"math/rand"
 	"os"
 	"runtime"
@@ -29,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 )
 
 var testSigData = make([]byte, 32)

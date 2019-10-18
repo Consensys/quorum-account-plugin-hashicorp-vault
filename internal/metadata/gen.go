@@ -36,7 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := ioutil.WriteFile(path.Join("..", OutputDir, metadataFile), data, 0644); err != nil {
+	if err := ioutil.WriteFile(path.Join(OutputDir, metadataFile), data, 0644); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("Wrote", metadataFile)

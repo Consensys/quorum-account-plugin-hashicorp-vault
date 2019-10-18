@@ -5,16 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
-	"github.com/hashicorp/vault/api"
-	"github.com/pborman/uuid"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
+	"github.com/hashicorp/vault/api"
+	"github.com/pborman/uuid"
 )
 
 // Environment variable name for Hashicorp Vault authentication credential

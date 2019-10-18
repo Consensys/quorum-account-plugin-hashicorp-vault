@@ -3,8 +3,9 @@ package vault
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts"
 )
 
 type Unlocker interface {

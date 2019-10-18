@@ -19,8 +19,7 @@ package cache
 import (
 	"bufio"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -30,8 +29,9 @@ import (
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	"log"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 )
 
 // Minimum amount of time between cache reloads. This limit applies if the platform does

@@ -26,7 +26,6 @@ import (
 	crand "crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/cache"
 	"log"
 	"math/big"
 	"path/filepath"
@@ -41,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/cache"
 )
 
 var (

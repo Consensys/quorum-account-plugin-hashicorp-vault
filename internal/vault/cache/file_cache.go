@@ -18,6 +18,7 @@ package cache
 
 import (
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,7 +26,6 @@ import (
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
-	"log"
 )
 
 // fileCache is a cache of files seen during scan of keystore.

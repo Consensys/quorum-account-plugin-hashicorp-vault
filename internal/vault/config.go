@@ -1,8 +1,9 @@
 package vault
 
 import (
-	"github.com/ethereum/go-ethereum/accounts"
 	"io"
+
+	"github.com/ethereum/go-ethereum/accounts"
 )
 
 type ValidatableAccountParsableConfig interface {
