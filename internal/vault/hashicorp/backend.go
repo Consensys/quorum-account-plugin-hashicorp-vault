@@ -86,6 +86,11 @@ type unlocked struct {
 	abort chan struct{}
 }
 
+type AccountCreator interface {
+	NewAccount(vaultAccountConfig VaultAccountConfig) (accounts.Account, string, error)
+	ImportECDSA(priv *ecdsa.PrivateKey, vaultAccountConfig VaultAccountConfig) (accounts.Account, string, error)
+}
+
 // NewKeyStore creates a keystore for the given directory.
 func NewBackend(config VaultConfig) (*Backend, error) {
 	log.Println("[DEBUG] PLUGIN BACKEND Init")

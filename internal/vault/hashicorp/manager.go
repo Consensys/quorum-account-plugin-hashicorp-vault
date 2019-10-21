@@ -150,7 +150,7 @@ func (am *Manager) Backend(account accounts.Account) (accounts.Backend, error) {
 	return nil, accounts.ErrUnknownWallet
 }
 
-func (am *Manager) BackendForVault(vaultAddr string) (*Backend, error) {
+func (am *Manager) GetAccountCreator(vaultAddr string) (AccountCreator, error) {
 	for _, backend := range am.backends {
 		switch b := backend.(type) {
 		case *Backend:

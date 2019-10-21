@@ -23,7 +23,7 @@ import (
 
 type WalletFinderLockerBackend interface {
 	accounts.Backend
-	BackendForVault(vaultAddr string) (*hashicorp.Backend, error)
+	GetAccountCreator(vaultAddr string) (hashicorp.AccountCreator, error)
 	Wallet(url string) (accounts.Wallet, error)
 	TimedUnlock(acct accounts.Account, passphrase string, timeout time.Duration) error
 	Lock(acct accounts.Account) error
@@ -218,14 +218,11 @@ func (s *signer) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPa
 	return &proto.SignTxResponse{RlpTx: rlpTx}, nil
 }
 
-// TODO Rename e.g. RegisterListener
-func (s *signer) Subscribe(req *proto.SubscribeRequest, stream proto.Signer_SubscribeServer) error {
+func (s *signer) GetEventStream(req *proto.GetEventStreamRequest, stream proto.Signer_GetEventStreamServer) error {
 	defer func() {
 		s.eventSubscription.Unsubscribe()
 		s.eventSubscription = nil
 	}()
-
-	log.Println("[SIGNER] received subscription request from geth")
 
 	wallets := s.Wallets()
 
@@ -234,28 +231,28 @@ func (s *signer) Subscribe(req *proto.SubscribeRequest, stream proto.Signer_Subs
 
 	// stream the currently held wallets to the caller
 	for _, w := range wallets {
-		pluginEvent := &proto.SubscribeResponse{
-			WalletEvent: proto.SubscribeResponse_WALLET_ARRIVED,
+		pluginEvent := &proto.GetEventStreamResponse{
+			WalletEvent: proto.GetEventStreamResponse_WALLET_ARRIVED,
 			WalletUrl:   w.URL().String(),
 		}
 
 		if err := stream.Send(pluginEvent); err != nil {
-			log.Println("[SIGNER] error sending event: ", pluginEvent, "err: ", err)
+			log.Println("[ERROR] error sending event: ", pluginEvent, "err: ", err)
 			return err
 		}
-		log.Println("[SIGNER] sent event: ", pluginEvent)
+		log.Println("[DEBUG] sent event: ", pluginEvent)
 	}
 
 	// listen for wallet events and stream to the caller until termination
 	for {
 		e := <-s.events
-		log.Println("[SIGNER] read event: ", e)
-
-		if err := stream.Send(asProtoWalletEvent(e)); err != nil {
-			log.Println("[SIGNER] error sending event: ", e, "err: ", err)
+		pluginEvent := asProtoWalletEvent(e)
+		log.Println("[DEBUG] read event: ", pluginEvent)
+		if err := stream.Send(pluginEvent); err != nil {
+			log.Println("[ERROR] error sending event: ", pluginEvent, "err: ", err)
 			return err
 		}
-		log.Println("[SIGNER] sent event: ", e)
+		log.Println("[DEBUG] sent event: ", pluginEvent)
 	}
 }
 
@@ -288,7 +285,7 @@ func (s *signer) Lock(_ context.Context, req *proto.LockRequest) (*proto.LockRes
 }
 
 func (s *signer) NewAccount(_ context.Context, req *proto.NewAccountRequest) (*proto.NewAccountResponse, error) {
-	b, err := s.BackendForVault(req.NewVaultAccount.VaultAddress)
+	b, err := s.GetAccountCreator(req.NewVaultAccount.VaultAddress)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -302,7 +299,7 @@ func (s *signer) NewAccount(_ context.Context, req *proto.NewAccountRequest) (*p
 }
 
 func (s *signer) ImportRawKey(_ context.Context, req *proto.ImportRawKeyRequest) (*proto.ImportRawKeyResponse, error) {
-	b, err := s.BackendForVault(req.NewVaultAccount.VaultAddress)
+	b, err := s.GetAccountCreator(req.NewVaultAccount.VaultAddress)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -350,19 +347,19 @@ func asProtoAccount(acct accounts.Account) *proto.Account {
 
 // TODO end duplication
 
-func asProtoWalletEvent(event accounts.WalletEvent) *proto.SubscribeResponse {
-	var t proto.SubscribeResponse_WalletEvent
+func asProtoWalletEvent(event accounts.WalletEvent) *proto.GetEventStreamResponse {
+	var t proto.GetEventStreamResponse_WalletEvent
 
 	switch event.Kind {
 	case accounts.WalletArrived:
-		t = proto.SubscribeResponse_WALLET_ARRIVED
+		t = proto.GetEventStreamResponse_WALLET_ARRIVED
 	case accounts.WalletOpened:
-		t = proto.SubscribeResponse_WALLET_OPENED
+		t = proto.GetEventStreamResponse_WALLET_OPENED
 	case accounts.WalletDropped:
-		t = proto.SubscribeResponse_WALLET_DROPPED
+		t = proto.GetEventStreamResponse_WALLET_DROPPED
 	}
 
-	return &proto.SubscribeResponse{
+	return &proto.GetEventStreamResponse{
 		WalletEvent: t,
 		WalletUrl:   event.Wallet.URL().String(),
 	}

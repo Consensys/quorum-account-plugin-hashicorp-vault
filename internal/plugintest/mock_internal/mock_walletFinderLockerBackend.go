@@ -36,19 +36,19 @@ func (m *MockWalletFinderLockerBackend) EXPECT() *MockWalletFinderLockerBackendM
 	return m.recorder
 }
 
-// BackendForVault mocks base method
-func (m *MockWalletFinderLockerBackend) BackendForVault(arg0 string) (*hashicorp.Backend, error) {
+// GetAccountCreator mocks base method
+func (m *MockWalletFinderLockerBackend) GetAccountCreator(arg0 string) (hashicorp.AccountCreator, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BackendForVault", arg0)
-	ret0, _ := ret[0].(*hashicorp.Backend)
+	ret := m.ctrl.Call(m, "GetAccountCreator", arg0)
+	ret0, _ := ret[0].(hashicorp.AccountCreator)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// BackendForVault indicates an expected call of BackendForVault
-func (mr *MockWalletFinderLockerBackendMockRecorder) BackendForVault(arg0 interface{}) *gomock.Call {
+// GetAccountCreator indicates an expected call of GetAccountCreator
+func (mr *MockWalletFinderLockerBackendMockRecorder) GetAccountCreator(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BackendForVault", reflect.TypeOf((*MockWalletFinderLockerBackend)(nil).BackendForVault), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAccountCreator", reflect.TypeOf((*MockWalletFinderLockerBackend)(nil).GetAccountCreator), arg0)
 }
 
 // Lock mocks base method

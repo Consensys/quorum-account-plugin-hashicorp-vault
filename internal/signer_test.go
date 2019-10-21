@@ -2,19 +2,24 @@ package internal
 
 import (
 	"context"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/testmocks/mock_internal"
-	"math/big"
-	"testing"
-
+	"errors"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/golang/mock/gomock"
+	"github.com/goquorum/quorum-plugin-definitions/signer/go/mock_proto"
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/testmocks/mock_accounts"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/plugintest"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/plugintest/mock_accounts"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/plugintest/mock_hashicorp"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/plugintest/mock_internal"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
 	"github.com/stretchr/testify/require"
+	"math/big"
+	"testing"
+	"time"
 )
 
 var (
@@ -31,6 +36,8 @@ var (
 		Address: acct1.Address.Bytes(),
 		Url:     acct1.URL.String(),
 	}
+	hexkey1 = "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec"
+	key1, _ = crypto.HexToECDSA(hexkey1)
 
 	acct2 = accounts.Account{
 		Address: common.HexToAddress("0x2332f90a329c2c55ba120b1449d36a144d1f9fe4"),
@@ -400,5 +407,268 @@ func TestSigner_SignTxWithPassphrase(t *testing.T) {
 		RlpTx: rlpSigned,
 	}
 
+	require.Equal(t, want, got)
+}
+
+func TestSigner_GetEventStream(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockWallet := mock_accounts.NewMockWallet(ctrl)
+
+	s := &signer{
+		WalletFinderLockerBackend: mockBackend,
+		events:                    make(chan accounts.WalletEvent, 2),
+	}
+
+	mockBackend.
+		EXPECT().
+		Wallets().
+		Return([]accounts.Wallet{mockWallet})
+
+	mockBackend.
+		EXPECT().
+		Subscribe(gomock.Any()).
+		Return(plugintest.StubSubscription{})
+
+	mockWallet.
+		EXPECT().
+		URL().
+		Return(acct1.URL).
+		Times(3)
+
+	// add two events to the signer's event channel
+	s.events <- accounts.WalletEvent{
+		Wallet: mockWallet,
+		Kind:   accounts.WalletOpened,
+	}
+	s.events <- accounts.WalletEvent{
+		Wallet: mockWallet,
+		Kind:   accounts.WalletDropped,
+	}
+
+	// gRPC protobuf versions of the events to be sent over the stream to the caller
+	var (
+		wantArrivedEvent = &proto.GetEventStreamResponse{
+			WalletEvent: proto.GetEventStreamResponse_WALLET_ARRIVED,
+			WalletUrl:   acct1.URL.String(),
+		}
+
+		wantOpenedEvent = &proto.GetEventStreamResponse{
+			WalletEvent: proto.GetEventStreamResponse_WALLET_OPENED,
+			WalletUrl:   acct1.URL.String(),
+		}
+
+		wantDroppedEvent = &proto.GetEventStreamResponse{
+			WalletEvent: proto.GetEventStreamResponse_WALLET_DROPPED,
+			WalletUrl:   acct1.URL.String(),
+		}
+	)
+
+	req := &proto.GetEventStreamRequest{}
+	mockStream := mock_proto.NewMockSigner_GetEventStreamServer(ctrl)
+
+	// assert that the events are correctly parsed into protobuf compatible event types
+	gomock.InOrder(
+		mockStream.
+			EXPECT().
+			Send(wantArrivedEvent).
+			Return(nil),
+		mockStream.
+			EXPECT().
+			Send(wantOpenedEvent).
+			Return(nil),
+		mockStream.
+			EXPECT().
+			Send(wantDroppedEvent).
+			Return(errors.New("return an error to close the event listening loop")),
+	)
+
+	err := s.GetEventStream(req, mockStream)
+	require.EqualError(t, err, "return an error to close the event listening loop")
+}
+
+func TestSigner_TimedUnlock(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+
+	s := &signer{
+		WalletFinderLockerBackend: mockBackend,
+	}
+
+	var (
+		pwd      = "password"
+		duration = time.Second
+	)
+
+	mockBackend.
+		EXPECT().
+		TimedUnlock(acct1, pwd, duration).
+		Return(nil)
+
+	req := &proto.TimedUnlockRequest{
+		Account:  protoAcct1,
+		Password: pwd,
+		Duration: duration.Nanoseconds(),
+	}
+	got, err := s.TimedUnlock(context.Background(), req)
+	want := &proto.TimedUnlockResponse{}
+
+	require.NoError(t, err)
+	require.Equal(t, want, got)
+}
+
+func TestSigner_Lock(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+
+	s := &signer{
+		WalletFinderLockerBackend: mockBackend,
+	}
+
+	mockBackend.
+		EXPECT().
+		Lock(acct1).
+		Return(nil)
+
+	req := &proto.LockRequest{
+		Account: protoAcct1,
+	}
+	got, err := s.Lock(context.Background(), req)
+	want := &proto.LockResponse{}
+
+	require.NoError(t, err)
+	require.Equal(t, want, got)
+}
+
+func TestSigner_NewAccount(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockAccountCreator := mock_hashicorp.NewMockAccountCreator(ctrl)
+
+	s := &signer{
+		WalletFinderLockerBackend: mockBackend,
+	}
+
+	const (
+		vaultAddress     = "http://somevault:1"
+		authID           = "FOO"
+		secretEnginePath = "kv"
+		secretPath       = "myacct"
+		insecureSkipCas  = true
+		casValue         = 1
+	)
+
+	newAccountProto := &proto.NewVaultAccount{
+		VaultAddress:     vaultAddress,
+		AuthID:           authID,
+		SecretEnginePath: secretEnginePath,
+		SecretPath:       secretPath,
+		InsecureSkipCas:  insecureSkipCas,
+		CasValue:         casValue,
+	}
+
+	mockBackend.
+		EXPECT().
+		GetAccountCreator(newAccountProto.VaultAddress).
+		Return(mockAccountCreator, nil)
+
+	wantConfig := hashicorp.VaultAccountConfig{
+		PathParams: hashicorp.PathParams{
+			SecretEnginePath: secretEnginePath,
+			SecretPath:       secretPath,
+		},
+		AuthID:          authID,
+		InsecureSkipCas: insecureSkipCas,
+		CasValue:        casValue,
+	}
+
+	mockSecretUri := "some/secret/uri"
+	mockAccountCreator.
+		EXPECT().
+		NewAccount(wantConfig).
+		Return(acct1, mockSecretUri, nil)
+
+	req := &proto.NewAccountRequest{
+		NewVaultAccount: newAccountProto,
+	}
+	got, err := s.NewAccount(context.Background(), req)
+	want := &proto.NewAccountResponse{
+		Account:   protoAcct1,
+		SecretUri: mockSecretUri,
+	}
+
+	require.NoError(t, err)
+	require.Equal(t, want, got)
+}
+
+func TestSigner_ImportRawKey(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockAccountCreator := mock_hashicorp.NewMockAccountCreator(ctrl)
+
+	s := &signer{
+		WalletFinderLockerBackend: mockBackend,
+	}
+
+	const (
+		vaultAddress     = "http://somevault:1"
+		authID           = "FOO"
+		secretEnginePath = "kv"
+		secretPath       = "myacct"
+		insecureSkipCas  = true
+		casValue         = 1
+	)
+
+	newAccountProto := &proto.NewVaultAccount{
+		VaultAddress:     vaultAddress,
+		AuthID:           authID,
+		SecretEnginePath: secretEnginePath,
+		SecretPath:       secretPath,
+		InsecureSkipCas:  insecureSkipCas,
+		CasValue:         casValue,
+	}
+
+	mockBackend.
+		EXPECT().
+		GetAccountCreator(newAccountProto.VaultAddress).
+		Return(mockAccountCreator, nil)
+
+	wantConfig := hashicorp.VaultAccountConfig{
+		PathParams: hashicorp.PathParams{
+			SecretEnginePath: secretEnginePath,
+			SecretPath:       secretPath,
+		},
+		AuthID:          authID,
+		InsecureSkipCas: insecureSkipCas,
+		CasValue:        casValue,
+	}
+
+	mockSecretUri := "some/secret/uri"
+	mockAccountCreator.
+		EXPECT().
+		ImportECDSA(key1, wantConfig).
+		Return(acct1, mockSecretUri, nil)
+
+	req := &proto.ImportRawKeyRequest{
+		RawKey:          hexkey1,
+		NewVaultAccount: newAccountProto,
+	}
+	got, err := s.ImportRawKey(context.Background(), req)
+	want := &proto.ImportRawKeyResponse{
+		Account:   protoAcct1,
+		SecretUri: mockSecretUri,
+	}
+
+	require.NoError(t, err)
 	require.Equal(t, want, got)
 }
