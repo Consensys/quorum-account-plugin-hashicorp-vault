@@ -5,12 +5,13 @@
 package mock_internal
 
 import (
+	reflect "reflect"
+	time "time"
+
 	accounts "github.com/ethereum/go-ethereum/accounts"
 	event "github.com/ethereum/go-ethereum/event"
 	gomock "github.com/golang/mock/gomock"
 	hashicorp "github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
-	reflect "reflect"
-	time "time"
 )
 
 // MockWalletFinderLockerBackend is a mock of WalletFinderLockerBackend interface

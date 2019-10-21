@@ -6,10 +6,11 @@ package mock_hashicorp
 
 import (
 	ecdsa "crypto/ecdsa"
+	reflect "reflect"
+
 	accounts "github.com/ethereum/go-ethereum/accounts"
 	gomock "github.com/golang/mock/gomock"
 	hashicorp "github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
-	reflect "reflect"
 )
 
 // MockAccountCreator is a mock of AccountCreator interface

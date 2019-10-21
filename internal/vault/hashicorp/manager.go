@@ -95,7 +95,7 @@ func unlockAccounts(backend *Backend, unlock string) error {
 		if !common.IsHexAddress(trimmed) {
 			failedMsgs = append(failedMsgs, fmt.Sprintf("unable to unlock %v: invalid hex-encoded ethereum address", trimmed))
 		} else {
-			err := backend.Unlock(accounts.Account{Address: common.HexToAddress(addr)}, "")
+			err := backend.Unlock(accounts.Account{Address: common.HexToAddress(trimmed)}, "")
 			if err != nil {
 				failedMsgs = append(failedMsgs, fmt.Sprintf("unable to unlock %v: %v", trimmed, err))
 			}

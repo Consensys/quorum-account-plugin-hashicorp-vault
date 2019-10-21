@@ -4,16 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"testing"
+
 	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
+	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"testing"
 )
 
-func Test(t *testing.T) {
+func Test_UnlocksAccountsAtStartup(t *testing.T) {
 	defer setEnvironmentVariables(
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
@@ -35,8 +38,42 @@ func Test(t *testing.T) {
 		},
 	}
 
+	acct1VaultHandler := pathHandler{
+		path: "/v1/kv/data/kvacct",
+		handler: func(w http.ResponseWriter, r *http.Request) {
+			vaultResponse := &api.Secret{
+				Data: map[string]interface{}{
+					"data": map[string]interface{}{
+						"dc99ddec13457de6c0f6bb8e6cf3955c86f55526": "7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28",
+					},
+				},
+			}
+			b, err := json.Marshal(vaultResponse)
+			require.NoError(t, err)
+			_, _ = w.Write(b)
+		},
+	}
+
+	acct2VaultHandler := pathHandler{
+		path: "/v1/engine/data/engineacct",
+		handler: func(w http.ResponseWriter, r *http.Request) {
+			vaultResponse := &api.Secret{
+				Data: map[string]interface{}{
+					"data": map[string]interface{}{
+						"4d6d744b6da435b5bbdde2526dc20e9a41cb72e5": "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec",
+					},
+				},
+			}
+			b, err := json.Marshal(vaultResponse)
+			require.NoError(t, err)
+			_, _ = w.Write(b)
+		},
+	}
+
 	vaultHandlers := []pathHandler{
 		authVaultHandler,
+		acct1VaultHandler,
+		acct2VaultHandler,
 	}
 
 	vault := setupMockTLSVaultServer(t, vaultHandlers...)
@@ -52,6 +89,9 @@ func Test(t *testing.T) {
 		t.Fatalf("bad: %#v", raw)
 	}
 
+	// comma-separated list of hex addresses to be unlocked at startup
+	unlockOnStartup := "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526, 	bad , 4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"
+
 	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
 		Vaults: []hashicorp.VaultConfig{{
 			Addr: vault.URL,
@@ -60,8 +100,8 @@ func Test(t *testing.T) {
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
-			AccountConfigDir: "/Users/chrishounom/quorum-plugin-hashicorp-account-store/internal/testdata",
-			Unlock:           "",
+			AccountConfigDir: "vault/testdata/acctconfig",
+			Unlock:           unlockOnStartup,
 			Auth: []hashicorp.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
@@ -76,4 +116,43 @@ func Test(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	acctConfig := readConfigFromFile(t, "dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
+	status := getStatus(t, &impl, vault.URL, "FOO", acctConfig)
+	require.Equal(t, "Unlocked", status, "account should be unlocked")
+
+	acctConfig = readConfigFromFile(t, "4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
+	status = getStatus(t, &impl, vault.URL, "FOO", acctConfig)
+	require.Equal(t, "Unlocked", status, "account should be unlocked")
+
+	acctConfig = readConfigFromFile(t, "1c15560b23dfa9a19e9739cc866c7f1f2e5da7b7")
+	status = getStatus(t, &impl, vault.URL, "BAR", acctConfig)
+	require.Equal(t, "Locked", status, "account should not have been unlocked")
+}
+
+func readConfigFromFile(t *testing.T, addr string) hashicorp.AccountConfig {
+	fileBytes, err := ioutil.ReadFile(fmt.Sprintf("vault/testdata/acctconfig/%v", addr))
+	require.NoError(t, err)
+
+	var config hashicorp.AccountConfig
+	err = json.Unmarshal(fileBytes, &config)
+	require.NoError(t, err)
+
+	return config
+}
+
+func getStatus(t *testing.T, client *InitializerSignerClient, vaultUrl string, authID string, acctConfig hashicorp.AccountConfig) string {
+	url, err := makeWalletUrl(
+		hashicorp.WalletScheme,
+		authID,
+		vaultUrl,
+		acctConfig,
+	)
+	require.NoError(t, err)
+
+	resp, err := client.Status(context.Background(), &proto.StatusRequest{
+		WalletUrl: url.String(),
+	})
+	require.NoError(t, err)
+
+	return resp.Status
 }

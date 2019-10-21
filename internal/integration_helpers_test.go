@@ -4,16 +4,21 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
-	sproto "github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
-	"github.com/hashicorp/go-plugin"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/accounts"
+	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
+	sproto "github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
+	"github.com/hashicorp/go-plugin"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 // testableSignerPluginImpl is a SignerPluginImpl but provides a simple gRPC client implementation for integration testing without needing the geth side
@@ -117,3 +122,25 @@ const (
 	serverCert = "vault/testdata/tls/localhost-with-san-chain.pem"
 	serverKey  = "vault/testdata/tls/localhost-with-san.key"
 )
+
+func makeWalletUrl(scheme string, userInfo string, vaultUrl string, acctConfig hashicorp.AccountConfig) (accounts.URL, error) {
+	url, err := vault.ToUrl(vaultUrl)
+	if err != nil {
+		return accounts.URL{}, err
+	}
+
+	wltPath := fmt.Sprintf(
+		"%v/v1/%v/data/%v?version=%v#addr=%v",
+		url.Path,
+		acctConfig.HashicorpVault.PathParams.SecretEnginePath,
+		acctConfig.HashicorpVault.PathParams.SecretPath,
+		acctConfig.HashicorpVault.PathParams.SecretVersion,
+		acctConfig.Address,
+	)
+
+	if userInfo != "" {
+		wltPath = fmt.Sprintf("%v@%v", userInfo, wltPath)
+	}
+
+	return accounts.URL{Scheme: scheme, Path: wltPath}, nil
+}
