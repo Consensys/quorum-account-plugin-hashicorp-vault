@@ -2,11 +2,14 @@ package vault
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 )
+
+var ErrNoMatch = errors.New("no key for given address or file")
 
 type Unlocker interface {
 	TimedUnlock(account accounts.Account, timeout time.Duration) error

@@ -29,7 +29,6 @@ import (
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
 )
@@ -123,18 +122,18 @@ func (ac *AccountCache) Add(newAccount vault.AccountAndWalletUrl) {
 	ac.byAddr[newAccount.Account.Address] = append(ac.byAddr[newAccount.Account.Address], newAccount)
 }
 
-// note: removed needs to be unique here (i.e. both File and Address must be set).
-func (ac *AccountCache) Delete(removed vault.AccountAndWalletUrl) {
-	ac.Mu.Lock()
-	defer ac.Mu.Unlock()
-
-	ac.all = removeAccountAndWalletUrl(ac.all, removed)
-	if ba := removeAccountAndWalletUrl(ac.byAddr[removed.Account.Address], removed); len(ba) == 0 {
-		delete(ac.byAddr, removed.Account.Address)
-	} else {
-		ac.byAddr[removed.Account.Address] = ba
-	}
-}
+//// note: removed needs to be unique here (i.e. both File and Address must be set).
+//func (ac *AccountCache) Delete(removed vault.AccountAndWalletUrl) {
+//	ac.Mu.Lock()
+//	defer ac.Mu.Unlock()
+//
+//	ac.all = removeAccountAndWalletUrl(ac.all, removed)
+//	if ba := removeAccountAndWalletUrl(ac.byAddr[removed.Account.Address], removed); len(ba) == 0 {
+//		delete(ac.byAddr, removed.Account.Address)
+//	} else {
+//		ac.byAddr[removed.Account.Address] = ba
+//	}
+//}
 
 // deleteByFile removes an account referenced by the given path.
 func (ac *AccountCache) deleteByFile(path string) {
@@ -162,14 +161,14 @@ func removeAccountAndWalletUrl(slice []vault.AccountAndWalletUrl, elem vault.Acc
 	return slice
 }
 
-func removeAccount(slice []accounts.Account, elem accounts.Account) []accounts.Account {
-	for i := range slice {
-		if slice[i] == elem {
-			return append(slice[:i], slice[i+1:]...)
-		}
-	}
-	return slice
-}
+//func removeAccount(slice []accounts.Account, elem accounts.Account) []accounts.Account {
+//	for i := range slice {
+//		if slice[i] == elem {
+//			return append(slice[:i], slice[i+1:]...)
+//		}
+//	}
+//	return slice
+//}
 
 // find returns the cached account for address if there is a unique match.
 // The exact matching rules are explained by the documentation of accounts.Account.
@@ -191,14 +190,14 @@ func (ac *AccountCache) Find(a accounts.Account) (accounts.Account, error) {
 			}
 		}
 		if (a.Address == common.Address{}) {
-			return accounts.Account{}, keystore.ErrNoMatch
+			return accounts.Account{}, vault.ErrNoMatch
 		}
 	}
 	switch len(matches) {
 	case 1:
 		return matches[0].Account, nil
 	case 0:
-		return accounts.Account{}, keystore.ErrNoMatch
+		return accounts.Account{}, vault.ErrNoMatch
 	default:
 		err := &AmbiguousAddrError{Addr: a.Address, Matches: make([]vault.AccountAndWalletUrl, len(matches))}
 		copy(err.Matches, matches)

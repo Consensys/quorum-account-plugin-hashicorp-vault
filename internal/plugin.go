@@ -28,7 +28,7 @@ func (p *SignerPluginImpl) Init(ctx context.Context, req *iproto.PluginInitializ
 	defer func() {
 		log.Println("[INFO] plugin initialization took", time.Now().Sub(startTime).Round(time.Microsecond))
 	}()
-	conf, err := NewSignerConfiguration(req.GetRawConfiguration())
+	conf, err := newSignerConfiguration(req.GetRawConfiguration())
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
@@ -40,7 +40,7 @@ func (p *SignerPluginImpl) Init(ctx context.Context, req *iproto.PluginInitializ
 	return &iproto.PluginInitialization_Response{}, nil
 }
 
-func NewSignerConfiguration(rawJSON []byte) (hashicorp.HashicorpAccountStoreConfig, error) {
+func newSignerConfiguration(rawJSON []byte) (hashicorp.HashicorpAccountStoreConfig, error) {
 	var conf hashicorp.HashicorpAccountStoreConfig
 	if err := json.Unmarshal(rawJSON, &conf); err != nil {
 		return hashicorp.HashicorpAccountStoreConfig{}, fmt.Errorf("can't parse configuration")

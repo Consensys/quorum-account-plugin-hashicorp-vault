@@ -29,7 +29,6 @@ import (
 	"log"
 	"math/big"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -44,21 +43,12 @@ import (
 )
 
 var (
-	ErrLocked  = accounts.NewAuthNeededError("password or unlock")
-	ErrNoMatch = errors.New("no key for given address or file")
-	ErrDecrypt = errors.New("could not decrypt key with given passphrase")
+	ErrLocked = accounts.NewAuthNeededError("password or unlock")
 )
 
-// KeyStoreType is the reflect type of a keystore backend.
-var KeyStoreType = reflect.TypeOf(&Backend{})
-
-// KeyStoreScheme is the protocol scheme prefixing account and wallet URLs.
-const KeyStoreScheme = "keystore"
-
 const (
-	WalletScheme   = "hashiwlt"
-	AcctScheme     = "hashiacct"
-	HashiVltScheme = "hashivlt"
+	WalletScheme = "hashiwlt"
+	AcctScheme   = "hashiacct"
 )
 
 // Maximum time between wallet refreshes (if filesystem notifications don't work).
@@ -101,18 +91,6 @@ func NewBackend(config VaultConfig) (*Backend, error) {
 	}
 	b.initialised = true
 	return b, nil
-}
-
-// parseURL converts a user supplied URL into the accounts specific structure.
-func parseURL(url string) (accounts.URL, error) {
-	parts := strings.Split(url, "://")
-	if len(parts) != 2 || parts[0] == "" {
-		return accounts.URL{}, errors.New("protocol scheme missing")
-	}
-	return accounts.URL{
-		Scheme: parts[0],
-		Path:   parts[1],
-	}, nil
 }
 
 func (b *Backend) init(keydir string, config VaultConfig) error {
@@ -193,55 +171,6 @@ func (b *Backend) Wallets() []accounts.Wallet {
 	return cpy
 }
 
-// refreshWallets retrieves the current account list and based on that does any
-// necessary wallet refreshes.
-func (b *Backend) refreshWallets() {
-	log.Println("[PLUGIN Backend] refreshWallets")
-	// Retrieve the current list of accounts
-	b.mu.Lock()
-	accs := b.cache.Accounts()
-	log.Println("[PLUGIN Backend] refreshWallets: cache len(accts)", len(accs), ", backend len(wallets)", len(b.wallets))
-
-	// Transform the current list of wallets into the new one
-	wallets := make([]accounts.Wallet, 0, len(accs))
-	events := []accounts.WalletEvent{}
-
-	for _, account := range accs {
-		// Drop wallets while they were in front of the next account
-		for len(b.wallets) > 0 && b.wallets[0].URL().Cmp(account.WalletUrl) < 0 {
-			events = append(events, accounts.WalletEvent{Wallet: b.wallets[0], Kind: accounts.WalletDropped})
-			b.wallets = b.wallets[1:]
-		}
-		// If there are no more wallets or the account is before the next, wrap new wallet
-		if len(b.wallets) == 0 || b.wallets[0].URL().Cmp(account.WalletUrl) > 0 {
-			wallet := &wallet{url: account.WalletUrl, account: account.Account, backend: b}
-			log.Println("[PLUGIN Backend] refreshWallets: new wallet wrapped", wallet)
-			events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletArrived})
-			wallets = append(wallets, wallet)
-			continue
-		}
-		// If the account is the same as the first wallet, keep it
-		if b.wallets[0].Accounts()[0] == account.Account {
-			wallets = append(wallets, b.wallets[0])
-			b.wallets = b.wallets[1:]
-			continue
-		}
-	}
-	// Drop any leftover wallets and set the new batch
-	for _, wallet := range b.wallets {
-		events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletDropped})
-	}
-	b.wallets = wallets
-
-	b.mu.Unlock()
-
-	// Fire all wallet events and return
-	for _, event := range events {
-		log.Println("[PLUGIN Backend] sending event: ", event.Kind, event.Wallet.URL().String())
-		b.updateFeed.Send(event)
-	}
-}
-
 // Subscribe implements accounts.Backend, creating an async subscription to
 // receive notifications on the addition or removal of keystore wallets.
 func (b *Backend) Subscribe(sink chan<- accounts.WalletEvent) event.Subscription {
@@ -258,34 +187,6 @@ func (b *Backend) Subscribe(sink chan<- accounts.WalletEvent) event.Subscription
 		go b.updater()
 	}
 	return sub
-}
-
-// updater is responsible for maintaining an up-to-date list of wallets stored in
-// the keystore, and for firing wallet addition/removal events. It listens for
-// account change events from the underlying account cache, and also periodically
-// forces a manual refresh (only triggers for systems where the filesystem notifier
-// is not running).
-func (b *Backend) updater() {
-	for {
-		// Wait for an account update or a refresh timeout
-		select {
-		case <-b.Changes:
-		case <-time.After(walletRefreshCycle):
-		}
-		log.Println("[PLUGIN Backend] updater: change detected")
-		// Run the wallet refresher
-		b.refreshWallets()
-
-		// If all our subscribers left, stop the updater
-		b.mu.Lock()
-		if b.updateScope.Count() == 0 {
-			log.Println("[PLUGIN Backend] updater: stopping updater")
-			b.updating = false
-			b.mu.Unlock()
-			return
-		}
-		b.mu.Unlock()
-	}
 }
 
 // HasAddress reports whether a key with the given address is present.
@@ -459,50 +360,6 @@ func (b *Backend) Find(a accounts.Account) (accounts.Account, error) {
 	return a, err
 }
 
-var (
-	incorrectKeyForAddrErr = errors.New("the address of the account provided does not match the address derived from the private key retrieved from the Vault.  Ensure the correct secret names and versions are specified in the node config.")
-)
-
-func (b *Backend) getDecryptedKey(a accounts.Account, auth string) (accounts.Account, *Key, error) {
-	a, err := b.Find(a)
-	if err != nil {
-		return a, nil, err
-	}
-	//file := strings.Split(a.URL.Path, "#config=")
-	key, err := b.storage.GetKey(a.Address, a.URL.Path, auth)
-	if err != nil {
-		return a, nil, err
-	}
-
-	// validate that the retrieved key is correct for the provided account
-	log.Println("validating key: sign requested with", a, "acct from vault is", key.Address)
-	if !bytes.Equal(key.Address.Bytes(), a.Address.Bytes()) {
-		zeroKey(key.PrivateKey)
-		return a, nil, incorrectKeyForAddrErr
-	}
-	return a, key, err
-}
-
-func (b *Backend) expire(addr common.Address, u *unlocked, timeout time.Duration) {
-	t := time.NewTimer(timeout)
-	defer t.Stop()
-	select {
-	case <-u.abort:
-		// just quit
-	case <-t.C:
-		b.mu.Lock()
-		// only drop if it's still the same key instance that dropLater
-		// was launched with. we can check that using pointer equality
-		// because the map stores a new pointer every time the key is
-		// unlocked.
-		if b.unlocked[addr] == u {
-			zeroKey(u.PrivateKey)
-			delete(b.unlocked, addr)
-		}
-		b.mu.Unlock()
-	}
-}
-
 // NewAccount generates a new key and stores it into the key directory,
 // encrypting it with the passphrase.
 func (b *Backend) NewAccount(vaultAccountConfig VaultAccountConfig) (accounts.Account, string, error) {
@@ -558,6 +415,127 @@ func (b *Backend) ImportECDSA(priv *ecdsa.PrivateKey, vaultAccountConfig VaultAc
 	return b.importKey(key, vaultAccountConfig)
 }
 
+// refreshWallets retrieves the current account list and based on that does any
+// necessary wallet refreshes.
+func (b *Backend) refreshWallets() {
+	log.Println("[PLUGIN Backend] refreshWallets")
+	// Retrieve the current list of accounts
+	b.mu.Lock()
+	accs := b.cache.Accounts()
+	log.Println("[PLUGIN Backend] refreshWallets: cache len(accts)", len(accs), ", backend len(wallets)", len(b.wallets))
+
+	// Transform the current list of wallets into the new one
+	wallets := make([]accounts.Wallet, 0, len(accs))
+	events := []accounts.WalletEvent{}
+
+	for _, account := range accs {
+		// Drop wallets while they were in front of the next account
+		for len(b.wallets) > 0 && b.wallets[0].URL().Cmp(account.WalletUrl) < 0 {
+			events = append(events, accounts.WalletEvent{Wallet: b.wallets[0], Kind: accounts.WalletDropped})
+			b.wallets = b.wallets[1:]
+		}
+		// If there are no more wallets or the account is before the next, wrap new wallet
+		if len(b.wallets) == 0 || b.wallets[0].URL().Cmp(account.WalletUrl) > 0 {
+			wallet := &wallet{url: account.WalletUrl, account: account.Account, backend: b}
+			log.Println("[PLUGIN Backend] refreshWallets: new wallet wrapped", wallet)
+			events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletArrived})
+			wallets = append(wallets, wallet)
+			continue
+		}
+		// If the account is the same as the first wallet, keep it
+		if b.wallets[0].Accounts()[0] == account.Account {
+			wallets = append(wallets, b.wallets[0])
+			b.wallets = b.wallets[1:]
+			continue
+		}
+	}
+	// Drop any leftover wallets and set the new batch
+	for _, wallet := range b.wallets {
+		events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletDropped})
+	}
+	b.wallets = wallets
+
+	b.mu.Unlock()
+
+	// Fire all wallet events and return
+	for _, event := range events {
+		log.Println("[PLUGIN Backend] sending event: ", event.Kind, event.Wallet.URL().String())
+		b.updateFeed.Send(event)
+	}
+}
+
+// updater is responsible for maintaining an up-to-date list of wallets stored in
+// the keystore, and for firing wallet addition/removal events. It listens for
+// account change events from the underlying account cache, and also periodically
+// forces a manual refresh (only triggers for systems where the filesystem notifier
+// is not running).
+func (b *Backend) updater() {
+	for {
+		// Wait for an account update or a refresh timeout
+		select {
+		case <-b.Changes:
+		case <-time.After(walletRefreshCycle):
+		}
+		log.Println("[PLUGIN Backend] updater: change detected")
+		// Run the wallet refresher
+		b.refreshWallets()
+
+		// If all our subscribers left, stop the updater
+		b.mu.Lock()
+		if b.updateScope.Count() == 0 {
+			log.Println("[PLUGIN Backend] updater: stopping updater")
+			b.updating = false
+			b.mu.Unlock()
+			return
+		}
+		b.mu.Unlock()
+	}
+}
+
+var (
+	incorrectKeyForAddrErr = errors.New("the address of the account provided does not match the address derived from the private key retrieved from the Vault.  Ensure the correct secret names and versions are specified in the node config.")
+)
+
+func (b *Backend) getDecryptedKey(a accounts.Account, auth string) (accounts.Account, *Key, error) {
+	a, err := b.Find(a)
+	if err != nil {
+		return a, nil, err
+	}
+	//file := strings.Split(a.URL.Path, "#config=")
+	key, err := b.storage.GetKey(a.Address, a.URL.Path, auth)
+	if err != nil {
+		return a, nil, err
+	}
+
+	// validate that the retrieved key is correct for the provided account
+	log.Println("validating key: sign requested with", a, "acct from vault is", key.Address)
+	if !bytes.Equal(key.Address.Bytes(), a.Address.Bytes()) {
+		zeroKey(key.PrivateKey)
+		return a, nil, incorrectKeyForAddrErr
+	}
+	return a, key, err
+}
+
+func (b *Backend) expire(addr common.Address, u *unlocked, timeout time.Duration) {
+	t := time.NewTimer(timeout)
+	defer t.Stop()
+	select {
+	case <-u.abort:
+		// just quit
+	case <-t.C:
+		b.mu.Lock()
+		// only drop if it's still the same key instance that dropLater
+		// was launched with. we can check that using pointer equality
+		// because the map stores a new pointer every time the key is
+		// unlocked.
+		if b.unlocked[addr] == u {
+			zeroKey(u.PrivateKey)
+			delete(b.unlocked, addr)
+		}
+		b.mu.Unlock()
+	}
+}
+
 func (b *Backend) importKey(key *Key, vaultAccountConfig VaultAccountConfig) (accounts.Account, string, error) {
 	configfilepath := b.storage.JoinPath(keyFileName(key.Address))
 
@@ -571,32 +549,22 @@ func (b *Backend) importKey(key *Key, vaultAccountConfig VaultAccountConfig) (ac
 	return acct.Account, secretUri, nil
 }
 
-//
-//// Update changes the passphrase of an existing account.
-//func (b *Backend) Update(a accounts.Account, passphrase, newPassphrase string) error {
-//	a, key, err := b.getDecryptedKey(a, passphrase)
-//	if err != nil {
-//		return err
-//	}
-//	return b.storage.StoreKey(a.URL.Path, key, newPassphrase)
-//}
-//
-//// ImportPreSaleKey decrypts the given Ethereum presale wallet and stores
-//// a key file in the key directory. The key file is encrypted with the same passphrase.
-//func (b *Backend) ImportPreSaleKey(keyJSON []byte, passphrase string) (accounts.Account, error) {
-//	a, _, err := importPreSaleKey(b.storage, keyJSON, passphrase)
-//	if err != nil {
-//		return a, err
-//	}
-//	b.cache.Add(a)
-//	b.refreshWallets()
-//	return a, nil
-//}
-
 // zeroKey zeroes a private key in memory.
 func zeroKey(k *ecdsa.PrivateKey) {
 	b := k.D.Bits()
 	for i := range b {
 		b[i] = 0
 	}
+}
+
+// parseURL converts a user supplied URL into the accounts specific structure.
+func parseURL(url string) (accounts.URL, error) {
+	parts := strings.Split(url, "://")
+	if len(parts) != 2 || parts[0] == "" {
+		return accounts.URL{}, errors.New("protocol scheme missing")
+	}
+	return accounts.URL{
+		Scheme: parts[0],
+		Path:   parts[1],
+	}, nil
 }
