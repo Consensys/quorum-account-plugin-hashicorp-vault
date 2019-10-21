@@ -173,7 +173,7 @@ func (ac *authenticatedClient) renew() {
 			go ac.renewer.Renew()
 
 		case _ = <-ac.renewer.RenewCh():
-			log.Println("[DEBUG] successfully renewed Vault auth token: auth = %v", ac.authConfig)
+			log.Printf("[DEBUG] successfully renewed Vault auth token: auth = %v", ac.authConfig)
 		}
 	}
 }

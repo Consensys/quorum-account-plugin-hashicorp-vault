@@ -17,6 +17,7 @@
 package hashicorp
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"sort"
@@ -63,16 +64,8 @@ func NewManager(config []VaultConfig) (*Manager, error) {
 		// Retrieve the initial list of wallets from the backends and sort by URL
 		wallets = merge(wallets, backend.Wallets()...)
 
-		// unlock necessary wallets
-		unlockAddrs := strings.Split(conf.Unlock, ",")
-		for _, addr := range unlockAddrs {
-			if trimmed := strings.TrimSpace(addr); trimmed != "" && common.IsHexAddress(trimmed) {
-				if err := backend.Unlock(accounts.Account{Address: common.HexToAddress(addr)}, ""); err != nil {
-					log.Println("[ERROR] Failed to unlock account", "addr", trimmed, "err", err)
-				}
-			} else {
-				log.Println("[ERROR] Failed to unlock account", "addr", trimmed, "err", "invalid hex-encoded ethereum address")
-			}
+		if err := unlockAccounts(backend, conf.Unlock); err != nil {
+			log.Printf("[ERROR] Failed to unlock the following accounts:\n%v", err)
 		}
 
 		// Subscribe to wallet notifications from the backend
@@ -91,6 +84,28 @@ func NewManager(config []VaultConfig) (*Manager, error) {
 	go am.update()
 
 	return am, nil
+}
+
+func unlockAccounts(backend *Backend, unlock string) error {
+	var failedMsgs []string
+
+	addrs := strings.Split(unlock, ",")
+	for _, addr := range addrs {
+		trimmed := strings.TrimSpace(addr)
+		if !common.IsHexAddress(trimmed) {
+			failedMsgs = append(failedMsgs, fmt.Sprintf("unable to unlock %v: invalid hex-encoded ethereum address", trimmed))
+		} else {
+			err := backend.Unlock(accounts.Account{Address: common.HexToAddress(addr)}, "")
+			if err != nil {
+				failedMsgs = append(failedMsgs, fmt.Sprintf("unable to unlock %v: %v", trimmed, err))
+			}
+		}
+	}
+
+	if len(failedMsgs) > 0 {
+		return errors.New(strings.Join(failedMsgs, "\n"))
+	}
+	return nil
 }
 
 // Close terminates the account manager's internal notification processes.
