@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/testmocks/mock_internal"
 	"math/big"
 	"testing"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/testmocks/mock_accounts"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/testmocks/mock_vault"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
 	"github.com/stretchr/testify/require"
 )
@@ -46,16 +46,16 @@ func TestSigner_Status(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_vault.NewMockPluginBackend(ctrl)
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinder: mockBackend,
+		WalletFinderLockerBackend: mockBackend,
 	}
 
 	mockBackend.
 		EXPECT().
-		FindWalletByUrl(wltUrl.String()).
+		Wallet(wltUrl.String()).
 		Return(mockWallet, nil)
 
 	status := "some status"
@@ -77,16 +77,16 @@ func TestSigner_Open(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_vault.NewMockPluginBackend(ctrl)
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinder: mockBackend,
+		WalletFinderLockerBackend: mockBackend,
 	}
 
 	mockBackend.
 		EXPECT().
-		FindWalletByUrl(wltUrl.String()).
+		Wallet(wltUrl.String()).
 		Return(mockWallet, nil)
 
 	pwd := "pwd"
@@ -111,16 +111,16 @@ func TestSigner_Close(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_vault.NewMockPluginBackend(ctrl)
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinder: mockBackend,
+		WalletFinderLockerBackend: mockBackend,
 	}
 
 	mockBackend.
 		EXPECT().
-		FindWalletByUrl(wltUrl.String()).
+		Wallet(wltUrl.String()).
 		Return(mockWallet, nil)
 
 	mockWallet.
@@ -141,16 +141,16 @@ func TestSigner_Accounts(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_vault.NewMockPluginBackend(ctrl)
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinder: mockBackend,
+		WalletFinderLockerBackend: mockBackend,
 	}
 
 	mockBackend.
 		EXPECT().
-		FindWalletByUrl(wltUrl.String()).
+		Wallet(wltUrl.String()).
 		Return(mockWallet, nil)
 
 	accts := []accounts.Account{acct1, acct2}
@@ -174,16 +174,16 @@ func TestSigner_Contains(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_vault.NewMockPluginBackend(ctrl)
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinder: mockBackend,
+		WalletFinderLockerBackend: mockBackend,
 	}
 
 	mockBackend.
 		EXPECT().
-		FindWalletByUrl(wltUrl.String()).
+		Wallet(wltUrl.String()).
 		Return(mockWallet, nil)
 
 	mockWallet.
@@ -207,16 +207,16 @@ func TestSigner_SignHash(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_vault.NewMockPluginBackend(ctrl)
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinder: mockBackend,
+		WalletFinderLockerBackend: mockBackend,
 	}
 
 	mockBackend.
 		EXPECT().
-		FindWalletByUrl(wltUrl.String()).
+		Wallet(wltUrl.String()).
 		Return(mockWallet, nil)
 
 	toSign := []byte("to sign")
@@ -243,16 +243,16 @@ func TestSigner_SignTx(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_vault.NewMockPluginBackend(ctrl)
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinder: mockBackend,
+		WalletFinderLockerBackend: mockBackend,
 	}
 
 	mockBackend.
 		EXPECT().
-		FindWalletByUrl(wltUrl.String()).
+		Wallet(wltUrl.String()).
 		Return(mockWallet, nil)
 
 	var (
@@ -270,11 +270,12 @@ func TestSigner_SignTx(t *testing.T) {
 		signed  = types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, signedTxData)
 		chainID = big.NewInt(20)
 	)
-	toSign.SetPrivate()
-	toSign.Size() // This field is populated when the signer decodes the transaction so we mimic that here
 
 	rlpToSign, err := rlp.EncodeToBytes(toSign)
 	require.NoError(t, err)
+
+	// When decoding rlp bytes to a tx, the size field is populated (see types/transaction.go: *Transaction.DecodeRLP).  We must populate that field in order to assert that Wallet.SignTxWithPassphrase is called with the expected args.
+	toSign.Size()
 
 	mockWallet.
 		EXPECT().
@@ -288,6 +289,7 @@ func TestSigner_SignTx(t *testing.T) {
 		ChainID:   chainID.Bytes(),
 	}
 	got, err := s.SignTx(context.Background(), req)
+	require.NoError(t, err)
 
 	rlpSigned, err := rlp.EncodeToBytes(signed)
 	require.NoError(t, err)
@@ -296,7 +298,6 @@ func TestSigner_SignTx(t *testing.T) {
 		RlpTx: rlpSigned,
 	}
 
-	require.NoError(t, err)
 	require.Equal(t, want, got)
 }
 
@@ -304,16 +305,16 @@ func TestSigner_SignHashWithPassphrase(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_vault.NewMockPluginBackend(ctrl)
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinder: mockBackend,
+		WalletFinderLockerBackend: mockBackend,
 	}
 
 	mockBackend.
 		EXPECT().
-		FindWalletByUrl(wltUrl.String()).
+		Wallet(wltUrl.String()).
 		Return(mockWallet, nil)
 
 	pwd := "pwd"
@@ -342,16 +343,16 @@ func TestSigner_SignTxWithPassphrase(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_vault.NewMockPluginBackend(ctrl)
+	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
 	s := &signer{
-		WalletFinder: mockBackend,
+		WalletFinderLockerBackend: mockBackend,
 	}
 
 	mockBackend.
 		EXPECT().
-		FindWalletByUrl(wltUrl.String()).
+		Wallet(wltUrl.String()).
 		Return(mockWallet, nil)
 
 	var (
@@ -371,11 +372,11 @@ func TestSigner_SignTxWithPassphrase(t *testing.T) {
 
 		pwd = "pwd"
 	)
-	toSign.SetPrivate()
-	toSign.Size() // This field is populated when the signer decodes the transaction so we mimic that here
-
 	rlpToSign, err := rlp.EncodeToBytes(toSign)
 	require.NoError(t, err)
+
+	// When decoding rlp bytes to a tx, the size field is populated (see types/transaction.go: *Transaction.DecodeRLP).  We must populate that field in order to assert that Wallet.SignTxWithPassphrase is called with the expected args.
+	toSign.Size()
 
 	mockWallet.
 		EXPECT().
@@ -390,6 +391,7 @@ func TestSigner_SignTxWithPassphrase(t *testing.T) {
 		Passphrase: pwd,
 	}
 	got, err := s.SignTxWithPassphrase(context.Background(), req)
+	require.NoError(t, err)
 
 	rlpSigned, err := rlp.EncodeToBytes(signed)
 	require.NoError(t, err)
@@ -398,6 +400,5 @@ func TestSigner_SignTxWithPassphrase(t *testing.T) {
 		RlpTx: rlpSigned,
 	}
 
-	require.NoError(t, err)
 	require.Equal(t, want, got)
 }
