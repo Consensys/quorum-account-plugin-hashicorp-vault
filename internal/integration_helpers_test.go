@@ -111,9 +111,9 @@ func setupMockTLSVaultServer(t *testing.T, handlers ...pathHandler) *httptest.Se
 }
 
 const (
-	caCert     = "testdata/caRoot.pem"
-	clientCert = "testdata/quorum-client-chain.pem"
-	clientKey  = "testdata/quorum-client.key"
-	serverCert = "testdata/localhost-with-san-chain.pem"
-	serverKey  = "testdata/localhost-with-san.key"
+	caCert     = "vault/testdata/tls/caRoot.pem"
+	clientCert = "vault/testdata/tls/quorum-client-chain.pem"
+	clientKey  = "vault/testdata/tls/quorum-client.key"
+	serverCert = "vault/testdata/tls/localhost-with-san-chain.pem"
+	serverKey  = "vault/testdata/tls/localhost-with-san.key"
 )
