@@ -16,18 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_UnlocksAccountsAtStartup(t *testing.T) {
-	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
-	)()
-
-	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
-		"signer": new(testableSignerPluginImpl),
-	})
-	defer client.Close()
-	defer server.Stop()
-
+func setup(t *testing.T, pluginConfig hashicorp.HashicorpAccountStoreConfig) (InitializerSignerClient, string, func()) {
 	authVaultHandler := pathHandler{
 		path: "/v1/auth/approle/login",
 		handler: func(w http.ResponseWriter, r *http.Request) {
@@ -75,26 +64,61 @@ func Test_UnlocksAccountsAtStartup(t *testing.T) {
 		acct1VaultHandler,
 		acct2VaultHandler,
 	}
-
 	vault := setupMockTLSVaultServer(t, vaultHandlers...)
-	defer vault.Close()
+
+	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
+		"signer": new(testableSignerPluginImpl),
+	})
+
+	toClose := func() {
+		client.Close()
+		server.Stop()
+		vault.Close()
+	}
 
 	raw, err := client.Dispense("signer")
 	if err != nil {
-		t.Fatalf("err: %s", err)
+		toClose()
+		t.Fatal(err)
 	}
 
 	impl, ok := raw.(InitializerSignerClient)
 	if !ok {
+		toClose()
 		t.Fatalf("bad: %#v", raw)
 	}
+
+	// update provided config to use the url of the mocked vault server
+	pluginConfig.Vaults[0].Addr = vault.URL
+	rawPluginConfig, err := json.Marshal(pluginConfig)
+	if err != nil {
+		toClose()
+		t.Fatal(err)
+	}
+
+	_, err = impl.Init(context.Background(), &iproto.PluginInitialization_Request{
+		RawConfiguration: rawPluginConfig,
+	})
+	if err != nil {
+		toClose()
+		t.Fatal(err)
+	}
+
+	return impl, vault.URL, toClose
+}
+
+func Test_UnlocksAccountsAtStartup(t *testing.T) {
+	defer setEnvironmentVariables(
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+	)()
 
 	// comma-separated list of hex addresses to be unlocked at startup
 	unlockOnStartup := "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526, 	bad , 4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"
 
 	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: vault.URL,
+			Addr: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -108,24 +132,20 @@ func Test_UnlocksAccountsAtStartup(t *testing.T) {
 			}},
 		}},
 	}
-	rawPluginConfig, err := json.Marshal(pluginConfig)
-	require.NoError(t, err)
 
-	_, err = impl.Init(context.Background(), &iproto.PluginInitialization_Request{
-		RawConfiguration: rawPluginConfig,
-	})
-	require.NoError(t, err)
+	impl, vaultUrl, toClose := setup(t, pluginConfig)
+	defer toClose()
 
 	acctConfig := readConfigFromFile(t, "dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
-	status := getStatus(t, &impl, vault.URL, "FOO", acctConfig)
+	status := getStatus(t, &impl, vaultUrl, "FOO", acctConfig)
 	require.Equal(t, "Unlocked", status, "account should be unlocked")
 
 	acctConfig = readConfigFromFile(t, "4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
-	status = getStatus(t, &impl, vault.URL, "FOO", acctConfig)
+	status = getStatus(t, &impl, vaultUrl, "FOO", acctConfig)
 	require.Equal(t, "Unlocked", status, "account should be unlocked")
 
 	acctConfig = readConfigFromFile(t, "1c15560b23dfa9a19e9739cc866c7f1f2e5da7b7")
-	status = getStatus(t, &impl, vault.URL, "BAR", acctConfig)
+	status = getStatus(t, &impl, vaultUrl, "BAR", acctConfig)
 	require.Equal(t, "Locked", status, "account should not have been unlocked")
 }
 
