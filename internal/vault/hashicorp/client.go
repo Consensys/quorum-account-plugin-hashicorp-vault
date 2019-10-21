@@ -96,7 +96,10 @@ func newAuthenticatedClient(vaultAddr string, authConfig VaultAuth, tls TLS) (*a
 	}
 
 	ac := &authenticatedClient{Client: c, renewer: r, authConfig: authConfig}
-	go ac.renew()
+
+	if renewable, _ := resp.TokenIsRenewable(); renewable {
+		go ac.renew()
+	}
 
 	return ac, nil
 }
