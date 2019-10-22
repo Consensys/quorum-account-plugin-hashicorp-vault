@@ -144,3 +144,32 @@ func makeWalletUrl(scheme string, userInfo string, vaultUrl string, acctConfig h
 
 	return accounts.URL{Scheme: scheme, Path: wltPath}, nil
 }
+
+var (
+	acct1JsonConfig = []byte(`{
+  "address": "dc99ddec13457de6c0f6bb8e6cf3955c86f55526",
+  "hashicorpvault": {
+    "pathparams": {
+      "secretenginepath": "kv",
+      "secretpath": "kvacct",
+      "secretversion": 1
+    },
+    "authid": "FOO"
+  },
+  "id": "afb297d8-1995-4212-974a-e861d7e31e19",
+  "version": 1
+}`)
+	acct2JsonConfig = []byte(`{
+  "address": "4d6d744b6da435b5bbdde2526dc20e9a41cb72e5",
+  "hashicorpvault": {
+    "pathparams": {
+      "secretenginepath": "engine",
+      "secretpath": "engineacct",
+      "secretversion": 2
+    },
+    "authid": "FOO"
+  },
+  "id": "d88bd481-4db4-4ee5-8ea6-84042d2fb0cf",
+  "version": 1
+}`)
+)

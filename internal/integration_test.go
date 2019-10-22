@@ -7,7 +7,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"testing"
+	"time"
 
 	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
@@ -89,11 +91,55 @@ func setup(t *testing.T, pluginConfig hashicorp.HashicorpAccountStoreConfig) (In
 		t.Fatalf("bad: %#v", raw)
 	}
 
-	// update provided config to use the url of the mocked vault server
-	pluginConfig.Vaults[0].Addr = vault.URL
-	rawPluginConfig, err := json.Marshal(pluginConfig)
+	// create temporary acctconfigdir
+	dir, err := ioutil.TempDir("vault/testdata", "acctconfig")
 	if err != nil {
 		toClose()
+		t.Fatal(err)
+	}
+
+	toCloseAndDelete := func() {
+		client.Close()
+		server.Stop()
+		vault.Close()
+		os.RemoveAll(dir)
+	}
+
+	// add 2 acctconfigs to acctconfigdir
+	tmpfile, err := ioutil.TempFile(dir, "")
+	if err != nil {
+		toCloseAndDelete()
+		t.Fatal(err)
+	}
+	if _, err := tmpfile.Write(acct1JsonConfig); err != nil {
+		toCloseAndDelete()
+		t.Fatal(err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		toCloseAndDelete()
+		t.Fatal(err)
+	}
+
+	tmpfile2, err := ioutil.TempFile(dir, "")
+	if err != nil {
+		toCloseAndDelete()
+		t.Fatal(err)
+	}
+	if _, err := tmpfile2.Write(acct2JsonConfig); err != nil {
+		toCloseAndDelete()
+		t.Fatal(err)
+	}
+	if err := tmpfile2.Close(); err != nil {
+		toCloseAndDelete()
+		t.Fatal(err)
+	}
+
+	// update provided config to use the url of the mocked vault server and the temp acctconfigdir
+	pluginConfig.Vaults[0].Addr = vault.URL
+	pluginConfig.Vaults[0].AccountConfigDir = dir
+	rawPluginConfig, err := json.Marshal(pluginConfig)
+	if err != nil {
+		toCloseAndDelete()
 		t.Fatal(err)
 	}
 
@@ -101,11 +147,85 @@ func setup(t *testing.T, pluginConfig hashicorp.HashicorpAccountStoreConfig) (In
 		RawConfiguration: rawPluginConfig,
 	})
 	if err != nil {
-		toClose()
+		toCloseAndDelete()
 		t.Fatal(err)
 	}
 
-	return impl, vault.URL, toClose
+	return impl, vault.URL, toCloseAndDelete
+}
+
+func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T) {
+	defer setEnvironmentVariables(
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+	)()
+
+	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+		Vaults: []hashicorp.VaultConfig{{
+			Addr: "", // this will be populated once the mock vault server is started
+			TLS: hashicorp.TLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
+			AccountConfigDir: "", // this will be populated once the mock vault server is started
+			Unlock:           "",
+			Auth: []hashicorp.VaultAuth{{
+				AuthID:      "FOO",
+				ApprolePath: "", // defaults to approle
+			}},
+		}},
+	}
+
+	impl, _, toClose := setup(t, pluginConfig)
+	defer toClose()
+
+	req := &proto.GetEventStreamRequest{}
+	stream, err := impl.GetEventStream(context.Background(), req)
+	require.NoError(t, err)
+
+	respChan := make(chan *proto.GetEventStreamResponse)
+	errChan := make(chan error)
+
+	// we start a separate goroutine to receive events from the stream.  stream.Recv() blocks until there are msgs to retrieve.
+	go func() {
+		for {
+			resp, err := stream.Recv()
+			if err != nil {
+				errChan <- err
+			} else {
+				respChan <- resp
+			}
+		}
+	}()
+
+	// setup adds 2 valid configs to the acctconfigdir so we check that 2 events have been streamed to the caller
+	select {
+	case resp := <-respChan:
+		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.WalletEvent)
+	case err := <-errChan:
+		t.Fatalf("error receiving msgs from stream: %v", err)
+	}
+
+	select {
+	case resp := <-respChan:
+		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.WalletEvent)
+	case err := <-errChan:
+		t.Fatalf("error receiving msgs from stream: %v", err)
+	}
+
+	// wait some time to make sure no other events have been streamed
+	select {
+	case resp := <-respChan:
+		t.Fatalf("should not have received any more events from plugin: %v", *resp)
+	case err := <-errChan:
+		t.Fatalf("should not have received any more events from plugin: error receiving msg: %v", err)
+	case <-time.After(5 * time.Millisecond):
+		// no events, test successful
+	}
+
+	// add another config file
+
 }
 
 func Test_UnlocksAccountsAtStartup(t *testing.T) {
