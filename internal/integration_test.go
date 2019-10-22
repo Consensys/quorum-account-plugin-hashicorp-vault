@@ -19,13 +19,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setup(t *testing.T, pluginConfig hashicorp.HashicorpAccountStoreConfig) (InitializerSignerClient, string, func()) {
+func setup(t *testing.T, pluginConfig hashicorp.HashicorpAccountStoreConfig) (InitializerSignerClient, string, string, func()) {
 	authVaultHandler := pathHandler{
 		path: "/v1/auth/approle/login",
 		handler: func(w http.ResponseWriter, r *http.Request) {
 			vaultResponse := &api.Secret{Auth: &api.SecretAuth{ClientToken: "logintoken"}}
-			b, err := json.Marshal(vaultResponse)
-			require.NoError(t, err)
+			b, _ := json.Marshal(vaultResponse)
 			_, _ = w.Write(b)
 		},
 	}
@@ -40,8 +39,7 @@ func setup(t *testing.T, pluginConfig hashicorp.HashicorpAccountStoreConfig) (In
 					},
 				},
 			}
-			b, err := json.Marshal(vaultResponse)
-			require.NoError(t, err)
+			b, _ := json.Marshal(vaultResponse)
 			_, _ = w.Write(b)
 		},
 	}
@@ -56,8 +54,7 @@ func setup(t *testing.T, pluginConfig hashicorp.HashicorpAccountStoreConfig) (In
 					},
 				},
 			}
-			b, err := json.Marshal(vaultResponse)
-			require.NoError(t, err)
+			b, _ := json.Marshal(vaultResponse)
 			_, _ = w.Write(b)
 		},
 	}
@@ -106,30 +103,11 @@ func setup(t *testing.T, pluginConfig hashicorp.HashicorpAccountStoreConfig) (In
 	}
 
 	// add 2 acctconfigs to acctconfigdir
-	tmpfile, err := ioutil.TempFile(dir, "")
-	if err != nil {
+	if _, err := addTempFile(dir, acct1JsonConfig); err != nil {
 		toCloseAndDelete()
 		t.Fatal(err)
 	}
-	if _, err := tmpfile.Write(acct1JsonConfig); err != nil {
-		toCloseAndDelete()
-		t.Fatal(err)
-	}
-	if err := tmpfile.Close(); err != nil {
-		toCloseAndDelete()
-		t.Fatal(err)
-	}
-
-	tmpfile2, err := ioutil.TempFile(dir, "")
-	if err != nil {
-		toCloseAndDelete()
-		t.Fatal(err)
-	}
-	if _, err := tmpfile2.Write(acct2JsonConfig); err != nil {
-		toCloseAndDelete()
-		t.Fatal(err)
-	}
-	if err := tmpfile2.Close(); err != nil {
+	if _, err := addTempFile(dir, acct2JsonConfig); err != nil {
 		toCloseAndDelete()
 		t.Fatal(err)
 	}
@@ -151,7 +129,7 @@ func setup(t *testing.T, pluginConfig hashicorp.HashicorpAccountStoreConfig) (In
 		t.Fatal(err)
 	}
 
-	return impl, vault.URL, toCloseAndDelete
+	return impl, vault.URL, dir, toCloseAndDelete
 }
 
 func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T) {
@@ -177,7 +155,7 @@ func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T
 		}},
 	}
 
-	impl, _, toClose := setup(t, pluginConfig)
+	impl, _, dir, toClose := setup(t, pluginConfig)
 	defer toClose()
 
 	req := &proto.GetEventStreamRequest{}
@@ -202,14 +180,14 @@ func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T
 	// setup adds 2 valid configs to the acctconfigdir so we check that 2 events have been streamed to the caller
 	select {
 	case resp := <-respChan:
-		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.WalletEvent)
+		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.WalletEvent, fmt.Sprintf("incorrect event for wallet: %v", resp.WalletUrl))
 	case err := <-errChan:
 		t.Fatalf("error receiving msgs from stream: %v", err)
 	}
 
 	select {
 	case resp := <-respChan:
-		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.WalletEvent)
+		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.WalletEvent, fmt.Sprintf("incorrect event for wallet: %v", resp.WalletUrl))
 	case err := <-errChan:
 		t.Fatalf("error receiving msgs from stream: %v", err)
 	}
@@ -220,12 +198,77 @@ func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T
 		t.Fatalf("should not have received any more events from plugin: %v", *resp)
 	case err := <-errChan:
 		t.Fatalf("should not have received any more events from plugin: error receiving msg: %v", err)
-	case <-time.After(5 * time.Millisecond):
+	case <-time.After(2500 * time.Millisecond):
 		// no events, test successful
 	}
 
-	// add another config file
+	// add another config file and check that the corresponding event is streamed to caller
+	filepath, err := addTempFile(dir, acct3JsonConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case resp := <-respChan:
+		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.WalletEvent, fmt.Sprintf("incorrect event for wallet: %v", resp.WalletUrl))
+	case err := <-errChan:
+		t.Fatalf("error receiving msgs from stream: %v", err)
+	}
+	// wait some time to make sure no other events have been streamed
+	select {
+	case resp := <-respChan:
+		t.Fatalf("should not have received any more events from plugin: %v", *resp)
+	case err := <-errChan:
+		t.Fatalf("should not have received any more events from plugin: error receiving msg: %v", err)
+	case <-time.After(2500 * time.Millisecond):
+		// no events, test successful
+	}
 
+	// edit the file.  The old wallet should be dropped and the updated wallet added. Check that both these events are streamed to the caller.
+	// (Note the order of the events received __IS__ dependent on the contents of the files.  Wallets are added or dropped in URL order so make sure that the URL of the updated wallet will be alphabetically after that of the original wallet.)
+	if err := ioutil.WriteFile(filepath, acct4JsonConfig, 0644); err != nil {
+		t.Fatalf("unable to update file %v: %v", filepath, err)
+	}
+	select {
+	case resp := <-respChan:
+		require.Equal(t, proto.GetEventStreamResponse_WALLET_DROPPED, resp.WalletEvent, fmt.Sprintf("incorrect event for wallet: %v", resp.WalletUrl))
+	case err := <-errChan:
+		t.Fatalf("error receiving msgs from stream: %v", err)
+	}
+	select {
+	case resp := <-respChan:
+		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.WalletEvent, fmt.Sprintf("incorrect event for wallet: %v", resp.WalletUrl))
+	case err := <-errChan:
+		t.Fatalf("error receiving msgs from stream: %v", err)
+	}
+	// wait some time to make sure no other events have been streamed
+	select {
+	case resp := <-respChan:
+		t.Fatalf("should not have received any more events from plugin: %v", *resp)
+	case err := <-errChan:
+		t.Fatalf("should not have received any more events from plugin: error receiving msg: %v", err)
+	case <-time.After(2500 * time.Millisecond):
+		// no events, test successful
+	}
+
+	// delete the file and check that a dropped event is streamed to the caller
+	if err := os.Remove(filepath); err != nil {
+		t.Fatalf("unable to remove file %v: %v", filepath, err)
+	}
+	select {
+	case resp := <-respChan:
+		require.Equal(t, proto.GetEventStreamResponse_WALLET_DROPPED, resp.WalletEvent, fmt.Sprintf("incorrect event for wallet: %v", resp.WalletUrl))
+	case err := <-errChan:
+		t.Fatalf("error receiving msgs from stream: %v", err)
+	}
+	// wait some time to make sure no other events have been streamed
+	select {
+	case resp := <-respChan:
+		t.Fatalf("should not have received any more events from plugin: %v", *resp)
+	case err := <-errChan:
+		t.Fatalf("should not have received any more events from plugin: error receiving msg: %v", err)
+	case <-time.After(2500 * time.Millisecond):
+		// no events, test successful
+	}
 }
 
 func Test_UnlocksAccountsAtStartup(t *testing.T) {
@@ -254,7 +297,7 @@ func Test_UnlocksAccountsAtStartup(t *testing.T) {
 		}},
 	}
 
-	impl, vaultUrl, toClose := setup(t, pluginConfig)
+	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
 	acctConfig := readConfigFromFile(t, "dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -293,7 +336,7 @@ func Test_Contains(t *testing.T) {
 		}},
 	}
 
-	impl, vaultUrl, toClose := setup(t, pluginConfig)
+	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
 	acctConfig := readConfigFromFile(t, "dc99ddec13457de6c0f6bb8e6cf3955c86f55526")

@@ -172,4 +172,49 @@ var (
   "id": "d88bd481-4db4-4ee5-8ea6-84042d2fb0cf",
   "version": 1
 }`)
+	acct3JsonConfig = []byte(`{
+   "address" : "29b409d5c50d7ed5cdee9679d6baeb1bad640841",
+   "hashicorpvault" : {
+      "authid" : "BAR",
+      "pathparams" : {
+         "secretenginepath" : "engine",
+         "secretpath" : "engineacct",
+         "secretversion" : 7
+      }
+   },
+   "id" : "f66f3b2e-bef2-4279-bc7c-259137cc3440",
+   "version" : 1
+}
+`)
+	acct4JsonConfig = []byte(`{
+  "address": "1c15560b23dfa9a19e9739cc866c7f1f2e5da7b7",
+  "hashicorpvault": {
+    "pathparams": {
+      "secretenginepath": "kv",
+      "secretpath": "kvacct",
+      "secretversion": 5
+    },
+    "authid": "BAR"
+  },
+  "id": "974ceed7-5157-4d33-877b-196047509c4d",
+  "version": 1
+}
+`)
 )
+
+func addTempFile(dir string, content []byte) (string, error) {
+	tmpFile, err := ioutil.TempFile(dir, "")
+	if err != nil {
+		return "", err
+	}
+
+	path := tmpFile.Name()
+
+	if _, err := tmpFile.Write(content); err != nil {
+		return "", err
+	}
+	if err := tmpFile.Close(); err != nil {
+		return "", err
+	}
+	return path, nil
+}

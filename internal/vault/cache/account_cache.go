@@ -107,7 +107,6 @@ func (ac *AccountCache) HasAddress(addr common.Address) bool {
 }
 
 func (ac *AccountCache) Add(newAccount vault.AccountAndWalletUrl) {
-	log.Println("[DEBUG] Plugin AccountCache Add: ", newAccount.Account.URL)
 	ac.Mu.Lock()
 	defer ac.Mu.Unlock()
 
@@ -207,7 +206,6 @@ func (ac *AccountCache) Find(a accounts.Account) (accounts.Account, error) {
 }
 
 func (ac *AccountCache) MaybeReload() {
-	log.Println("[DEBUG] PLUGIN AccountCache MaybeReload")
 	ac.Mu.Lock()
 
 	if ac.watcher.running {
@@ -250,7 +248,7 @@ func (ac *AccountCache) scanAccounts() error {
 	// Scan the entire folder metadata for file changes
 	creates, deletes, updates, err := ac.fileC.scan(ac.keydir)
 	if err != nil {
-		log.Println("[ERROR] Failed to reload keystore contents", "err", err)
+		log.Println("[DEBUG] Failed to reload keystore contents", "err", err)
 		return err
 	}
 	if creates.Cardinality() == 0 && deletes.Cardinality() == 0 && updates.Cardinality() == 0 {
@@ -262,11 +260,9 @@ func (ac *AccountCache) scanAccounts() error {
 		acctConfig vault.ValidatableAccountParsableConfig
 	)
 	readAccount := func(path string) *vault.AccountAndWalletUrl {
-		log.Println("[DEBUG] PLUGIN AccountCache readAccount")
 		fd, err := os.Open(path)
 		if err != nil {
-			log.Println("[DEBUG] PLUGIN AccountCache failed to open keystore file: ", err)
-			log.Println("[INFO] Failed to open keystore file", "path", path, "err", err)
+			log.Println("[DEBUG] Failed to open acctconfig file", "path", path, "err", err)
 			return nil
 		}
 		defer fd.Close()
@@ -274,20 +270,18 @@ func (ac *AccountCache) scanAccounts() error {
 		// Parse the address.
 		acctConfig, err = ac.accountConfigUnmarshaller.Unmarshal(buf)
 		if err != nil {
-			log.Println("[Debug] PLUGIN AccountCache failed to decode keystore key:", err)
-			log.Println("[INFO] Failed to decode keystore key", "path", path, "err", err)
+			log.Println("[DEBUG] Failed to decode acctconfig key", "path", path, "err", err)
 			return nil
 		}
 
 		if err := acctConfig.Validate(); err != nil {
-			log.Println("[DEBUG] PLUGIN AccountCache invalid secret config:", err)
-			log.Println("[INFO] Invalid secret config", "path", path, "err", err)
+			log.Println("[DEBUG] Invalid secret config", "path", path, "err", err)
 			return nil
 		}
 
 		acct, err := acctConfig.ParseAccount(ac.vaultAddr, path)
 		if err != nil {
-			log.Println("[INFO] Failed to create account from secret config", "path", path, "err", err)
+			log.Println("[DEBUG] Failed to create account from secret config", "path", path, "err", err)
 			return nil
 		}
 		return &acct
@@ -296,17 +290,18 @@ func (ac *AccountCache) scanAccounts() error {
 	start := time.Now()
 
 	for _, p := range creates.ToSlice() {
+		log.Printf("[DEBUG] %v added, updating cache", p.(string))
 		if a := readAccount(p.(string)); a != nil {
-			log.Println("[DEBUG] PLUGIN AccountCache Adding: ", a.Account.URL.String())
+			log.Println("[DEBUG] adding acct: ", a.Account.URL.String())
 			ac.Add(*a)
 		}
 	}
 	for _, p := range deletes.ToSlice() {
-		log.Println("[DEBUG] PLUGIN AccountCache Deleting: ", p.(string))
+		log.Printf("[DEBUG] %v deleted, updating cache", p.(string))
 		ac.deleteByFile(p.(string))
 	}
 	for _, p := range updates.ToSlice() {
-		log.Println("[DEBUG] PLUGIN AccountCache Updating: ", p.(string))
+		log.Printf("[DEBUG] %v updated, updating cache", p.(string))
 		path := p.(string)
 		ac.deleteByFile(path)
 		if a := readAccount(path); a != nil {
