@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -434,6 +435,142 @@ func Test_Accounts(t *testing.T) {
 	require.Equal(t, common.Bytes2Hex(accts[0].Address), "dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 }
 
+func Test_SignHash_Unlocking(t *testing.T) {
+	defer setEnvironmentVariables(
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+	)()
+
+	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+		Vaults: []hashicorp.VaultConfig{{
+			Addr: "", // this will be populated once the mock vault server is started
+			TLS: hashicorp.TLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
+			AccountConfigDir: "", // this will be populated once the mock vault server is started
+			Unlock:           "",
+			Auth: []hashicorp.VaultAuth{{
+				AuthID:      "FOO",
+				ApprolePath: "", // defaults to approle
+			}},
+		}},
+	}
+
+	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
+	defer toClose()
+
+	toSign := crypto.Keccak256([]byte("to sign"))
+	signingKey, err := crypto.HexToECDSA("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28")
+	require.NoError(t, err)
+
+	var (
+		want []byte
+		got  *proto.SignHashResponse
+	)
+
+	want, err = crypto.Sign(toSign, signingKey)
+	require.NoError(t, err)
+
+	// manually lock the account
+	lockDelegate(t, &impl, acct1JsonConfig)
+
+	// signHash fails as acct locked
+	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+
+	// signHashWithPassphrase succeeds as it unlocks the acct
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, want, got.Result)
+
+	// signHash fails as signHashWithPassphrase only unlocks the acct for the duration of the call
+	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+
+	// unlock the account for a short period
+	timedUnlockDelegate(t, &impl, acct1JsonConfig, 100*time.Millisecond)
+
+	// signHash succeeds as acct unlocked
+	got, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, want, got.Result)
+
+	// signHashWithPassphrase succeeds when acct is already unlocked
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, want, got.Result)
+
+	// wait for the unlock to expire
+	time.Sleep(250 * time.Millisecond)
+
+	// signHash fails after unlock expires
+	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+
+	// signHashWithPassphrase succeeds after acct is re-locked
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, want, got.Result)
+
+	// unlock the account for a long period
+	timedUnlockDelegate(t, &impl, acct1JsonConfig, 100*time.Second)
+
+	// override the unlock to be for a shorter duration
+	timedUnlockDelegate(t, &impl, acct1JsonConfig, 100*time.Millisecond)
+
+	// signHash succeeds as acct unlocked
+	got, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, want, got.Result)
+
+	// wait for the unlock to expire
+	time.Sleep(250 * time.Millisecond)
+
+	// signHash fails after unlock expires
+	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+
+	// unlock the account for a short period
+	timedUnlockDelegate(t, &impl, acct1JsonConfig, 100*time.Millisecond)
+
+	// override the unlock to be indefinite
+	timedUnlockDelegate(t, &impl, acct1JsonConfig, 0)
+
+	// signHash succeeds as acct unlocked
+	got, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, want, got.Result)
+
+	// wait to check that the unlock doesn't expire
+	time.Sleep(250 * time.Millisecond)
+
+	// signHash succeeds as acct unlocked
+	got, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, want, got.Result)
+
+	// manually lock the account
+	lockDelegate(t, &impl, acct1JsonConfig)
+
+	// signHash fails after manual lock
+	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+}
+
 func statusDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte) string {
 	acctConfig := new(hashicorp.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
@@ -481,4 +618,77 @@ func accountsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl st
 	require.NoError(t, err)
 
 	return resp.Accounts
+}
+
+func signHashDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign []byte) (*proto.SignHashResponse, error) {
+	acctConfig := new(hashicorp.AccountConfig)
+	_ = json.Unmarshal(acctJsonConfig, acctConfig)
+
+	url, err := makeWalletUrl(hashicorp.WalletScheme, vaultUrl, *acctConfig)
+	require.NoError(t, err)
+
+	acctAddr := common.HexToAddress(acctConfig.Address)
+
+	return client.SignHash(context.Background(), &proto.SignHashRequest{
+		WalletUrl: url.String(),
+		Account: &proto.Account{
+			Address: acctAddr.Bytes(),
+			Url:     "",
+		},
+		Hash: toSign,
+	})
+}
+
+func signHashWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign []byte) (*proto.SignHashResponse, error) {
+	acctConfig := new(hashicorp.AccountConfig)
+	_ = json.Unmarshal(acctJsonConfig, acctConfig)
+
+	url, err := makeWalletUrl(hashicorp.WalletScheme, vaultUrl, *acctConfig)
+	require.NoError(t, err)
+
+	acctAddr := common.HexToAddress(acctConfig.Address)
+
+	return client.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
+		WalletUrl: url.String(),
+		Account: &proto.Account{
+			Address: acctAddr.Bytes(),
+			Url:     "",
+		},
+		Hash:       toSign,
+		Passphrase: "pwd", // this value is arbitary as the hashicorp acct manager does not use the password for anything
+	})
+}
+
+func timedUnlockDelegate(t *testing.T, client *InitializerSignerClient, acctJsonConfig []byte, unlockDuration time.Duration) {
+	acctConfig := new(hashicorp.AccountConfig)
+	_ = json.Unmarshal(acctJsonConfig, acctConfig)
+
+	acctAddr := common.HexToAddress(acctConfig.Address)
+
+	_, err := client.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account: &proto.Account{
+			Address: acctAddr.Bytes(),
+			Url:     "",
+		},
+		Password: "pwd", // this value is arbitary as the hashicorp acct manager does not use the password for anything
+		Duration: unlockDuration.Nanoseconds(),
+	})
+
+	require.NoError(t, err)
+}
+
+func lockDelegate(t *testing.T, client *InitializerSignerClient, acctJsonConfig []byte) {
+	acctConfig := new(hashicorp.AccountConfig)
+	_ = json.Unmarshal(acctJsonConfig, acctConfig)
+
+	acctAddr := common.HexToAddress(acctConfig.Address)
+
+	_, err := client.Lock(context.Background(), &proto.LockRequest{
+		Account: &proto.Account{
+			Address: acctAddr.Bytes(),
+			Url:     "",
+		},
+	})
+
+	require.NoError(t, err)
 }
