@@ -997,6 +997,223 @@ func Test_NewAccount_SkipCasCheck(t *testing.T) {
 	require.Equal(t, want, got.Result)
 }
 
+func Test_ImportRawKey_CorrectCasValue(t *testing.T) {
+	defer setEnvironmentVariables(
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+	)()
+
+	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+		Vaults: []hashicorp.VaultConfig{{
+			Addr: "", // this will be populated once the mock vault server is started
+			TLS: hashicorp.TLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
+			AccountConfigDir: "", // this will be populated once the mock vault server is started
+			Unlock:           "",
+			Auth: []hashicorp.VaultAuth{{
+				AuthID:      "FOO",
+				ApprolePath: "", // defaults to approle
+			}},
+		}},
+	}
+
+	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
+	defer toClose()
+
+	newAcctConfig := hashicorp.VaultAccountConfig{
+		PathParams: hashicorp.PathParams{
+			SecretEnginePath: "newengine",
+			SecretPath:       "newpath",
+			SecretVersion:    0, // version is not used when creating new accounts
+		},
+		AuthID:          "FOO",
+		InsecureSkipCas: false,
+		CasValue:        10,
+	}
+
+	// request the plugin account manager to create a new account
+	createdAddr = ""
+	createdKey = ""
+	rawKey := "fb395a831f64105628206467a9e827ca13767abef9705d782295a62a118bbc41"
+	resp, err := importRawKeyDelegate(t, &impl, vaultUrl, newAcctConfig, rawKey)
+	require.NoError(t, err)
+
+	// check that the vault location of the new acct data is correct and valid
+	wantUri := fmt.Sprintf(
+		"%v/v1/%v/data/%v?version=%v",
+		vaultUrl,
+		newAcctConfig.PathParams.SecretEnginePath,
+		newAcctConfig.PathParams.SecretPath,
+		11, // this is the version number returned by the mock vault handler
+	)
+	require.Equal(t, wantUri, resp.SecretUri)
+
+	addr := strings.TrimSpace(common.Bytes2Hex(resp.Account.Address))
+	require.True(t, common.IsHexAddress(addr))
+
+	// check that an acctconfig file was created (remove the scheme from the acct url and check if the corresponding file exists)
+	createdAcctConfigFile := strings.Split(resp.Account.Url, "://")[1]
+
+	// read from the file so we can use our helpers
+	createdAcctJsonConfig, err := ioutil.ReadFile(createdAcctConfigFile)
+	require.False(t, os.IsNotExist(err), "file does not exist")
+	require.NoError(t, err)
+
+	// check that we can sign with the new acct
+	toSign := crypto.Keccak256([]byte("to sign"))
+
+	require.Equal(t, rawKey, createdKey)
+	signingKey, err := crypto.HexToECDSA(rawKey)
+	require.NoError(t, err)
+
+	var (
+		want []byte
+		got  *proto.SignHashResponse
+	)
+
+	want, err = crypto.Sign(toSign, signingKey)
+	require.NoError(t, err)
+
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, createdAcctJsonConfig, toSign)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, want, got.Result)
+}
+
+func Test_ImportRawKey_IncorrectCasValue(t *testing.T) {
+	defer setEnvironmentVariables(
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+	)()
+
+	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+		Vaults: []hashicorp.VaultConfig{{
+			Addr: "", // this will be populated once the mock vault server is started
+			TLS: hashicorp.TLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
+			AccountConfigDir: "", // this will be populated once the mock vault server is started
+			Unlock:           "",
+			Auth: []hashicorp.VaultAuth{{
+				AuthID:      "FOO",
+				ApprolePath: "", // defaults to approle
+			}},
+		}},
+	}
+
+	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
+	defer toClose()
+
+	newAcctConfig := hashicorp.VaultAccountConfig{
+		PathParams: hashicorp.PathParams{
+			SecretEnginePath: "newengine",
+			SecretPath:       "newpath",
+			SecretVersion:    0, // version is not used when creating new accounts
+		},
+		AuthID:          "FOO",
+		InsecureSkipCas: false,
+		CasValue:        1,
+	}
+
+	// request the plugin account manager to create a new account
+	createdAddr = ""
+	createdKey = ""
+	rawKey := "fb395a831f64105628206467a9e827ca13767abef9705d782295a62a118bbc41"
+	_, err := importRawKeyDelegate(t, &impl, vaultUrl, newAcctConfig, rawKey)
+	require.Error(t, err)
+}
+
+func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
+	defer setEnvironmentVariables(
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+	)()
+
+	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+		Vaults: []hashicorp.VaultConfig{{
+			Addr: "", // this will be populated once the mock vault server is started
+			TLS: hashicorp.TLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
+			AccountConfigDir: "", // this will be populated once the mock vault server is started
+			Unlock:           "",
+			Auth: []hashicorp.VaultAuth{{
+				AuthID:      "FOO",
+				ApprolePath: "", // defaults to approle
+			}},
+		}},
+	}
+
+	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
+	defer toClose()
+
+	newAcctConfig := hashicorp.VaultAccountConfig{
+		PathParams: hashicorp.PathParams{
+			SecretEnginePath: "newengine",
+			SecretPath:       "newpath",
+			SecretVersion:    0, // version is not used when creating new accounts
+		},
+		AuthID:          "FOO",
+		InsecureSkipCas: true,
+		CasValue:        1, // this value is invalid but will be ignored because of the InsecureSkipFlag property
+	}
+
+	// request the plugin account manager to create a new account
+	createdAddr = ""
+	createdKey = ""
+	rawKey := "fb395a831f64105628206467a9e827ca13767abef9705d782295a62a118bbc41"
+	resp, err := importRawKeyDelegate(t, &impl, vaultUrl, newAcctConfig, rawKey)
+	require.NoError(t, err)
+
+	// check that the vault location of the new acct data is correct and valid
+	wantUri := fmt.Sprintf(
+		"%v/v1/%v/data/%v?version=%v",
+		vaultUrl,
+		newAcctConfig.PathParams.SecretEnginePath,
+		newAcctConfig.PathParams.SecretPath,
+		11, // this is the version number returned by the mock vault handler
+	)
+	require.Equal(t, wantUri, resp.SecretUri)
+
+	addr := strings.TrimSpace(common.Bytes2Hex(resp.Account.Address))
+	require.True(t, common.IsHexAddress(addr))
+
+	// check that an acctconfig file was created (remove the scheme from the acct url and check if the corresponding file exists)
+	createdAcctConfigFile := strings.Split(resp.Account.Url, "://")[1]
+
+	// read from the file so we can use our helpers
+	createdAcctJsonConfig, err := ioutil.ReadFile(createdAcctConfigFile)
+	require.False(t, os.IsNotExist(err), "file does not exist")
+	require.NoError(t, err)
+
+	// check that we can sign with the new acct
+	toSign := crypto.Keccak256([]byte("to sign"))
+
+	require.Equal(t, rawKey, createdKey)
+	signingKey, err := crypto.HexToECDSA(rawKey)
+	require.NoError(t, err)
+
+	var (
+		want []byte
+		got  *proto.SignHashResponse
+	)
+
+	want, err = crypto.Sign(toSign, signingKey)
+	require.NoError(t, err)
+
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, createdAcctJsonConfig, toSign)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, want, got.Result)
+}
+
 func statusDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte) string {
 	acctConfig := new(hashicorp.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
@@ -1190,6 +1407,20 @@ func lockDelegate(t *testing.T, client *InitializerSignerClient, acctJsonConfig 
 
 func newAccountDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, vaultAccountConfig hashicorp.VaultAccountConfig) (*proto.NewAccountResponse, error) {
 	return client.NewAccount(context.Background(), &proto.NewAccountRequest{
+		NewVaultAccount: &proto.NewVaultAccount{
+			VaultAddress:     vaultUrl,
+			AuthID:           vaultAccountConfig.AuthID,
+			SecretEnginePath: vaultAccountConfig.PathParams.SecretEnginePath,
+			SecretPath:       vaultAccountConfig.PathParams.SecretPath,
+			InsecureSkipCas:  vaultAccountConfig.InsecureSkipCas,
+			CasValue:         vaultAccountConfig.CasValue,
+		},
+	})
+}
+
+func importRawKeyDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, vaultAccountConfig hashicorp.VaultAccountConfig, rawKey string) (*proto.ImportRawKeyResponse, error) {
+	return client.ImportRawKey(context.Background(), &proto.ImportRawKeyRequest{
+		RawKey: rawKey,
 		NewVaultAccount: &proto.NewVaultAccount{
 			VaultAddress:     vaultUrl,
 			AuthID:           vaultAccountConfig.AuthID,
