@@ -403,6 +403,37 @@ func Test_Contains(t *testing.T) {
 	require.True(t, containsDelegate(t, &impl, vaultUrl, acct2JsonConfig))
 }
 
+func Test_Accounts(t *testing.T) {
+	defer setEnvironmentVariables(
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+	)()
+
+	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+		Vaults: []hashicorp.VaultConfig{{
+			Addr: "", // this will be populated once the mock vault server is started
+			TLS: hashicorp.TLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
+			AccountConfigDir: "", // this will be populated once the mock vault server is started
+			Unlock:           "",
+			Auth: []hashicorp.VaultAuth{{
+				AuthID:      "FOO",
+				ApprolePath: "", // defaults to approle
+			}},
+		}},
+	}
+
+	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
+	defer toClose()
+
+	accts := accountsDelegate(t, &impl, vaultUrl, acct1JsonConfig)
+	require.Len(t, accts, 1)
+	require.Equal(t, common.Bytes2Hex(accts[0].Address), "dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
+}
+
 func statusDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte) string {
 	acctConfig := new(hashicorp.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
@@ -435,4 +466,19 @@ func containsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl st
 	require.NoError(t, err)
 
 	return resp.IsContained
+}
+
+func accountsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte) []*proto.Account {
+	acctConfig := new(hashicorp.AccountConfig)
+	_ = json.Unmarshal(acctJsonConfig, acctConfig)
+
+	url, err := makeWalletUrl(hashicorp.WalletScheme, vaultUrl, *acctConfig)
+	require.NoError(t, err)
+
+	resp, err := client.Accounts(context.Background(), &proto.AccountsRequest{
+		WalletUrl: url.String(),
+	})
+	require.NoError(t, err)
+
+	return resp.Accounts
 }
