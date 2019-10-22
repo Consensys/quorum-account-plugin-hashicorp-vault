@@ -35,7 +35,7 @@ type signer struct {
 	eventSubscription event.Subscription
 }
 
-func (s *signer) init(config hashicorp.HashicorpAccountStoreConfig) error {
+func (s *signer) init(config hashicorp.PluginAccountManagerConfig) error {
 	log.Println("[PLUGIN SIGNER] init")
 	manager, err := hashicorp.NewManager(config.Vaults)
 	if err != nil {
@@ -365,8 +365,8 @@ func asProtoWalletEvent(event accounts.WalletEvent) *proto.GetEventStreamRespons
 	}
 }
 
-func asVaultAccountConfig(req *proto.NewVaultAccount) hashicorp.VaultAccountConfig {
-	return hashicorp.VaultAccountConfig{
+func asVaultAccountConfig(req *proto.NewVaultAccount) hashicorp.VaultSecretConfig {
+	return hashicorp.VaultSecretConfig{
 		PathParams: hashicorp.PathParams{
 			SecretEnginePath: req.SecretEnginePath,
 			SecretPath:       req.SecretPath,

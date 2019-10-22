@@ -132,13 +132,13 @@ func makeWalletUrl(scheme string, vaultUrl string, acctConfig hashicorp.AccountC
 	wltPath := fmt.Sprintf(
 		"%v/v1/%v/data/%v?version=%v#addr=%v",
 		url.Path,
-		acctConfig.HashicorpVault.PathParams.SecretEnginePath,
-		acctConfig.HashicorpVault.PathParams.SecretPath,
-		acctConfig.HashicorpVault.PathParams.SecretVersion,
+		acctConfig.VaultSecret.PathParams.SecretEnginePath,
+		acctConfig.VaultSecret.PathParams.SecretPath,
+		acctConfig.VaultSecret.PathParams.SecretVersion,
 		acctConfig.Address,
 	)
 
-	if authID := acctConfig.HashicorpVault.AuthID; authID != "" {
+	if authID := acctConfig.VaultSecret.AuthID; authID != "" {
 		wltPath = fmt.Sprintf("%v@%v", authID, wltPath)
 	}
 

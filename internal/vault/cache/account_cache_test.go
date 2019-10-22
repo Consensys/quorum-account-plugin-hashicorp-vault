@@ -259,7 +259,7 @@ package cache
 //		{
 //			Query: accounts.Account{Address: accs[2].Address},
 //			WantError: &AmbiguousAddrError{
-//				Addr:    accs[2].Address,
+//				URL:    accs[2].Address,
 //				Matches: []accounts.Account{accs[2], accs[3]},
 //			},
 //		},

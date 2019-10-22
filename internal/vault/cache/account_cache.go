@@ -274,7 +274,7 @@ func (ac *AccountCache) scanAccounts() error {
 			return nil
 		}
 
-		if err := acctConfig.Validate(); err != nil {
+		if err := acctConfig.ValidateForAccountRetrieval(); err != nil {
 			log.Println("[DEBUG] Invalid secret config", "path", path, "err", err)
 			return nil
 		}

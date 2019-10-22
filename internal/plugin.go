@@ -40,13 +40,13 @@ func (p *SignerPluginImpl) Init(ctx context.Context, req *iproto.PluginInitializ
 	return &iproto.PluginInitialization_Response{}, nil
 }
 
-func newSignerConfiguration(rawJSON []byte) (hashicorp.HashicorpAccountStoreConfig, error) {
-	var conf hashicorp.HashicorpAccountStoreConfig
+func newSignerConfiguration(rawJSON []byte) (hashicorp.PluginAccountManagerConfig, error) {
+	var conf hashicorp.PluginAccountManagerConfig
 	if err := json.Unmarshal(rawJSON, &conf); err != nil {
-		return hashicorp.HashicorpAccountStoreConfig{}, fmt.Errorf("can't parse configuration")
+		return hashicorp.PluginAccountManagerConfig{}, fmt.Errorf("can't parse configuration")
 	}
 	if err := conf.Validate(); err != nil {
-		return hashicorp.HashicorpAccountStoreConfig{}, fmt.Errorf("invalid configuration: %s", err)
+		return hashicorp.PluginAccountManagerConfig{}, fmt.Errorf("invalid configuration: %s", err)
 	}
 	//conf.SetDefaults()
 	return conf, nil

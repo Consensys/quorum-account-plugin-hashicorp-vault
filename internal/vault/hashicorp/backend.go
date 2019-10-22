@@ -77,8 +77,8 @@ type unlocked struct {
 }
 
 type AccountCreator interface {
-	NewAccount(vaultAccountConfig VaultAccountConfig) (accounts.Account, string, error)
-	ImportECDSA(priv *ecdsa.PrivateKey, vaultAccountConfig VaultAccountConfig) (accounts.Account, string, error)
+	NewAccount(vaultAccountConfig VaultSecretConfig) (accounts.Account, string, error)
+	ImportECDSA(priv *ecdsa.PrivateKey, vaultAccountConfig VaultSecretConfig) (accounts.Account, string, error)
 }
 
 // NewKeyStore creates a keystore for the given directory.
@@ -362,8 +362,8 @@ func (b *Backend) Find(a accounts.Account) (accounts.Account, error) {
 
 // NewAccount generates a new key and stores it into the key directory,
 // encrypting it with the passphrase.
-func (b *Backend) NewAccount(vaultAccountConfig VaultAccountConfig) (accounts.Account, string, error) {
-	toValidate := AccountConfig{HashicorpVault: vaultAccountConfig}
+func (b *Backend) NewAccount(vaultAccountConfig VaultSecretConfig) (accounts.Account, string, error) {
+	toValidate := AccountConfig{VaultSecret: vaultAccountConfig}
 	if err := toValidate.ValidateForAccountCreation(); err != nil {
 		return accounts.Account{}, "", err
 	}
@@ -407,7 +407,7 @@ func (b *Backend) NewAccount(vaultAccountConfig VaultAccountConfig) (accounts.Ac
 //}
 
 // ImportECDSA stores the given key into the key directory, encrypting it with the passphrase.
-func (b *Backend) ImportECDSA(priv *ecdsa.PrivateKey, vaultAccountConfig VaultAccountConfig) (accounts.Account, string, error) {
+func (b *Backend) ImportECDSA(priv *ecdsa.PrivateKey, vaultAccountConfig VaultSecretConfig) (accounts.Account, string, error) {
 	key := newKeyFromECDSA(priv)
 	if b.cache.HasAddress(key.Address) {
 		return accounts.Account{}, "", fmt.Errorf("account already exists")
@@ -535,7 +535,7 @@ func (b *Backend) expire(addr common.Address, u *unlocked, timeout time.Duration
 	}
 }
 
-func (b *Backend) importKey(key *Key, vaultAccountConfig VaultAccountConfig) (accounts.Account, string, error) {
+func (b *Backend) importKey(key *Key, vaultAccountConfig VaultSecretConfig) (accounts.Account, string, error) {
 	configfilepath := b.storage.JoinPath(keyFileName(key.Address))
 
 	acct, secretUri, err := b.storage.StoreKey(configfilepath, vaultAccountConfig, key)

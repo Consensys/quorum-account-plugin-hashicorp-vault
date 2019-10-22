@@ -12,7 +12,7 @@ type ValidatableAccountParsableConfig interface {
 }
 
 type ValidatableConfig interface {
-	Validate() error
+	ValidateForAccountRetrieval() error
 	ValidateForAccountCreation() error
 }
 

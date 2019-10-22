@@ -581,7 +581,7 @@ func TestSigner_NewAccount(t *testing.T) {
 		GetAccountCreator(newAccountProto.VaultAddress).
 		Return(mockAccountCreator, nil)
 
-	wantConfig := hashicorp.VaultAccountConfig{
+	wantConfig := hashicorp.VaultSecretConfig{
 		PathParams: hashicorp.PathParams{
 			SecretEnginePath: secretEnginePath,
 			SecretPath:       secretPath,
@@ -644,7 +644,7 @@ func TestSigner_ImportRawKey(t *testing.T) {
 		GetAccountCreator(newAccountProto.VaultAddress).
 		Return(mockAccountCreator, nil)
 
-	wantConfig := hashicorp.VaultAccountConfig{
+	wantConfig := hashicorp.VaultSecretConfig{
 		PathParams: hashicorp.PathParams{
 			SecretEnginePath: secretEnginePath,
 			SecretPath:       secretPath,

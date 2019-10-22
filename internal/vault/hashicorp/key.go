@@ -52,7 +52,7 @@ type keyStore interface {
 	// Loads and decrypts the key from disk.
 	GetKey(addr common.Address, filename string, auth string) (*Key, error)
 	// Writes and encrypts the key.
-	StoreKey(filename string, vaultConfig VaultAccountConfig, k *Key) (vault.AccountAndWalletUrl, string, error)
+	StoreKey(filename string, vaultConfig VaultSecretConfig, k *Key) (vault.AccountAndWalletUrl, string, error)
 	// Joins filename with the key directory unless it is already absolute.
 	JoinPath(filename string) string
 }
@@ -166,7 +166,7 @@ func newKey(rand io.Reader) (*Key, error) {
 	return newKeyFromECDSA(privateKeyECDSA), nil
 }
 
-func storeNewKey(ks keyStore, rand io.Reader, vaultAccountConfig VaultAccountConfig) (*Key, vault.AccountAndWalletUrl, string, error) {
+func storeNewKey(ks keyStore, rand io.Reader, vaultAccountConfig VaultSecretConfig) (*Key, vault.AccountAndWalletUrl, string, error) {
 	key, err := newKey(rand)
 	if err != nil {
 		return nil, vault.AccountAndWalletUrl{}, "", err

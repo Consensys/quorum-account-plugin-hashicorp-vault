@@ -225,14 +225,14 @@ type vaultClientManager struct {
 func newVaultClientManager(config VaultConfig) (*vaultClientManager, error) {
 	clients := make(map[string]*authenticatedClient, len(config.Auth))
 	for _, auth := range config.Auth {
-		client, err := newAuthenticatedClient(config.Addr, auth, config.TLS)
+		client, err := newAuthenticatedClient(config.URL, auth, config.TLS)
 		if err != nil {
-			return nil, fmt.Errorf("unable to create client for Vault %v using auth %v: err: %v", config.Addr, auth.AuthID, err)
+			return nil, fmt.Errorf("unable to create client for Vault %v using auth %v: err: %v", config.URL, auth.AuthID, err)
 		}
 		clients[auth.AuthID] = client
 	}
 	return &vaultClientManager{
-		vaultAddr:     config.Addr,
+		vaultAddr:     config.URL,
 		acctConfigDir: config.AccountConfigDir,
 		clients:       clients,
 	}, nil
@@ -253,7 +253,7 @@ func (m *vaultClientManager) GetKey(addr common.Address, filename string, auth s
 		return nil, fmt.Errorf("unable to read vault account config from file %v", filename)
 	}
 
-	hexKey, err := m.getSecretFromVault(config.HashicorpVault)
+	hexKey, err := m.getSecretFromVault(config.VaultSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +271,7 @@ func (m *vaultClientManager) GetKey(addr common.Address, filename string, auth s
 }
 
 // getSecretFromVault retrieves a particular version of the secret 'name' from the provided secret engine. Expects RLock to be held.
-func (m *vaultClientManager) getSecretFromVault(vaultAccountConfig VaultAccountConfig) (string, error) {
+func (m *vaultClientManager) getSecretFromVault(vaultAccountConfig VaultSecretConfig) (string, error) {
 	client, ok := m.clients[vaultAccountConfig.AuthID]
 	if !ok {
 		return "", fmt.Errorf("no client configured for Vault %v and authID %v", m.vaultAddr, vaultAccountConfig.AuthID)
@@ -311,7 +311,7 @@ func (m *vaultClientManager) getSecretFromVault(vaultAccountConfig VaultAccountC
 	return secret, nil
 }
 
-func (m vaultClientManager) StoreKey(filename string, vaultConfig VaultAccountConfig, k *Key) (vault.AccountAndWalletUrl, string, error) {
+func (m vaultClientManager) StoreKey(filename string, vaultConfig VaultSecretConfig, k *Key) (vault.AccountAndWalletUrl, string, error) {
 	secretUri, secretVersion, err := m.storeInVault(vaultConfig, k)
 	if err != nil {
 		return vault.AccountAndWalletUrl{}, "", err
@@ -320,10 +320,10 @@ func (m vaultClientManager) StoreKey(filename string, vaultConfig VaultAccountCo
 	// include the version of the newly created vault secret in the data written to file
 	vaultConfig.PathParams.SecretVersion = secretVersion
 	acctConfig := AccountConfig{
-		Address:        hex.EncodeToString(k.Address[:]),
-		HashicorpVault: vaultConfig,
-		Id:             k.Id.String(),
-		Version:        version,
+		Address:     hex.EncodeToString(k.Address[:]),
+		VaultSecret: vaultConfig,
+		Id:          k.Id.String(),
+		Version:     version,
 	}
 
 	if err := m.storeInFile(filename, acctConfig, k); err != nil {
@@ -338,7 +338,7 @@ func (m vaultClientManager) StoreKey(filename string, vaultConfig VaultAccountCo
 	return acct, secretUri, nil
 }
 
-func (m vaultClientManager) storeInVault(vaultConfig VaultAccountConfig, k *Key) (string, int64, error) {
+func (m vaultClientManager) storeInVault(vaultConfig VaultSecretConfig, k *Key) (string, int64, error) {
 	client, ok := m.clients[vaultConfig.AuthID]
 	if !ok {
 		return "", 0, fmt.Errorf("no client configured for Vault %v and authID %v", m.vaultAddr, vaultConfig.AuthID)

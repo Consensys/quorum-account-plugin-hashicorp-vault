@@ -29,7 +29,7 @@ var (
 	createdAddr, createdKey string
 )
 
-func setup(t *testing.T, pluginConfig hashicorp.HashicorpAccountStoreConfig) (InitializerSignerClient, string, string, func()) {
+func setup(t *testing.T, pluginConfig hashicorp.PluginAccountManagerConfig) (InitializerSignerClient, string, string, func()) {
 	authVaultHandler := pathHandler{
 		path: "/v1/auth/approle/login",
 		handler: func(w http.ResponseWriter, r *http.Request) {
@@ -180,7 +180,7 @@ func setup(t *testing.T, pluginConfig hashicorp.HashicorpAccountStoreConfig) (In
 	}
 
 	// update provided config to use the url of the mocked vault server and the temp acctconfigdir
-	pluginConfig.Vaults[0].Addr = vault.URL
+	pluginConfig.Vaults[0].URL = vault.URL
 	pluginConfig.Vaults[0].AccountConfigDir = dir
 	rawPluginConfig, err := json.Marshal(pluginConfig)
 	if err != nil {
@@ -199,15 +199,18 @@ func setup(t *testing.T, pluginConfig hashicorp.HashicorpAccountStoreConfig) (In
 	return impl, vault.URL, dir, toCloseAndDelete
 }
 
+// TODO(cjh)
+//  validation
+
 func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T) {
 	defer setEnvironmentVariables(
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -347,9 +350,9 @@ func Test_UnlockAccountsAtStartup(t *testing.T) {
 	// comma-separated list of hex addresses to be unlocked at startup
 	unlockOnStartup := "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526, 	bad , 4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -381,9 +384,9 @@ func Test_UnlockOneAccountAtStartup(t *testing.T) {
 	// comma-separated list of hex addresses to be unlocked at startup
 	unlockOnStartup := ", 	bad , 4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -415,9 +418,9 @@ func Test_UnlockNoAccountsAtStartup(t *testing.T) {
 	// comma-separated list of hex addresses to be unlocked at startup
 	unlockOnStartup := ""
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -446,9 +449,9 @@ func Test_Contains(t *testing.T) {
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -476,9 +479,9 @@ func Test_Accounts(t *testing.T) {
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -507,9 +510,9 @@ func Test_SignHash_Unlocking(t *testing.T) {
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -643,9 +646,9 @@ func Test_SignTx_Unlocking(t *testing.T) {
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -789,9 +792,9 @@ func Test_NewAccount_CorrectCasValue(t *testing.T) {
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -809,7 +812,7 @@ func Test_NewAccount_CorrectCasValue(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := hashicorp.VaultAccountConfig{
+	newAcctConfig := hashicorp.VaultSecretConfig{
 		PathParams: hashicorp.PathParams{
 			SecretEnginePath: "newengine",
 			SecretPath:       "newpath",
@@ -874,9 +877,9 @@ func Test_NewAccount_IncorrectCasValue(t *testing.T) {
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -894,7 +897,7 @@ func Test_NewAccount_IncorrectCasValue(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := hashicorp.VaultAccountConfig{
+	newAcctConfig := hashicorp.VaultSecretConfig{
 		PathParams: hashicorp.PathParams{
 			SecretEnginePath: "newengine",
 			SecretPath:       "newpath",
@@ -918,9 +921,9 @@ func Test_NewAccount_SkipCasCheck(t *testing.T) {
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -938,7 +941,7 @@ func Test_NewAccount_SkipCasCheck(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := hashicorp.VaultAccountConfig{
+	newAcctConfig := hashicorp.VaultSecretConfig{
 		PathParams: hashicorp.PathParams{
 			SecretEnginePath: "newengine",
 			SecretPath:       "newpath",
@@ -1003,9 +1006,9 @@ func Test_ImportRawKey_CorrectCasValue(t *testing.T) {
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -1023,7 +1026,7 @@ func Test_ImportRawKey_CorrectCasValue(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := hashicorp.VaultAccountConfig{
+	newAcctConfig := hashicorp.VaultSecretConfig{
 		PathParams: hashicorp.PathParams{
 			SecretEnginePath: "newengine",
 			SecretPath:       "newpath",
@@ -1089,9 +1092,9 @@ func Test_ImportRawKey_IncorrectCasValue(t *testing.T) {
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -1109,7 +1112,7 @@ func Test_ImportRawKey_IncorrectCasValue(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := hashicorp.VaultAccountConfig{
+	newAcctConfig := hashicorp.VaultSecretConfig{
 		PathParams: hashicorp.PathParams{
 			SecretEnginePath: "newengine",
 			SecretPath:       "newpath",
@@ -1134,9 +1137,9 @@ func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
 		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+	pluginConfig := hashicorp.PluginAccountManagerConfig{
 		Vaults: []hashicorp.VaultConfig{{
-			Addr: "", // this will be populated once the mock vault server is started
+			URL: "", // this will be populated once the mock vault server is started
 			TLS: hashicorp.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
@@ -1154,7 +1157,7 @@ func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := hashicorp.VaultAccountConfig{
+	newAcctConfig := hashicorp.VaultSecretConfig{
 		PathParams: hashicorp.PathParams{
 			SecretEnginePath: "newengine",
 			SecretPath:       "newpath",
@@ -1405,7 +1408,7 @@ func lockDelegate(t *testing.T, client *InitializerSignerClient, acctJsonConfig 
 	require.NoError(t, err)
 }
 
-func newAccountDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, vaultAccountConfig hashicorp.VaultAccountConfig) (*proto.NewAccountResponse, error) {
+func newAccountDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, vaultAccountConfig hashicorp.VaultSecretConfig) (*proto.NewAccountResponse, error) {
 	return client.NewAccount(context.Background(), &proto.NewAccountRequest{
 		NewVaultAccount: &proto.NewVaultAccount{
 			VaultAddress:     vaultUrl,
@@ -1418,7 +1421,7 @@ func newAccountDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl 
 	})
 }
 
-func importRawKeyDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, vaultAccountConfig hashicorp.VaultAccountConfig, rawKey string) (*proto.ImportRawKeyResponse, error) {
+func importRawKeyDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, vaultAccountConfig hashicorp.VaultSecretConfig, rawKey string) (*proto.ImportRawKeyResponse, error) {
 	return client.ImportRawKey(context.Background(), &proto.ImportRawKeyRequest{
 		RawKey: rawKey,
 		NewVaultAccount: &proto.NewVaultAccount{
