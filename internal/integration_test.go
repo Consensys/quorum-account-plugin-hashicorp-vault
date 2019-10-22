@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -372,38 +373,35 @@ func Test_UnlockNoAccountsAtStartup(t *testing.T) {
 	require.Equal(t, "Locked", statusDelegate(t, &impl, vaultUrl, acct2JsonConfig), "account should be locked")
 }
 
-//func Test_Contains(t *testing.T) {
-//	defer setEnvironmentVariables(
-//		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-//		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
-//	)()
-//
-//	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
-//		Vaults: []hashicorp.VaultConfig{{
-//			Addr: "", // this will be populated once the mock vault server is started
-//			TLS: hashicorp.TLS{
-//				CaCert:     caCert,
-//				ClientCert: clientCert,
-//				ClientKey:  clientKey,
-//			},
-//			AccountConfigDir: "vault/testdata/acctconfig",
-//			Unlock:           "",
-//			Auth: []hashicorp.VaultAuth{{
-//				AuthID:      "FOO",
-//				ApprolePath: "", // defaults to approle
-//			}},
-//		}},
-//	}
-//
-//	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
-//	defer toClose()
-//
-//	acctConfig := readConfigFromFile(t, "dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
-//
-//	// account can be found providing just addr or addr and url
-//	require.True(t, contains(t, &impl, vaultUrl, "FOO", acctConfig, "dc99ddec13457de6c0f6bb8e6cf3955c86f55526", "hashiacct:///Users/chrishounsom/quorum-plugin-hashicorp-account-store/internal/vault/testdata/acctconfig/dc99ddec13457de6c0f6bb8e6cf3955c86f55526"))
-//	require.True(t, contains(t, &impl, vaultUrl, "FOO", acctConfig, "dc99ddec13457de6c0f6bb8e6cf3955c86f55526", ""))
-//}
+func Test_Contains(t *testing.T) {
+	defer setEnvironmentVariables(
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+	)()
+
+	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+		Vaults: []hashicorp.VaultConfig{{
+			Addr: "", // this will be populated once the mock vault server is started
+			TLS: hashicorp.TLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
+			AccountConfigDir: "", // this will be populated once the mock vault server is started
+			Unlock:           "",
+			Auth: []hashicorp.VaultAuth{{
+				AuthID:      "FOO",
+				ApprolePath: "", // defaults to approle
+			}},
+		}},
+	}
+
+	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
+	defer toClose()
+
+	require.True(t, containsDelegate(t, &impl, vaultUrl, acct1JsonConfig))
+	require.True(t, containsDelegate(t, &impl, vaultUrl, acct2JsonConfig))
+}
 
 func statusDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte) string {
 	acctConfig := new(hashicorp.AccountConfig)
@@ -420,23 +418,21 @@ func statusDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl stri
 	return resp.Status
 }
 
-//func contains(t *testing.T, client *InitializerSignerClient, vaultUrl string, authID string, acctConfig hashicorp.AccountConfig, acctAddr string, acctUrl string) bool {
-//	url, err := makeWalletUrl(
-//		hashicorp.WalletScheme,
-//		authID,
-//		vaultUrl,
-//		acctConfig,
-//	)
-//	require.NoError(t, err)
-//
-//	resp, err := client.Contains(context.Background(), &proto.ContainsRequest{
-//		WalletUrl: url.String(),
-//		Account: &proto.Account{
-//			Address: common.HexToAddress(acctAddr).Bytes(),
-//			Url:     acctUrl,
-//		},
-//	})
-//	require.NoError(t, err)
-//
-//	return resp.IsContained
-//}
+func containsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte) bool {
+	acctConfig := new(hashicorp.AccountConfig)
+	_ = json.Unmarshal(acctJsonConfig, acctConfig)
+
+	url, err := makeWalletUrl(hashicorp.WalletScheme, vaultUrl, *acctConfig)
+	require.NoError(t, err)
+
+	resp, err := client.Contains(context.Background(), &proto.ContainsRequest{
+		WalletUrl: url.String(),
+		Account: &proto.Account{
+			Address: common.HexToAddress(acctConfig.Address).Bytes(),
+			Url:     "", // the account can be found with or without providing the account url
+		},
+	})
+	require.NoError(t, err)
+
+	return resp.IsContained
+}
