@@ -123,7 +123,7 @@ const (
 	serverKey  = "vault/testdata/tls/localhost-with-san.key"
 )
 
-func makeWalletUrl(scheme string, userInfo string, vaultUrl string, acctConfig hashicorp.AccountConfig) (accounts.URL, error) {
+func makeWalletUrl(scheme string, vaultUrl string, acctConfig hashicorp.AccountConfig) (accounts.URL, error) {
 	url, err := vault.ToUrl(vaultUrl)
 	if err != nil {
 		return accounts.URL{}, err
@@ -138,8 +138,8 @@ func makeWalletUrl(scheme string, userInfo string, vaultUrl string, acctConfig h
 		acctConfig.Address,
 	)
 
-	if userInfo != "" {
-		wltPath = fmt.Sprintf("%v@%v", userInfo, wltPath)
+	if authID := acctConfig.HashicorpVault.AuthID; authID != "" {
+		wltPath = fmt.Sprintf("%v@%v", authID, wltPath)
 	}
 
 	return accounts.URL{Scheme: scheme, Path: wltPath}, nil
