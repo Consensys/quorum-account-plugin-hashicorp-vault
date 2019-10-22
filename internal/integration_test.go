@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -149,6 +150,41 @@ func Test_UnlocksAccountsAtStartup(t *testing.T) {
 	require.Equal(t, "Locked", status, "account should not have been unlocked")
 }
 
+func Test_Contains(t *testing.T) {
+	defer setEnvironmentVariables(
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+	)()
+
+	pluginConfig := hashicorp.HashicorpAccountStoreConfig{
+		Vaults: []hashicorp.VaultConfig{{
+			Addr: "", // this will be populated once the mock vault server is started
+			TLS: hashicorp.TLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
+			AccountConfigDir: "vault/testdata/acctconfig",
+			Unlock:           "",
+			Auth: []hashicorp.VaultAuth{{
+				AuthID:      "FOO",
+				ApprolePath: "", // defaults to approle
+			}},
+		}},
+	}
+
+	impl, vaultUrl, toClose := setup(t, pluginConfig)
+	defer toClose()
+
+	acctConfig := readConfigFromFile(t, "dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
+
+	// account can be found providing just addr or addr and url
+	require.True(t, contains(t, &impl, vaultUrl, "FOO", acctConfig, "dc99ddec13457de6c0f6bb8e6cf3955c86f55526", "hashiacct:///Users/chrishounsom/quorum-plugin-hashicorp-account-store/internal/vault/testdata/acctconfig/dc99ddec13457de6c0f6bb8e6cf3955c86f55526"))
+	require.True(t, contains(t, &impl, vaultUrl, "FOO", acctConfig, "dc99ddec13457de6c0f6bb8e6cf3955c86f55526", ""))
+}
+
+// TODO(cjh) get the event stream in order to keep an up to date list of wallets instead of having to read files to get url each time.  Reading files can be a way to test the event stream itself.
+
 func readConfigFromFile(t *testing.T, addr string) hashicorp.AccountConfig {
 	fileBytes, err := ioutil.ReadFile(fmt.Sprintf("vault/testdata/acctconfig/%v", addr))
 	require.NoError(t, err)
@@ -175,4 +211,25 @@ func getStatus(t *testing.T, client *InitializerSignerClient, vaultUrl string, a
 	require.NoError(t, err)
 
 	return resp.Status
+}
+
+func contains(t *testing.T, client *InitializerSignerClient, vaultUrl string, authID string, acctConfig hashicorp.AccountConfig, acctAddr string, acctUrl string) bool {
+	url, err := makeWalletUrl(
+		hashicorp.WalletScheme,
+		authID,
+		vaultUrl,
+		acctConfig,
+	)
+	require.NoError(t, err)
+
+	resp, err := client.Contains(context.Background(), &proto.ContainsRequest{
+		WalletUrl: url.String(),
+		Account: &proto.Account{
+			Address: common.HexToAddress(acctAddr).Bytes(),
+			Url:     acctUrl,
+		},
+	})
+	require.NoError(t, err)
+
+	return resp.IsContained
 }

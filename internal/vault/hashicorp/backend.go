@@ -501,14 +501,13 @@ func (b *Backend) getDecryptedKey(a accounts.Account, auth string) (accounts.Acc
 	if err != nil {
 		return a, nil, err
 	}
-	//file := strings.Split(a.URL.Path, "#config=")
+
 	key, err := b.storage.GetKey(a.Address, a.URL.Path, auth)
 	if err != nil {
 		return a, nil, err
 	}
 
 	// validate that the retrieved key is correct for the provided account
-	log.Println("validating key: sign requested with", a, "acct from vault is", key.Address)
 	if !bytes.Equal(key.Address.Bytes(), a.Address.Bytes()) {
 		zeroKey(key.PrivateKey)
 		return a, nil, incorrectKeyForAddrErr
