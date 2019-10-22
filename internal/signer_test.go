@@ -3,6 +3,8 @@ package internal
 import (
 	"context"
 	"errors"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_event"
 	"math/big"
 	"testing"
 	"time"
@@ -15,23 +17,21 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/mock_proto"
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/plugintest"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/plugintest/mock_accounts"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/plugintest/mock_hashicorp"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/plugintest/mock_internal"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_accounts"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_hashicorp"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_internal"
 	"github.com/stretchr/testify/require"
 )
 
 var (
 	wltUrl = accounts.URL{
-		Scheme: hashicorp.WalletScheme,
+		Scheme: config.WalletScheme,
 		Path:   "FOO@localhost:8200",
 	}
 
 	acct1 = accounts.Account{
 		Address: common.HexToAddress("0x4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
-		URL:     accounts.URL{Scheme: hashicorp.AcctScheme, Path: "path/to/file1.json"},
+		URL:     accounts.URL{Scheme: config.AcctScheme, Path: "path/to/file1.json"},
 	}
 	protoAcct1 = &proto.Account{
 		Address: acct1.Address.Bytes(),
@@ -42,7 +42,7 @@ var (
 
 	acct2 = accounts.Account{
 		Address: common.HexToAddress("0x2332f90a329c2c55ba120b1449d36a144d1f9fe4"),
-		URL:     accounts.URL{Scheme: hashicorp.AcctScheme, Path: "path/to/file2.json"},
+		URL:     accounts.URL{Scheme: config.AcctScheme, Path: "path/to/file2.json"},
 	}
 	protoAcct2 = &proto.Account{
 		Address: acct2.Address.Bytes(),
@@ -54,11 +54,11 @@ func TestSigner_Status(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
 	}
 
 	mockBackend.
@@ -85,11 +85,11 @@ func TestSigner_Open(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
 	}
 
 	mockBackend.
@@ -119,11 +119,11 @@ func TestSigner_Close(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
 	}
 
 	mockBackend.
@@ -149,11 +149,11 @@ func TestSigner_Accounts(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
 	}
 
 	mockBackend.
@@ -182,11 +182,11 @@ func TestSigner_Contains(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
 	}
 
 	mockBackend.
@@ -215,11 +215,11 @@ func TestSigner_SignHash(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
 	}
 
 	mockBackend.
@@ -251,11 +251,11 @@ func TestSigner_SignTx(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
 	}
 
 	mockBackend.
@@ -313,11 +313,11 @@ func TestSigner_SignHashWithPassphrase(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
 	}
 
 	mockBackend.
@@ -351,11 +351,11 @@ func TestSigner_SignTxWithPassphrase(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
 	}
 
 	mockBackend.
@@ -415,12 +415,12 @@ func TestSigner_GetEventStream(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 	mockWallet := mock_accounts.NewMockWallet(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
-		events:                    make(chan accounts.WalletEvent, 2),
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
+		events:                       make(chan accounts.WalletEvent, 2),
 	}
 
 	mockBackend.
@@ -431,7 +431,7 @@ func TestSigner_GetEventStream(t *testing.T) {
 	mockBackend.
 		EXPECT().
 		Subscribe(gomock.Any()).
-		Return(plugintest.StubSubscription{})
+		Return(mock_event.StubSubscription{})
 
 	mockWallet.
 		EXPECT().
@@ -439,7 +439,7 @@ func TestSigner_GetEventStream(t *testing.T) {
 		Return(acct1.URL).
 		Times(3)
 
-	// add two events to the signer's event channel
+	// add two events to the HashicorpVaultAccountManagerDelegate's event channel
 	s.events <- accounts.WalletEvent{
 		Wallet: mockWallet,
 		Kind:   accounts.WalletOpened,
@@ -494,10 +494,10 @@ func TestSigner_TimedUnlock(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
 	}
 
 	var (
@@ -526,10 +526,10 @@ func TestSigner_Lock(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
 	}
 
 	mockBackend.
@@ -551,11 +551,11 @@ func TestSigner_NewAccount(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 	mockAccountCreator := mock_hashicorp.NewMockAccountCreator(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
 	}
 
 	const (
@@ -581,8 +581,8 @@ func TestSigner_NewAccount(t *testing.T) {
 		GetAccountCreator(newAccountProto.VaultAddress).
 		Return(mockAccountCreator, nil)
 
-	wantConfig := hashicorp.VaultSecretConfig{
-		PathParams: hashicorp.PathParams{
+	wantConfig := config.VaultSecretConfig{
+		PathParams: config.PathParams{
 			SecretEnginePath: secretEnginePath,
 			SecretPath:       secretPath,
 		},
@@ -614,11 +614,11 @@ func TestSigner_ImportRawKey(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockBackend := mock_internal.NewMockWalletFinderLockerBackend(ctrl)
+	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
 	mockAccountCreator := mock_hashicorp.NewMockAccountCreator(ctrl)
 
-	s := &signer{
-		WalletFinderLockerBackend: mockBackend,
+	s := &HashicorpVaultAccountManagerDelegate{
+		HashicorpVaultAccountManager: mockBackend,
 	}
 
 	const (
@@ -644,8 +644,8 @@ func TestSigner_ImportRawKey(t *testing.T) {
 		GetAccountCreator(newAccountProto.VaultAddress).
 		Return(mockAccountCreator, nil)
 
-	wantConfig := hashicorp.VaultSecretConfig{
-		PathParams: hashicorp.PathParams{
+	wantConfig := config.VaultSecretConfig{
+		PathParams: config.PathParams{
 			SecretEnginePath: secretEnginePath,
 			SecretPath:       secretPath,
 		},

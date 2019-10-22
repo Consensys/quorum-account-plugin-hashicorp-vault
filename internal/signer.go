@@ -3,11 +3,6 @@ package internal
 import (
 	"context"
 	"fmt"
-	"log"
-	"math/big"
-	"strings"
-	"time"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -15,39 +10,44 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/manager"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"log"
+	"math/big"
+	"strings"
+	"time"
 )
 
-type WalletFinderLockerBackend interface {
+type HashicorpVaultAccountManager interface {
 	accounts.Backend
-	GetAccountCreator(vaultAddr string) (hashicorp.AccountCreator, error)
+	GetAccountCreator(vaultAddr string) (manager.AccountCreator, error)
 	Wallet(url string) (accounts.Wallet, error)
 	TimedUnlock(acct accounts.Account, passphrase string, timeout time.Duration) error
 	Lock(acct accounts.Account) error
 }
 
-type signer struct {
-	WalletFinderLockerBackend
+type HashicorpVaultAccountManagerDelegate struct {
+	HashicorpVaultAccountManager
 	events            chan accounts.WalletEvent
 	eventSubscription event.Subscription
 }
 
-func (s *signer) init(config hashicorp.PluginAccountManagerConfig) error {
+func (am *HashicorpVaultAccountManagerDelegate) init(config config.PluginAccountManagerConfig) error {
 	log.Println("[PLUGIN SIGNER] init")
-	manager, err := hashicorp.NewManager(config.Vaults)
+	manager, err := manager.NewManager(config.Vaults)
 	if err != nil {
 		return err
 	}
-	s.WalletFinderLockerBackend = manager
-	s.events = make(chan accounts.WalletEvent, 4*len(config.Vaults))
+	am.HashicorpVaultAccountManager = manager
+	am.events = make(chan accounts.WalletEvent, 4*len(config.Vaults))
 	return nil
 }
 
-func (s *signer) Status(_ context.Context, req *proto.StatusRequest) (*proto.StatusResponse, error) {
-	w, err := s.Wallet(req.WalletUrl)
+func (am *HashicorpVaultAccountManagerDelegate) Status(_ context.Context, req *proto.StatusRequest) (*proto.StatusResponse, error) {
+	w, err := am.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -60,8 +60,8 @@ func (s *signer) Status(_ context.Context, req *proto.StatusRequest) (*proto.Sta
 	return &proto.StatusResponse{Status: wltStatus}, nil
 }
 
-func (s *signer) Open(_ context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
-	w, err := s.Wallet(req.WalletUrl)
+func (am *HashicorpVaultAccountManagerDelegate) Open(_ context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
+	w, err := am.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -73,8 +73,8 @@ func (s *signer) Open(_ context.Context, req *proto.OpenRequest) (*proto.OpenRes
 	return &proto.OpenResponse{}, nil
 }
 
-func (s *signer) Close(_ context.Context, req *proto.CloseRequest) (*proto.CloseResponse, error) {
-	w, err := s.Wallet(req.WalletUrl)
+func (am *HashicorpVaultAccountManagerDelegate) Close(_ context.Context, req *proto.CloseRequest) (*proto.CloseResponse, error) {
+	w, err := am.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -86,8 +86,8 @@ func (s *signer) Close(_ context.Context, req *proto.CloseRequest) (*proto.Close
 	return &proto.CloseResponse{}, nil
 }
 
-func (s *signer) Accounts(_ context.Context, req *proto.AccountsRequest) (*proto.AccountsResponse, error) {
-	w, err := s.Wallet(req.WalletUrl)
+func (am *HashicorpVaultAccountManagerDelegate) Accounts(_ context.Context, req *proto.AccountsRequest) (*proto.AccountsResponse, error) {
+	w, err := am.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -102,8 +102,8 @@ func (s *signer) Accounts(_ context.Context, req *proto.AccountsRequest) (*proto
 	return &proto.AccountsResponse{Accounts: protoAccts}, nil
 }
 
-func (s *signer) Contains(_ context.Context, req *proto.ContainsRequest) (*proto.ContainsResponse, error) {
-	w, err := s.Wallet(req.WalletUrl)
+func (am *HashicorpVaultAccountManagerDelegate) Contains(_ context.Context, req *proto.ContainsRequest) (*proto.ContainsResponse, error) {
+	w, err := am.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -116,8 +116,8 @@ func (s *signer) Contains(_ context.Context, req *proto.ContainsRequest) (*proto
 	return &proto.ContainsResponse{IsContained: w.Contains(a)}, nil
 }
 
-func (s *signer) SignHash(_ context.Context, req *proto.SignHashRequest) (*proto.SignHashResponse, error) {
-	w, err := s.Wallet(req.WalletUrl)
+func (am *HashicorpVaultAccountManagerDelegate) SignHash(_ context.Context, req *proto.SignHashRequest) (*proto.SignHashResponse, error) {
+	w, err := am.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -135,8 +135,8 @@ func (s *signer) SignHash(_ context.Context, req *proto.SignHashRequest) (*proto
 	return &proto.SignHashResponse{Result: result}, nil
 }
 
-func (s *signer) SignTx(_ context.Context, req *proto.SignTxRequest) (*proto.SignTxResponse, error) {
-	w, err := s.Wallet(req.WalletUrl)
+func (am *HashicorpVaultAccountManagerDelegate) SignTx(_ context.Context, req *proto.SignTxRequest) (*proto.SignTxResponse, error) {
+	w, err := am.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -167,8 +167,8 @@ func (s *signer) SignTx(_ context.Context, req *proto.SignTxRequest) (*proto.Sig
 	return &proto.SignTxResponse{RlpTx: rlpTx}, nil
 }
 
-func (s *signer) SignHashWithPassphrase(_ context.Context, req *proto.SignHashWithPassphraseRequest) (*proto.SignHashResponse, error) {
-	w, err := s.Wallet(req.WalletUrl)
+func (am *HashicorpVaultAccountManagerDelegate) SignHashWithPassphrase(_ context.Context, req *proto.SignHashWithPassphraseRequest) (*proto.SignHashResponse, error) {
+	w, err := am.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -186,8 +186,8 @@ func (s *signer) SignHashWithPassphrase(_ context.Context, req *proto.SignHashWi
 	return &proto.SignHashResponse{Result: result}, nil
 }
 
-func (s *signer) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPassphraseRequest) (*proto.SignTxResponse, error) {
-	w, err := s.Wallet(req.WalletUrl)
+func (am *HashicorpVaultAccountManagerDelegate) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPassphraseRequest) (*proto.SignTxResponse, error) {
+	w, err := am.Wallet(req.WalletUrl)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -218,16 +218,16 @@ func (s *signer) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPa
 	return &proto.SignTxResponse{RlpTx: rlpTx}, nil
 }
 
-func (s *signer) GetEventStream(req *proto.GetEventStreamRequest, stream proto.Signer_GetEventStreamServer) error {
+func (am *HashicorpVaultAccountManagerDelegate) GetEventStream(req *proto.GetEventStreamRequest, stream proto.Signer_GetEventStreamServer) error {
 	defer func() {
-		s.eventSubscription.Unsubscribe()
-		s.eventSubscription = nil
+		am.eventSubscription.Unsubscribe()
+		am.eventSubscription = nil
 	}()
 
-	wallets := s.Wallets()
+	wallets := am.Wallets()
 
 	// now that we have the initial set of wallets, subscribe to the acct manager backend to be notified when changes occur
-	s.eventSubscription = s.WalletFinderLockerBackend.Subscribe(s.events)
+	am.eventSubscription = am.HashicorpVaultAccountManager.Subscribe(am.events)
 
 	// stream the currently held wallets to the caller
 	for _, w := range wallets {
@@ -245,7 +245,7 @@ func (s *signer) GetEventStream(req *proto.GetEventStreamRequest, stream proto.S
 
 	// listen for wallet events and stream to the caller until termination
 	for {
-		e := <-s.events
+		e := <-am.events
 		pluginEvent := asProtoWalletEvent(e)
 		log.Println("[DEBUG] read event: ", pluginEvent)
 		if err := stream.Send(pluginEvent); err != nil {
@@ -256,13 +256,13 @@ func (s *signer) GetEventStream(req *proto.GetEventStreamRequest, stream proto.S
 	}
 }
 
-func (s *signer) TimedUnlock(_ context.Context, req *proto.TimedUnlockRequest) (*proto.TimedUnlockResponse, error) {
+func (am *HashicorpVaultAccountManagerDelegate) TimedUnlock(_ context.Context, req *proto.TimedUnlockRequest) (*proto.TimedUnlockResponse, error) {
 	a, err := asAccount(req.Account)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	err = s.WalletFinderLockerBackend.TimedUnlock(a, req.Password, time.Duration(req.Duration))
+	err = am.HashicorpVaultAccountManager.TimedUnlock(a, req.Password, time.Duration(req.Duration))
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -270,13 +270,13 @@ func (s *signer) TimedUnlock(_ context.Context, req *proto.TimedUnlockRequest) (
 	return &proto.TimedUnlockResponse{}, nil
 }
 
-func (s *signer) Lock(_ context.Context, req *proto.LockRequest) (*proto.LockResponse, error) {
+func (am *HashicorpVaultAccountManagerDelegate) Lock(_ context.Context, req *proto.LockRequest) (*proto.LockResponse, error) {
 	a, err := asAccount(req.Account)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	err = s.WalletFinderLockerBackend.Lock(a)
+	err = am.HashicorpVaultAccountManager.Lock(a)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -284,8 +284,8 @@ func (s *signer) Lock(_ context.Context, req *proto.LockRequest) (*proto.LockRes
 	return &proto.LockResponse{}, nil
 }
 
-func (s *signer) NewAccount(_ context.Context, req *proto.NewAccountRequest) (*proto.NewAccountResponse, error) {
-	b, err := s.GetAccountCreator(req.NewVaultAccount.VaultAddress)
+func (am *HashicorpVaultAccountManagerDelegate) NewAccount(_ context.Context, req *proto.NewAccountRequest) (*proto.NewAccountResponse, error) {
+	b, err := am.GetAccountCreator(req.NewVaultAccount.VaultAddress)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -298,8 +298,8 @@ func (s *signer) NewAccount(_ context.Context, req *proto.NewAccountRequest) (*p
 	return &proto.NewAccountResponse{Account: asProtoAccount(acct), SecretUri: secretUri}, nil
 }
 
-func (s *signer) ImportRawKey(_ context.Context, req *proto.ImportRawKeyRequest) (*proto.ImportRawKeyResponse, error) {
-	b, err := s.GetAccountCreator(req.NewVaultAccount.VaultAddress)
+func (am *HashicorpVaultAccountManagerDelegate) ImportRawKey(_ context.Context, req *proto.ImportRawKeyRequest) (*proto.ImportRawKeyResponse, error) {
+	b, err := am.GetAccountCreator(req.NewVaultAccount.VaultAddress)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -325,7 +325,7 @@ func asAccount(pAcct *proto.Account) (accounts.Account, error) {
 		return accounts.Account{}, fmt.Errorf("invalid hex address: %v", addr)
 	}
 
-	url, err := vault.ToUrl(pAcct.Url)
+	url, err := utils.ToUrl(pAcct.Url)
 	if err != nil {
 		return accounts.Account{}, err
 	}
@@ -365,9 +365,9 @@ func asProtoWalletEvent(event accounts.WalletEvent) *proto.GetEventStreamRespons
 	}
 }
 
-func asVaultAccountConfig(req *proto.NewVaultAccount) hashicorp.VaultSecretConfig {
-	return hashicorp.VaultSecretConfig{
-		PathParams: hashicorp.PathParams{
+func asVaultAccountConfig(req *proto.NewVaultAccount) config.VaultSecretConfig {
+	return config.VaultSecretConfig{
+		PathParams: config.PathParams{
 			SecretEnginePath: req.SecretEnginePath,
 			SecretPath:       req.SecretPath,
 		},

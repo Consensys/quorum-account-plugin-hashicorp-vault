@@ -23,7 +23,7 @@ func main() {
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: DefaultHandshakeConfig,
 		Plugins: map[string]plugin.Plugin{
-			"impl": &internal.SignerPluginImpl{},
+			"impl": &internal.HashicorpVaultAccountManagerPlugin{},
 		},
 		GRPCServer: plugin.DefaultGRPCServer,
 	})

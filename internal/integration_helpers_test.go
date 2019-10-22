@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/utils"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -14,16 +16,14 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
 	sproto "github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
 	"github.com/hashicorp/go-plugin"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
 
-// testableSignerPluginImpl is a SignerPluginImpl but provides a simple gRPC client implementation for integration testing without needing the geth side
+// testableSignerPluginImpl is a HashicorpVaultAccountManagerPlugin but provides a simple gRPC client implementation for integration testing without needing the geth side
 type testableSignerPluginImpl struct {
-	SignerPluginImpl
+	HashicorpVaultAccountManagerPlugin
 }
 
 func (testableSignerPluginImpl) GRPCClient(ctx context.Context, b *plugin.GRPCBroker, cc *grpc.ClientConn) (interface{}, error) {
@@ -116,15 +116,15 @@ func setupMockTLSVaultServer(t *testing.T, handlers ...pathHandler) *httptest.Se
 }
 
 const (
-	caCert     = "vault/testdata/tls/caRoot.pem"
-	clientCert = "vault/testdata/tls/quorum-client-chain.pem"
-	clientKey  = "vault/testdata/tls/quorum-client.key"
-	serverCert = "vault/testdata/tls/localhost-with-san-chain.pem"
-	serverKey  = "vault/testdata/tls/localhost-with-san.key"
+	caCert     = "test/data/tls/caRoot.pem"
+	clientCert = "test/data/tls/quorum-client-chain.pem"
+	clientKey  = "test/data/tls/quorum-client.key"
+	serverCert = "test/data/tls/localhost-with-san-chain.pem"
+	serverKey  = "test/data/tls/localhost-with-san.key"
 )
 
-func makeWalletUrl(scheme string, vaultUrl string, acctConfig hashicorp.AccountConfig) (accounts.URL, error) {
-	url, err := vault.ToUrl(vaultUrl)
+func makeWalletUrl(scheme string, vaultUrl string, acctConfig config.AccountConfig) (accounts.URL, error) {
+	url, err := utils.ToUrl(vaultUrl)
 	if err != nil {
 		return accounts.URL{}, err
 	}
@@ -148,7 +148,7 @@ func makeWalletUrl(scheme string, vaultUrl string, acctConfig hashicorp.AccountC
 var (
 	acct1JsonConfig = []byte(`{
   "address": "dc99ddec13457de6c0f6bb8e6cf3955c86f55526",
-  "hashicorpvault": {
+  "vaultsecret": {
     "pathparams": {
       "secretenginepath": "kv",
       "secretpath": "kvacct",
@@ -161,7 +161,7 @@ var (
 }`)
 	acct2JsonConfig = []byte(`{
   "address": "4d6d744b6da435b5bbdde2526dc20e9a41cb72e5",
-  "hashicorpvault": {
+  "vaultsecret": {
     "pathparams": {
       "secretenginepath": "engine",
       "secretpath": "engineacct",
@@ -174,7 +174,7 @@ var (
 }`)
 	acct3JsonConfig = []byte(`{
    "address" : "29b409d5c50d7ed5cdee9679d6baeb1bad640841",
-   "hashicorpvault" : {
+   "vaultsecret" : {
       "authid" : "BAR",
       "pathparams" : {
          "secretenginepath" : "engine",
@@ -188,7 +188,7 @@ var (
 `)
 	acct4JsonConfig = []byte(`{
   "address": "1c15560b23dfa9a19e9739cc866c7f1f2e5da7b7",
-  "hashicorpvault": {
+  "vaultsecret": {
     "pathparams": {
       "secretenginepath": "kv",
       "secretpath": "kvacct",

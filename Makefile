@@ -31,7 +31,8 @@ dist:
 	@cp ${OUTPUT_DIR}/$(shell go env GOOS)-$(shell go env GOARCH)/${EXECUTABLE}-${VERSION}.zip ${PLUGIN_DEST_PATH}/${EXECUTABLE}-${VERSION}.zip
 
 # TODO enable cgo compatible cross-compilation builds (requires providing C toolchain when using gox)
-build: checkfmt
+# build: checkfmt
+build:
 	@mkdir -p ${OUTPUT_DIR}/${TARGET_DIR}
 	@echo Output to ${OUTPUT_DIR}
 	@LD_FLAGS=${LD_FLAGS} go generate ./internal/metadata

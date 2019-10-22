@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -18,7 +19,7 @@ import (
 
 	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/vault/hashicorp"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/manager"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/require"
@@ -29,7 +30,7 @@ var (
 	createdAddr, createdKey string
 )
 
-func setup(t *testing.T, pluginConfig hashicorp.PluginAccountManagerConfig) (InitializerSignerClient, string, string, func()) {
+func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (InitializerSignerClient, string, string, func()) {
 	authVaultHandler := pathHandler{
 		path: "/v1/auth/approle/login",
 		handler: func(w http.ResponseWriter, r *http.Request) {
@@ -134,7 +135,7 @@ func setup(t *testing.T, pluginConfig hashicorp.PluginAccountManagerConfig) (Ini
 	vault := setupMockTLSVaultServer(t, vaultHandlers...)
 
 	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
-		"signer": new(testableSignerPluginImpl),
+		"HashicorpVaultAccountManagerDelegate": new(testableSignerPluginImpl),
 	})
 
 	toClose := func() {
@@ -143,7 +144,7 @@ func setup(t *testing.T, pluginConfig hashicorp.PluginAccountManagerConfig) (Ini
 		vault.Close()
 	}
 
-	raw, err := client.Dispense("signer")
+	raw, err := client.Dispense("HashicorpVaultAccountManagerDelegate")
 	if err != nil {
 		toClose()
 		t.Fatal(err)
@@ -156,7 +157,7 @@ func setup(t *testing.T, pluginConfig hashicorp.PluginAccountManagerConfig) (Ini
 	}
 
 	// create temporary acctconfigdir
-	dir, err := ioutil.TempDir("vault/testdata", "acctconfig")
+	dir, err := ioutil.TempDir("test/data", "acctconfig")
 	if err != nil {
 		toClose()
 		t.Fatal(err)
@@ -204,21 +205,21 @@ func setup(t *testing.T, pluginConfig hashicorp.PluginAccountManagerConfig) (Ini
 
 func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -343,24 +344,24 @@ func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T
 
 func Test_UnlockAccountsAtStartup(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
 	// comma-separated list of hex addresses to be unlocked at startup
 	unlockOnStartup := "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526, 	bad , 4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           unlockOnStartup,
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -377,24 +378,24 @@ func Test_UnlockAccountsAtStartup(t *testing.T) {
 
 func Test_UnlockOneAccountAtStartup(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
 	// comma-separated list of hex addresses to be unlocked at startup
 	unlockOnStartup := ", 	bad , 4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           unlockOnStartup,
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -411,24 +412,24 @@ func Test_UnlockOneAccountAtStartup(t *testing.T) {
 
 func Test_UnlockNoAccountsAtStartup(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
 	// comma-separated list of hex addresses to be unlocked at startup
 	unlockOnStartup := ""
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           unlockOnStartup,
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -445,21 +446,21 @@ func Test_UnlockNoAccountsAtStartup(t *testing.T) {
 
 func Test_Contains(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -475,21 +476,21 @@ func Test_Contains(t *testing.T) {
 
 func Test_Accounts(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -506,21 +507,21 @@ func Test_Accounts(t *testing.T) {
 
 func Test_SignHash_Unlocking(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -548,7 +549,7 @@ func Test_SignHash_Unlocking(t *testing.T) {
 	// signHash fails as acct locked
 	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signHashWithPassphrase succeeds as it unlocks the acct
 	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
@@ -559,7 +560,7 @@ func Test_SignHash_Unlocking(t *testing.T) {
 	// signHash fails as signHashWithPassphrase only unlocks the acct for the duration of the call
 	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
 	timedUnlockDelegate(t, &impl, acct1JsonConfig, 100*time.Millisecond)
@@ -582,7 +583,7 @@ func Test_SignHash_Unlocking(t *testing.T) {
 	// signHash fails after unlock expires
 	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signHashWithPassphrase succeeds after acct is re-locked
 	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
@@ -608,7 +609,7 @@ func Test_SignHash_Unlocking(t *testing.T) {
 	// signHash fails after unlock expires
 	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
 	timedUnlockDelegate(t, &impl, acct1JsonConfig, 100*time.Millisecond)
@@ -637,26 +638,26 @@ func Test_SignHash_Unlocking(t *testing.T) {
 	// signHash fails after manual lock
 	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 }
 
 func Test_SignTx_Unlocking(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -694,7 +695,7 @@ func Test_SignTx_Unlocking(t *testing.T) {
 	// signTx fails as acct locked
 	_, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signTxWithPassphrase succeeds as it unlocks the acct
 	got, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
@@ -705,7 +706,7 @@ func Test_SignTx_Unlocking(t *testing.T) {
 	// signTx fails as signTxWithPassphrase only unlocks the acct for the duration of the call
 	_, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
 	timedUnlockDelegate(t, &impl, acct1JsonConfig, 100*time.Millisecond)
@@ -728,7 +729,7 @@ func Test_SignTx_Unlocking(t *testing.T) {
 	// signTx fails after unlock expires
 	_, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signTxWithPassphrase succeeds after acct is re-locked
 	got, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
@@ -754,7 +755,7 @@ func Test_SignTx_Unlocking(t *testing.T) {
 	// signTx fails after unlock expires
 	_, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
 	timedUnlockDelegate(t, &impl, acct1JsonConfig, 100*time.Millisecond)
@@ -783,26 +784,26 @@ func Test_SignTx_Unlocking(t *testing.T) {
 	// signTx fails after manual lock
 	_, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), hashicorp.ErrLocked.Error())
+	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 }
 
 func Test_NewAccount_CorrectCasValue(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -812,8 +813,8 @@ func Test_NewAccount_CorrectCasValue(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := hashicorp.VaultSecretConfig{
-		PathParams: hashicorp.PathParams{
+	newAcctConfig := config.VaultSecretConfig{
+		PathParams: config.PathParams{
 			SecretEnginePath: "newengine",
 			SecretPath:       "newpath",
 			SecretVersion:    0, // version is not used when creating new accounts
@@ -873,21 +874,21 @@ func Test_NewAccount_CorrectCasValue(t *testing.T) {
 
 func Test_NewAccount_IncorrectCasValue(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -897,8 +898,8 @@ func Test_NewAccount_IncorrectCasValue(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := hashicorp.VaultSecretConfig{
-		PathParams: hashicorp.PathParams{
+	newAcctConfig := config.VaultSecretConfig{
+		PathParams: config.PathParams{
 			SecretEnginePath: "newengine",
 			SecretPath:       "newpath",
 			SecretVersion:    0, // version is not used when creating new accounts
@@ -917,21 +918,21 @@ func Test_NewAccount_IncorrectCasValue(t *testing.T) {
 
 func Test_NewAccount_SkipCasCheck(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -941,8 +942,8 @@ func Test_NewAccount_SkipCasCheck(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := hashicorp.VaultSecretConfig{
-		PathParams: hashicorp.PathParams{
+	newAcctConfig := config.VaultSecretConfig{
+		PathParams: config.PathParams{
 			SecretEnginePath: "newengine",
 			SecretPath:       "newpath",
 			SecretVersion:    0, // version is not used when creating new accounts
@@ -1002,21 +1003,21 @@ func Test_NewAccount_SkipCasCheck(t *testing.T) {
 
 func Test_ImportRawKey_CorrectCasValue(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -1026,8 +1027,8 @@ func Test_ImportRawKey_CorrectCasValue(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := hashicorp.VaultSecretConfig{
-		PathParams: hashicorp.PathParams{
+	newAcctConfig := config.VaultSecretConfig{
+		PathParams: config.PathParams{
 			SecretEnginePath: "newengine",
 			SecretPath:       "newpath",
 			SecretVersion:    0, // version is not used when creating new accounts
@@ -1088,21 +1089,21 @@ func Test_ImportRawKey_CorrectCasValue(t *testing.T) {
 
 func Test_ImportRawKey_IncorrectCasValue(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -1112,8 +1113,8 @@ func Test_ImportRawKey_IncorrectCasValue(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := hashicorp.VaultSecretConfig{
-		PathParams: hashicorp.PathParams{
+	newAcctConfig := config.VaultSecretConfig{
+		PathParams: config.PathParams{
 			SecretEnginePath: "newengine",
 			SecretPath:       "newpath",
 			SecretVersion:    0, // version is not used when creating new accounts
@@ -1133,21 +1134,21 @@ func Test_ImportRawKey_IncorrectCasValue(t *testing.T) {
 
 func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
 	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", hashicorp.DefaultSecretIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
 	)()
 
-	pluginConfig := hashicorp.PluginAccountManagerConfig{
-		Vaults: []hashicorp.VaultConfig{{
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
-			TLS: hashicorp.TLS{
+			TLS: config.TLS{
 				CaCert:     caCert,
 				ClientCert: clientCert,
 				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
-			Auth: []hashicorp.VaultAuth{{
+			Auth: []config.VaultAuth{{
 				AuthID:      "FOO",
 				ApprolePath: "", // defaults to approle
 			}},
@@ -1157,8 +1158,8 @@ func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := hashicorp.VaultSecretConfig{
-		PathParams: hashicorp.PathParams{
+	newAcctConfig := config.VaultSecretConfig{
+		PathParams: config.PathParams{
 			SecretEnginePath: "newengine",
 			SecretPath:       "newpath",
 			SecretVersion:    0, // version is not used when creating new accounts
@@ -1218,10 +1219,10 @@ func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
 }
 
 func statusDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte) string {
-	acctConfig := new(hashicorp.AccountConfig)
+	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(hashicorp.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	resp, err := client.Status(context.Background(), &proto.StatusRequest{
@@ -1233,10 +1234,10 @@ func statusDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl stri
 }
 
 func containsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte) bool {
-	acctConfig := new(hashicorp.AccountConfig)
+	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(hashicorp.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	resp, err := client.Contains(context.Background(), &proto.ContainsRequest{
@@ -1252,10 +1253,10 @@ func containsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl st
 }
 
 func accountsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte) []*proto.Account {
-	acctConfig := new(hashicorp.AccountConfig)
+	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(hashicorp.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	resp, err := client.Accounts(context.Background(), &proto.AccountsRequest{
@@ -1267,10 +1268,10 @@ func accountsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl st
 }
 
 func signHashDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign []byte) (*proto.SignHashResponse, error) {
-	acctConfig := new(hashicorp.AccountConfig)
+	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(hashicorp.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	acctAddr := common.HexToAddress(acctConfig.Address)
@@ -1286,10 +1287,10 @@ func signHashDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl st
 }
 
 func signHashWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign []byte) (*proto.SignHashResponse, error) {
-	acctConfig := new(hashicorp.AccountConfig)
+	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(hashicorp.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	acctAddr := common.HexToAddress(acctConfig.Address)
@@ -1306,10 +1307,10 @@ func signHashWithPassphraseDelegate(t *testing.T, client *InitializerSignerClien
 }
 
 func signTxDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign *types.Transaction) (*types.Transaction, error) {
-	acctConfig := new(hashicorp.AccountConfig)
+	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(hashicorp.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	acctAddr := common.HexToAddress(acctConfig.Address)
@@ -1340,10 +1341,10 @@ func signTxDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl stri
 }
 
 func signTxWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign *types.Transaction) (*types.Transaction, error) {
-	acctConfig := new(hashicorp.AccountConfig)
+	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(hashicorp.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	acctAddr := common.HexToAddress(acctConfig.Address)
@@ -1375,7 +1376,7 @@ func signTxWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient,
 }
 
 func timedUnlockDelegate(t *testing.T, client *InitializerSignerClient, acctJsonConfig []byte, unlockDuration time.Duration) {
-	acctConfig := new(hashicorp.AccountConfig)
+	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
 	acctAddr := common.HexToAddress(acctConfig.Address)
@@ -1393,7 +1394,7 @@ func timedUnlockDelegate(t *testing.T, client *InitializerSignerClient, acctJson
 }
 
 func lockDelegate(t *testing.T, client *InitializerSignerClient, acctJsonConfig []byte) {
-	acctConfig := new(hashicorp.AccountConfig)
+	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
 	acctAddr := common.HexToAddress(acctConfig.Address)
@@ -1408,7 +1409,7 @@ func lockDelegate(t *testing.T, client *InitializerSignerClient, acctJsonConfig 
 	require.NoError(t, err)
 }
 
-func newAccountDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, vaultAccountConfig hashicorp.VaultSecretConfig) (*proto.NewAccountResponse, error) {
+func newAccountDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, vaultAccountConfig config.VaultSecretConfig) (*proto.NewAccountResponse, error) {
 	return client.NewAccount(context.Background(), &proto.NewAccountRequest{
 		NewVaultAccount: &proto.NewVaultAccount{
 			VaultAddress:     vaultUrl,
@@ -1421,7 +1422,7 @@ func newAccountDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl 
 	})
 }
 
-func importRawKeyDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, vaultAccountConfig hashicorp.VaultSecretConfig, rawKey string) (*proto.ImportRawKeyResponse, error) {
+func importRawKeyDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, vaultAccountConfig config.VaultSecretConfig, rawKey string) (*proto.ImportRawKeyResponse, error) {
 	return client.ImportRawKey(context.Background(), &proto.ImportRawKeyRequest{
 		RawKey: rawKey,
 		NewVaultAccount: &proto.NewVaultAccount{
