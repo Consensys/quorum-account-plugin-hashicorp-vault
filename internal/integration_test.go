@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/cache"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"io/ioutil"
 	"math/big"
@@ -204,7 +205,6 @@ func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (Initia
 // TODO(cjh)
 //  token renewal
 //  standard token auth
-//  ambiguous account
 
 func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T) {
 	defer setEnvironmentVariables(
@@ -583,7 +583,7 @@ func Test_SignHashAndUnlocking(t *testing.T) {
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signHashWithPassphrase succeeds as it unlocks the acct
-	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
@@ -594,7 +594,7 @@ func Test_SignHashAndUnlocking(t *testing.T) {
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
-	err = timedUnlockDelegate(&impl, acct1JsonConfig, 100*time.Millisecond)
+	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 100*time.Millisecond, false)
 	require.NoError(t, err)
 
 	// signHash succeeds as acct unlocked
@@ -604,7 +604,7 @@ func Test_SignHashAndUnlocking(t *testing.T) {
 	require.Equal(t, want, got.Result)
 
 	// signHashWithPassphrase succeeds when acct is already unlocked
-	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
@@ -618,17 +618,17 @@ func Test_SignHashAndUnlocking(t *testing.T) {
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signHashWithPassphrase succeeds after acct is re-locked
-	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
 
 	// unlock the account for a long period
-	err = timedUnlockDelegate(&impl, acct1JsonConfig, 100*time.Second)
+	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 100*time.Second, false)
 	require.NoError(t, err)
 
 	// override the unlock to be for a shorter duration
-	err = timedUnlockDelegate(&impl, acct1JsonConfig, 100*time.Millisecond)
+	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 100*time.Millisecond, false)
 	require.NoError(t, err)
 
 	// signHash succeeds as acct unlocked
@@ -646,11 +646,11 @@ func Test_SignHashAndUnlocking(t *testing.T) {
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
-	err = timedUnlockDelegate(&impl, acct1JsonConfig, 100*time.Millisecond)
+	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 100*time.Millisecond, false)
 	require.NoError(t, err)
 
 	// override the unlock to be indefinite
-	err = timedUnlockDelegate(&impl, acct1JsonConfig, 0)
+	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 0, false)
 	require.NoError(t, err)
 
 	// signHash succeeds as acct unlocked
@@ -676,60 +676,6 @@ func Test_SignHashAndUnlocking(t *testing.T) {
 	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
-}
-
-func Test_UnknownAccount(t *testing.T) {
-	defer setEnvironmentVariables(
-		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
-		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
-	)()
-
-	pluginConfig := config.PluginAccountManagerConfig{
-		Vaults: []config.VaultConfig{{
-			URL: "", // this will be populated once the mock vault server is started
-			TLS: config.TLS{
-				CaCert:     caCert,
-				ClientCert: clientCert,
-				ClientKey:  clientKey,
-			},
-			AccountConfigDir: "", // this will be populated once the mock vault server is started
-			Unlock:           "",
-			Auth: []config.VaultAuth{{
-				AuthID:      "FOO",
-				ApprolePath: "", // defaults to approle
-			}},
-		}},
-	}
-
-	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
-	defer toClose()
-
-	// status fails
-	_, err := statusDelegate(t, &impl, vaultUrl, acct4JsonConfig)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
-
-	// unlock fails
-	err = timedUnlockDelegate(&impl, acct4JsonConfig, 0)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
-
-	// lock fails
-	err = lockDelegate(&impl, acct4JsonConfig)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
-
-	// signHashWithPassphrase fails
-	toSign := crypto.Keccak256([]byte("to sign"))
-	_, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct4JsonConfig, toSign)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
-
-	// signTxWithPassphrase fails
-	toSignTx := new(types.Transaction)
-	_, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, acct4JsonConfig, toSignTx, nil)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
 }
 
 func Test_SignTxAndUnlocking_PrivateTransactions(t *testing.T) {
@@ -886,7 +832,7 @@ func signTxAndUnlockingTestCases(t *testing.T, impl *InitializerSignerClient, va
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signTxWithPassphrase succeeds as it unlocks the acct
-	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
+	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
@@ -897,7 +843,7 @@ func signTxAndUnlockingTestCases(t *testing.T, impl *InitializerSignerClient, va
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
-	err = timedUnlockDelegate(impl, acct1JsonConfig, 100*time.Millisecond)
+	err = timedUnlockDelegate(impl, vaultUrl, acct1JsonConfig, 100*time.Millisecond, false)
 	require.NoError(t, err)
 
 	// signTx succeeds as acct unlocked
@@ -907,7 +853,7 @@ func signTxAndUnlockingTestCases(t *testing.T, impl *InitializerSignerClient, va
 	require.Equal(t, want, got)
 
 	// signTxWithPassphrase succeeds when acct is already unlocked
-	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
+	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
@@ -921,17 +867,17 @@ func signTxAndUnlockingTestCases(t *testing.T, impl *InitializerSignerClient, va
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signTxWithPassphrase succeeds after acct is re-locked
-	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
+	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
 
 	// unlock the account for a long period
-	err = timedUnlockDelegate(impl, acct1JsonConfig, 100*time.Second)
+	err = timedUnlockDelegate(impl, vaultUrl, acct1JsonConfig, 100*time.Second, false)
 	require.NoError(t, err)
 
 	// override the unlock to be for a shorter duration
-	err = timedUnlockDelegate(impl, acct1JsonConfig, 100*time.Millisecond)
+	err = timedUnlockDelegate(impl, vaultUrl, acct1JsonConfig, 100*time.Millisecond, false)
 	require.NoError(t, err)
 
 	// signTx succeeds as acct unlocked
@@ -949,11 +895,11 @@ func signTxAndUnlockingTestCases(t *testing.T, impl *InitializerSignerClient, va
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
-	err = timedUnlockDelegate(impl, acct1JsonConfig, 100*time.Millisecond)
+	err = timedUnlockDelegate(impl, vaultUrl, acct1JsonConfig, 100*time.Millisecond, false)
 	require.NoError(t, err)
 
 	// override the unlock to be indefinite
-	err = timedUnlockDelegate(impl, acct1JsonConfig, 0)
+	err = timedUnlockDelegate(impl, vaultUrl, acct1JsonConfig, 0, false)
 	require.NoError(t, err)
 
 	// signTx succeeds as acct unlocked
@@ -979,6 +925,125 @@ func signTxAndUnlockingTestCases(t *testing.T, impl *InitializerSignerClient, va
 	_, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
+}
+
+func Test_UnknownAccount(t *testing.T) {
+	defer setEnvironmentVariables(
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
+	)()
+
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
+			URL: "", // this will be populated once the mock vault server is started
+			TLS: config.TLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
+			AccountConfigDir: "", // this will be populated once the mock vault server is started
+			Unlock:           "",
+			Auth: []config.VaultAuth{{
+				AuthID:      "FOO",
+				ApprolePath: "", // defaults to approle
+			}},
+		}},
+	}
+
+	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
+	defer toClose()
+
+	// status fails
+	_, err := statusDelegate(t, &impl, vaultUrl, acct4JsonConfig)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
+
+	// unlock fails
+	err = timedUnlockDelegate(&impl, vaultUrl, acct4JsonConfig, 0, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
+
+	// lock fails
+	err = lockDelegate(&impl, acct4JsonConfig)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
+
+	// signHashWithPassphrase fails
+	toSign := crypto.Keccak256([]byte("to sign"))
+	_, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct4JsonConfig, toSign, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
+
+	// signTxWithPassphrase fails
+	toSignTx := new(types.Transaction)
+	_, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, acct4JsonConfig, toSignTx, nil, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
+}
+
+func Test_AmbiguousAccount(t *testing.T) {
+	defer setEnvironmentVariables(
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
+	)()
+
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
+			URL: "", // this will be populated once the mock vault server is started
+			TLS: config.TLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
+			AccountConfigDir: "", // this will be populated once the mock vault server is started
+			Unlock:           "",
+			Auth: []config.VaultAuth{{
+				AuthID:      "FOO",
+				ApprolePath: "", // defaults to approle
+			}},
+		}},
+	}
+
+	impl, vaultUrl, dir, toClose := setup(t, pluginConfig)
+	defer toClose()
+
+	var err error
+
+	// add another accountconfigfile that has the same address but different path params to give a different account/wallet url.  This will result in the plugin account manager having the same address loaded from two different locations
+	_, err = addTempFile(dir, acct1JsonConfigDiffPathParams)
+	require.NoError(t, err)
+
+	// wait to give the account manager time to recognise the filesystem change
+	time.Sleep(2500 * time.Millisecond)
+
+	// unlock
+	// fails if account URL not provided
+	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 0, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), cache.AmbiguousAddrMsg)
+	// succeeds if account URL provided
+	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 0, true)
+	require.NoError(t, err)
+
+	// signHashWithPassphrase
+	// fails if account URL not provided
+	toSign := crypto.Keccak256([]byte("to sign"))
+	_, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), cache.AmbiguousAddrMsg)
+	// succeeds if account URL provided
+	_, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign, true)
+	require.NoError(t, err)
+
+	// signTxWithPassphrase
+	// fails if account URL not provided
+	toSignTx := new(types.Transaction)
+	_, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSignTx, nil, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), cache.AmbiguousAddrMsg)
+	// succeeds if account URL provided
+	_, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSignTx, nil, true)
+	require.NoError(t, err)
 }
 
 func Test_NewAccount_CorrectCasValue(t *testing.T) {
@@ -1082,7 +1147,7 @@ func Test_NewAccount_CorrectCasValue(t *testing.T) {
 	want, err = crypto.Sign(toSign, signingKey)
 	require.NoError(t, err)
 
-	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, createdAcctJsonConfig, toSign)
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, createdAcctJsonConfig, toSign, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
@@ -1233,7 +1298,7 @@ func Test_NewAccount_SkipCasCheck(t *testing.T) {
 	want, err = crypto.Sign(toSign, signingKey)
 	require.NoError(t, err)
 
-	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, createdAcctJsonConfig, toSign)
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, createdAcctJsonConfig, toSign, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
@@ -1341,7 +1406,7 @@ func Test_ImportRawKey_CorrectCasValue(t *testing.T) {
 	want, err = crypto.Sign(toSign, signingKey)
 	require.NoError(t, err)
 
-	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, createdAcctJsonConfig, toSign)
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, createdAcctJsonConfig, toSign, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
@@ -1494,7 +1559,7 @@ func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
 	want, err = crypto.Sign(toSign, signingKey)
 	require.NoError(t, err)
 
-	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, createdAcctJsonConfig, toSign)
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, createdAcctJsonConfig, toSign, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
@@ -1570,7 +1635,7 @@ func signHashDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl st
 	})
 }
 
-func signHashWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign []byte) (*proto.SignHashResponse, error) {
+func signHashWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign []byte, sendAcctUrl bool) (*proto.SignHashResponse, error) {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
@@ -1579,11 +1644,20 @@ func signHashWithPassphraseDelegate(t *testing.T, client *InitializerSignerClien
 
 	acctAddr := common.HexToAddress(acctConfig.Address)
 
+	var acctUrl string
+	if sendAcctUrl {
+		url, err := makeWalletUrl(config.HashiScheme, vaultUrl, *acctConfig)
+		if err != nil {
+			return nil, err
+		}
+		acctUrl = url.String()
+	}
+
 	return client.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
 		WalletUrl: url.String(),
 		Account: &proto.Account{
 			Address: acctAddr.Bytes(),
-			Url:     "",
+			Url:     acctUrl,
 		},
 		Hash:       toSign,
 		Passphrase: "pwd", // this value is arbitary as the hashicorp acct manager does not use the password for anything
@@ -1629,7 +1703,7 @@ func signTxDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl stri
 	return signedTx, nil
 }
 
-func signTxWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
+func signTxWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign *types.Transaction, chainID *big.Int, sendAcctUrl bool) (*types.Transaction, error) {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
@@ -1646,11 +1720,20 @@ func signTxWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient,
 		chainIDBytes = chainID.Bytes()
 	}
 
+	var acctUrl string
+	if sendAcctUrl {
+		url, err := makeWalletUrl(config.HashiScheme, vaultUrl, *acctConfig)
+		if err != nil {
+			return nil, err
+		}
+		acctUrl = url.String()
+	}
+
 	resp, err := client.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
 		WalletUrl: url.String(),
 		Account: &proto.Account{
 			Address: acctAddr.Bytes(),
-			Url:     "",
+			Url:     acctUrl,
 		},
 		Passphrase: "pwd", // this value is arbitary as the hashicorp acct manager does not use the password for anything
 		RlpTx:      rlpTx,
@@ -1669,16 +1752,24 @@ func signTxWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient,
 	return signedTx, nil
 }
 
-func timedUnlockDelegate(client *InitializerSignerClient, acctJsonConfig []byte, unlockDuration time.Duration) error {
+func timedUnlockDelegate(client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, unlockDuration time.Duration, sendAcctUrl bool) error {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
 	acctAddr := common.HexToAddress(acctConfig.Address)
+	var acctUrl string
+	if sendAcctUrl {
+		url, err := makeWalletUrl(config.HashiScheme, vaultUrl, *acctConfig)
+		if err != nil {
+			return err
+		}
+		acctUrl = url.String()
+	}
 
 	_, err := client.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
 		Account: &proto.Account{
 			Address: acctAddr.Bytes(),
-			Url:     "",
+			Url:     acctUrl,
 		},
 		Password: "pwd", // this value is arbitary as the hashicorp acct manager does not use the password for anything
 		Duration: unlockDuration.Nanoseconds(),

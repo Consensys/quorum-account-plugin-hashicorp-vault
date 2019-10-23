@@ -56,6 +56,8 @@ type AmbiguousAddrError struct {
 	Matches []accounts.Account
 }
 
+const AmbiguousAddrMsg = "multiple keys match address"
+
 func (err *AmbiguousAddrError) Error() string {
 	files := ""
 	for i, a := range err.Matches {
@@ -64,7 +66,7 @@ func (err *AmbiguousAddrError) Error() string {
 			files += ", "
 		}
 	}
-	return fmt.Sprintf("multiple keys match address (%s)", files)
+	return fmt.Sprintf("%v (%s)", AmbiguousAddrMsg, files)
 }
 
 // accountCache is a live index of all accounts in the keystore.

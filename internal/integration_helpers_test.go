@@ -159,6 +159,19 @@ var (
   "id": "afb297d8-1995-4212-974a-e861d7e31e19",
   "version": 1
 }`)
+	acct1JsonConfigDiffPathParams = []byte(`{
+  "address": "dc99ddec13457de6c0f6bb8e6cf3955c86f55526",
+  "vaultsecret": {
+    "pathparams": {
+      "secretenginepath": "kvalt",
+      "secretpath": "kvacctalt",
+      "secretversion": 2
+    },
+    "authid": "FOO"
+  },
+  "id": "afb297d8-1995-4212-974a-e861d7e31e19",
+  "version": 1
+}`)
 	acct2JsonConfig = []byte(`{
   "address": "4d6d744b6da435b5bbdde2526dc20e9a41cb72e5",
   "vaultsecret": {
