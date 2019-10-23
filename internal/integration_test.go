@@ -810,7 +810,7 @@ func Test_NewAccount_CorrectCasValue(t *testing.T) {
 		}},
 	}
 
-	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
+	impl, vaultUrl, dir, toClose := setup(t, pluginConfig)
 	defer toClose()
 
 	newAcctConfig := config.VaultSecretConfig{
@@ -823,6 +823,10 @@ func Test_NewAccount_CorrectCasValue(t *testing.T) {
 		InsecureSkipCas: false,
 		CasValue:        10,
 	}
+
+	// make note of the number of files in the acctconfigdir before acct creation
+	beforeFiles, err := ioutil.ReadDir(dir)
+	require.NoError(t, err)
 
 	// request the plugin account manager to create a new account
 	createdAddr = ""
@@ -843,11 +847,29 @@ func Test_NewAccount_CorrectCasValue(t *testing.T) {
 	addr := strings.TrimSpace(common.Bytes2Hex(resp.Account.Address))
 	require.True(t, common.IsHexAddress(addr))
 
-	// check that an acctconfig file was created (remove the scheme from the acct url and check if the corresponding file exists)
-	createdAcctConfigFile := strings.Split(resp.Account.Url, "://")[1]
+	// check that a new acctconfig file was created
+	afterFiles, err := ioutil.ReadDir(dir)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(afterFiles)-len(beforeFiles))
 
-	// read from the file so we can use our helpers
-	createdAcctJsonConfig, err := ioutil.ReadFile(createdAcctConfigFile)
+	// identify the new file and read the contents so we can use our helpers
+	var newFile os.FileInfo
+	for _, a := range afterFiles {
+		var isOld bool
+		for _, b := range beforeFiles {
+			if a.Name() == b.Name() {
+				isOld = true
+				break
+			}
+		}
+		if !isOld {
+			newFile = a
+		}
+	}
+	require.NotNil(t, newFile, "no new file found ")
+	filepath := fmt.Sprintf("%v/%v", dir, newFile.Name())
+
+	createdAcctJsonConfig, err := ioutil.ReadFile(filepath)
 	require.False(t, os.IsNotExist(err), "file does not exist")
 	require.NoError(t, err)
 
@@ -939,7 +961,7 @@ func Test_NewAccount_SkipCasCheck(t *testing.T) {
 		}},
 	}
 
-	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
+	impl, vaultUrl, dir, toClose := setup(t, pluginConfig)
 	defer toClose()
 
 	newAcctConfig := config.VaultSecretConfig{
@@ -952,6 +974,10 @@ func Test_NewAccount_SkipCasCheck(t *testing.T) {
 		InsecureSkipCas: true,
 		CasValue:        1, // this value is invalid but will be ignored because of the InsecureSkipFlag property
 	}
+
+	// make note of the number of files in the acctconfigdir before acct creation
+	beforeFiles, err := ioutil.ReadDir(dir)
+	require.NoError(t, err)
 
 	// request the plugin account manager to create a new account
 	createdAddr = ""
@@ -972,11 +998,29 @@ func Test_NewAccount_SkipCasCheck(t *testing.T) {
 	addr := strings.TrimSpace(common.Bytes2Hex(resp.Account.Address))
 	require.True(t, common.IsHexAddress(addr))
 
-	// check that an acctconfig file was created (remove the scheme from the acct url and check if the corresponding file exists)
-	createdAcctConfigFile := strings.Split(resp.Account.Url, "://")[1]
+	// check that a new acctconfig file was created
+	afterFiles, err := ioutil.ReadDir(dir)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(afterFiles)-len(beforeFiles))
 
-	// read from the file so we can use our helpers
-	createdAcctJsonConfig, err := ioutil.ReadFile(createdAcctConfigFile)
+	// identify the new file and read the contents so we can use our helpers
+	var newFile os.FileInfo
+	for _, a := range afterFiles {
+		var isOld bool
+		for _, b := range beforeFiles {
+			if a.Name() == b.Name() {
+				isOld = true
+				break
+			}
+		}
+		if !isOld {
+			newFile = a
+		}
+	}
+	require.NotNil(t, newFile, "no new file found ")
+	filepath := fmt.Sprintf("%v/%v", dir, newFile.Name())
+
+	createdAcctJsonConfig, err := ioutil.ReadFile(filepath)
 	require.False(t, os.IsNotExist(err), "file does not exist")
 	require.NoError(t, err)
 
@@ -1024,7 +1068,7 @@ func Test_ImportRawKey_CorrectCasValue(t *testing.T) {
 		}},
 	}
 
-	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
+	impl, vaultUrl, dir, toClose := setup(t, pluginConfig)
 	defer toClose()
 
 	newAcctConfig := config.VaultSecretConfig{
@@ -1037,6 +1081,10 @@ func Test_ImportRawKey_CorrectCasValue(t *testing.T) {
 		InsecureSkipCas: false,
 		CasValue:        10,
 	}
+
+	// make note of the number of files in the acctconfigdir before acct creation
+	beforeFiles, err := ioutil.ReadDir(dir)
+	require.NoError(t, err)
 
 	// request the plugin account manager to create a new account
 	createdAddr = ""
@@ -1058,11 +1106,29 @@ func Test_ImportRawKey_CorrectCasValue(t *testing.T) {
 	addr := strings.TrimSpace(common.Bytes2Hex(resp.Account.Address))
 	require.True(t, common.IsHexAddress(addr))
 
-	// check that an acctconfig file was created (remove the scheme from the acct url and check if the corresponding file exists)
-	createdAcctConfigFile := strings.Split(resp.Account.Url, "://")[1]
+	// check that a new acctconfig file was created
+	afterFiles, err := ioutil.ReadDir(dir)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(afterFiles)-len(beforeFiles))
 
-	// read from the file so we can use our helpers
-	createdAcctJsonConfig, err := ioutil.ReadFile(createdAcctConfigFile)
+	// identify the new file and read the contents so we can use our helpers
+	var newFile os.FileInfo
+	for _, a := range afterFiles {
+		var isOld bool
+		for _, b := range beforeFiles {
+			if a.Name() == b.Name() {
+				isOld = true
+				break
+			}
+		}
+		if !isOld {
+			newFile = a
+		}
+	}
+	require.NotNil(t, newFile, "no new file found ")
+	filepath := fmt.Sprintf("%v/%v", dir, newFile.Name())
+
+	createdAcctJsonConfig, err := ioutil.ReadFile(filepath)
 	require.False(t, os.IsNotExist(err), "file does not exist")
 	require.NoError(t, err)
 
@@ -1155,7 +1221,7 @@ func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
 		}},
 	}
 
-	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
+	impl, vaultUrl, dir, toClose := setup(t, pluginConfig)
 	defer toClose()
 
 	newAcctConfig := config.VaultSecretConfig{
@@ -1168,6 +1234,10 @@ func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
 		InsecureSkipCas: true,
 		CasValue:        1, // this value is invalid but will be ignored because of the InsecureSkipFlag property
 	}
+
+	// make note of the number of files in the acctconfigdir before acct creation
+	beforeFiles, err := ioutil.ReadDir(dir)
+	require.NoError(t, err)
 
 	// request the plugin account manager to create a new account
 	createdAddr = ""
@@ -1189,11 +1259,29 @@ func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
 	addr := strings.TrimSpace(common.Bytes2Hex(resp.Account.Address))
 	require.True(t, common.IsHexAddress(addr))
 
-	// check that an acctconfig file was created (remove the scheme from the acct url and check if the corresponding file exists)
-	createdAcctConfigFile := strings.Split(resp.Account.Url, "://")[1]
+	// check that a new acctconfig file was created
+	afterFiles, err := ioutil.ReadDir(dir)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(afterFiles)-len(beforeFiles))
 
-	// read from the file so we can use our helpers
-	createdAcctJsonConfig, err := ioutil.ReadFile(createdAcctConfigFile)
+	// identify the new file and read the contents so we can use our helpers
+	var newFile os.FileInfo
+	for _, a := range afterFiles {
+		var isOld bool
+		for _, b := range beforeFiles {
+			if a.Name() == b.Name() {
+				isOld = true
+				break
+			}
+		}
+		if !isOld {
+			newFile = a
+		}
+	}
+	require.NotNil(t, newFile, "no new file found ")
+	filepath := fmt.Sprintf("%v/%v", dir, newFile.Name())
+
+	createdAcctJsonConfig, err := ioutil.ReadFile(filepath)
 	require.False(t, os.IsNotExist(err), "file does not exist")
 	require.NoError(t, err)
 
@@ -1222,7 +1310,7 @@ func statusDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl stri
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.HashiScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	resp, err := client.Status(context.Background(), &proto.StatusRequest{
@@ -1237,7 +1325,7 @@ func containsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl st
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.HashiScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	resp, err := client.Contains(context.Background(), &proto.ContainsRequest{
@@ -1256,7 +1344,7 @@ func accountsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl st
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.HashiScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	resp, err := client.Accounts(context.Background(), &proto.AccountsRequest{
@@ -1271,7 +1359,7 @@ func signHashDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl st
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.HashiScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	acctAddr := common.HexToAddress(acctConfig.Address)
@@ -1290,7 +1378,7 @@ func signHashWithPassphraseDelegate(t *testing.T, client *InitializerSignerClien
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.HashiScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	acctAddr := common.HexToAddress(acctConfig.Address)
@@ -1310,7 +1398,7 @@ func signTxDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl stri
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.HashiScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	acctAddr := common.HexToAddress(acctConfig.Address)
@@ -1344,7 +1432,7 @@ func signTxWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient,
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
-	url, err := makeWalletUrl(config.WalletScheme, vaultUrl, *acctConfig)
+	url, err := makeWalletUrl(config.HashiScheme, vaultUrl, *acctConfig)
 	require.NoError(t, err)
 
 	acctAddr := common.HexToAddress(acctConfig.Address)

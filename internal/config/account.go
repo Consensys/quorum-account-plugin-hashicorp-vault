@@ -2,16 +2,18 @@ package config
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/utils"
 
 	//"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
+	HashiScheme = "hashivlt"
+
 	invalidSecretPathMsg       = "SecretPath must be provided"
 	invalidSecretEnginePathMsg = "SecretEnginePath must be provided"
 	invalidAddressMsg          = "Address must be provided and be a valid hex address"
@@ -100,11 +102,11 @@ func (e AccountConfigValidationError) Error() string {
 	return fmt.Sprintf("Invalid Hashicorp Vault-stored account config:\n%v", strings.Join(e.msgs, "\n"))
 }
 
-// ParseAccount creates an accounts.Account (containing address and account URL) and wallet URL using the provided AccountConfig, vaultUrl and acct configfile path
-func ParseAccount(c AccountConfig, vaultUrl, filepath string) (AccountAndWalletUrl, error) {
+// ToAccount creates an accounts.Account from the provided AccountConfig and acct configfile path
+func ToAccount(c AccountConfig, vaultUrl string) (accounts.Account, error) {
 	vaultAddr, err := utils.ToUrl(vaultUrl)
 	if err != nil {
-		return AccountAndWalletUrl{}, err
+		return accounts.Account{}, err
 	}
 
 	walletPath := fmt.Sprintf(
@@ -120,11 +122,8 @@ func ParseAccount(c AccountConfig, vaultUrl, filepath string) (AccountAndWalletU
 		walletPath = fmt.Sprintf("%v@%v", c.VaultSecret.AuthID, walletPath)
 	}
 
-	return AccountAndWalletUrl{
-		Account: accounts.Account{
-			Address: common.HexToAddress(c.Address),
-			URL:     accounts.URL{Scheme: AcctScheme, Path: filepath},
-		},
-		WalletUrl: accounts.URL{Scheme: WalletScheme, Path: walletPath},
+	return accounts.Account{
+		Address: common.HexToAddress(c.Address),
+		URL:     accounts.URL{Scheme: HashiScheme, Path: walletPath},
 	}, nil
 }

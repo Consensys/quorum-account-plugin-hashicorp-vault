@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"io/ioutil"
 	"log"
@@ -311,10 +312,10 @@ func (m *vaultClientManager) getSecretFromVault(vaultAccountConfig config.VaultS
 	return secret, nil
 }
 
-func (m vaultClientManager) StoreKey(filename string, vaultConfig config.VaultSecretConfig, k *Key) (config.AccountAndWalletUrl, string, error) {
+func (m vaultClientManager) StoreKey(filename string, vaultConfig config.VaultSecretConfig, k *Key) (accounts.Account, string, error) {
 	secretUri, secretVersion, err := m.storeInVault(vaultConfig, k)
 	if err != nil {
-		return config.AccountAndWalletUrl{}, "", err
+		return accounts.Account{}, "", err
 	}
 
 	// include the version of the newly created vault secret in the data written to file
@@ -327,12 +328,12 @@ func (m vaultClientManager) StoreKey(filename string, vaultConfig config.VaultSe
 	}
 
 	if err := m.storeInFile(filename, acctConfig, k); err != nil {
-		return config.AccountAndWalletUrl{}, "", fmt.Errorf("secret written to Vault but unable to write data to file: secret uri: %v, err: %v", secretUri, err)
+		return accounts.Account{}, "", fmt.Errorf("secret written to Vault but unable to write data to file: secret uri: %v, err: %v", secretUri, err)
 	}
 
-	acct, err := config.ParseAccount(acctConfig, m.vaultAddr, filename)
+	acct, err := config.ToAccount(acctConfig, m.vaultAddr)
 	if err != nil {
-		return config.AccountAndWalletUrl{}, "", fmt.Errorf("secret written to Vault but unable to parse as account: secret uri: %v, err: %v", secretUri, err)
+		return accounts.Account{}, "", fmt.Errorf("secret written to Vault but unable to parse as account: secret uri: %v, err: %v", secretUri, err)
 	}
 
 	return acct, secretUri, nil

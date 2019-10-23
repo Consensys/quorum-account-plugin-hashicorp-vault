@@ -20,6 +20,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"io"
 	"io/ioutil"
@@ -49,7 +50,7 @@ type keyStore interface {
 	// Loads and decrypts the key from disk.
 	GetKey(addr common.Address, filename string, auth string) (*Key, error)
 	// Writes and encrypts the key.
-	StoreKey(filename string, vaultConfig config.VaultSecretConfig, k *Key) (config.AccountAndWalletUrl, string, error)
+	StoreKey(filename string, vaultConfig config.VaultSecretConfig, k *Key) (accounts.Account, string, error)
 	// Joins filename with the key directory unless it is already absolute.
 	JoinPath(filename string) string
 }
@@ -72,10 +73,10 @@ func newKey(rand io.Reader) (*Key, error) {
 	return newKeyFromECDSA(privateKeyECDSA), nil
 }
 
-func storeNewKey(ks keyStore, rand io.Reader, vaultAccountConfig config.VaultSecretConfig) (*Key, config.AccountAndWalletUrl, string, error) {
+func storeNewKey(ks keyStore, rand io.Reader, vaultAccountConfig config.VaultSecretConfig) (*Key, accounts.Account, string, string, error) {
 	key, err := newKey(rand)
 	if err != nil {
-		return nil, config.AccountAndWalletUrl{}, "", err
+		return nil, accounts.Account{}, "", "", err
 	}
 
 	//a := accounts.Account{Address: key.Address, URL: accounts.URL{Scheme: AcctScheme, Path: ks.JoinPath(keyFileName(key.Address))}}
@@ -84,9 +85,9 @@ func storeNewKey(ks keyStore, rand io.Reader, vaultAccountConfig config.VaultSec
 	acct, secretUri, err := ks.StoreKey(configfilepath, vaultAccountConfig, key)
 	if err != nil {
 		zeroKey(key.PrivateKey)
-		return nil, acct, "", err
+		return nil, acct, "", "", err
 	}
-	return key, acct, secretUri, err
+	return key, acct, secretUri, configfilepath, err
 }
 
 func writeTemporaryKeyFile(file string, content []byte) (string, error) {

@@ -84,13 +84,13 @@ func NewBackend(config config.VaultConfig) (*Backend, error) {
 	return b, nil
 }
 
-func (b *Backend) init(keydir string, config config.VaultConfig) error {
+func (b *Backend) init(keydir string, vaultConfig config.VaultConfig) error {
 	// Lock the mutex since the account cache might call back with events
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	// First thing we do is check the authentication credentials and setup the vault clients.  No point continuing if incorrect vault credentials have been provided.
-	clientManager, err := newVaultClientManager(config)
+	clientManager, err := newVaultClientManager(vaultConfig)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (b *Backend) init(keydir string, config config.VaultConfig) error {
 	accs := b.cache.Accounts()
 	b.wallets = make([]accounts.Wallet, len(accs))
 	for i := 0; i < len(accs); i++ {
-		b.wallets[i] = &wallet{url: accs[i].WalletUrl, account: accs[i].Account, backend: b}
+		b.wallets[i] = &wallet{url: accs[i].URL, account: accs[i], backend: b}
 	}
 
 	return nil
@@ -159,7 +159,7 @@ func (b *Backend) Accounts() []accounts.Account {
 	a := b.cache.Accounts()
 	accts := make([]accounts.Account, len(a))
 	for i := range a {
-		accts[i] = a[i].Account
+		accts[i] = a[i]
 	}
 	return accts
 }
@@ -288,12 +288,20 @@ func (b *Backend) TimedUnlock(a accounts.Account, passphrase string, timeout tim
 }
 
 // Find resolves the given account into a unique entry in the keystore.
-func (b *Backend) Find(a accounts.Account) (accounts.Account, error) {
+func (b *Backend) Find(a accounts.Account) (accounts.Account, string, error) {
 	b.cache.MaybeReload()
 	b.cache.Mu.Lock()
+	defer b.cache.Mu.Unlock()
 	a, err := b.cache.Find(a)
-	b.cache.Mu.Unlock()
-	return a, err
+	if err != nil {
+		return accounts.Account{}, "", err
+	}
+	filepath, err := b.cache.FindConfigFile(a)
+	if err != nil {
+		return accounts.Account{}, "", err
+	}
+
+	return a, filepath, nil
 }
 
 // NewAccount generates a new key and stores it into the key directory,
@@ -304,15 +312,15 @@ func (b *Backend) NewAccount(vaultAccountConfig config.VaultSecretConfig) (accou
 		return accounts.Account{}, "", err
 	}
 
-	_, account, secretUri, err := storeNewKey(b.storage, crand.Reader, vaultAccountConfig)
+	_, account, secretUri, configfilepath, err := storeNewKey(b.storage, crand.Reader, vaultAccountConfig)
 	if err != nil {
 		return accounts.Account{}, "", err
 	}
 	// Add the account to the cache immediately rather
 	// than waiting for file system notifications to pick it up.
-	b.cache.Add(account)
+	b.cache.Add(account, configfilepath)
 	b.refreshWallets()
-	return account.Account, secretUri, nil
+	return account, secretUri, nil
 }
 
 // ImportECDSA stores the given key into the key directory, encrypting it with the passphrase.
@@ -339,20 +347,20 @@ func (b *Backend) refreshWallets() {
 
 	for _, account := range accs {
 		// Drop wallets while they were in front of the next account
-		for len(b.wallets) > 0 && b.wallets[0].URL().Cmp(account.WalletUrl) < 0 {
+		for len(b.wallets) > 0 && b.wallets[0].URL().Cmp(account.URL) < 0 {
 			events = append(events, accounts.WalletEvent{Wallet: b.wallets[0], Kind: accounts.WalletDropped})
 			b.wallets = b.wallets[1:]
 		}
 		// If there are no more wallets or the account is before the next, wrap new wallet
-		if len(b.wallets) == 0 || b.wallets[0].URL().Cmp(account.WalletUrl) > 0 {
-			wallet := &wallet{url: account.WalletUrl, account: account.Account, backend: b}
+		if len(b.wallets) == 0 || b.wallets[0].URL().Cmp(account.URL) > 0 {
+			wallet := &wallet{url: account.URL, account: account, backend: b}
 			log.Println("[PLUGIN Backend] refreshWallets: new wallet wrapped", wallet)
 			events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletArrived})
 			wallets = append(wallets, wallet)
 			continue
 		}
 		// If the account is the same as the first wallet, keep it
-		if b.wallets[0].Accounts()[0] == account.Account {
+		if b.wallets[0].Accounts()[0] == account {
 			wallets = append(wallets, b.wallets[0])
 			b.wallets = b.wallets[1:]
 			continue
@@ -406,12 +414,12 @@ var (
 )
 
 func (b *Backend) getDecryptedKey(a accounts.Account, auth string) (accounts.Account, *Key, error) {
-	a, err := b.Find(a)
+	a, file, err := b.Find(a)
 	if err != nil {
 		return a, nil, err
 	}
 
-	key, err := b.storage.GetKey(a.Address, a.URL.Path, auth)
+	key, err := b.storage.GetKey(a.Address, file, auth)
 	if err != nil {
 		return a, nil, err
 	}
@@ -452,9 +460,9 @@ func (b *Backend) importKey(key *Key, vaultAccountConfig config.VaultSecretConfi
 		zeroKey(key.PrivateKey)
 		return accounts.Account{}, "", err
 	}
-	b.cache.Add(acct)
+	b.cache.Add(acct, configfilepath)
 	b.refreshWallets()
-	return acct.Account, secretUri, nil
+	return acct, secretUri, nil
 }
 
 // zeroKey zeroes a private key in memory.

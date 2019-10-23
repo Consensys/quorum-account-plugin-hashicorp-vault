@@ -43,23 +43,23 @@ const minReloadInterval = 2 * time.Second
 
 var ErrNoMatch = errors.New("no key for given address or file")
 
-type accountsByURL []config.AccountAndWalletUrl
+type accountsByURL []accounts.Account
 
 func (s accountsByURL) Len() int           { return len(s) }
-func (s accountsByURL) Less(i, j int) bool { return s[i].Account.URL.Cmp(s[j].Account.URL) < 0 }
+func (s accountsByURL) Less(i, j int) bool { return s[i].URL.Cmp(s[j].URL) < 0 }
 func (s accountsByURL) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // AmbiguousAddrError is returned when attempting to unlock
 // an address for which more than one file exists.
 type AmbiguousAddrError struct {
 	Addr    common.Address
-	Matches []config.AccountAndWalletUrl
+	Matches []accounts.Account
 }
 
 func (err *AmbiguousAddrError) Error() string {
 	files := ""
 	for i, a := range err.Matches {
-		files += a.Account.URL.Path
+		files += a.URL.Path
 		if i < len(err.Matches)-1 {
 			files += ", "
 		}
@@ -73,7 +73,8 @@ type AccountCache struct {
 	watcher  *watcher
 	Mu       sync.Mutex // TODO has been exported due to moving into separate pkg, do we want to keep it this way?
 	all      accountsByURL
-	byAddr   map[common.Address][]config.AccountAndWalletUrl
+	byAddr   map[common.Address][]accounts.Account
+	byFile   map[string]accounts.Account
 	throttle *time.Timer
 	notify   chan struct{}
 	fileC    fileCache
@@ -84,7 +85,8 @@ type AccountCache struct {
 func NewAccountCache(keydir string, vaultAddr string) (*AccountCache, chan struct{}) {
 	ac := &AccountCache{
 		keydir:    keydir,
-		byAddr:    make(map[common.Address][]config.AccountAndWalletUrl),
+		byAddr:    make(map[common.Address][]accounts.Account),
+		byFile:    make(map[string]accounts.Account),
 		notify:    make(chan struct{}, 1),
 		fileC:     fileCache{all: mapset.NewThreadUnsafeSet()},
 		vaultAddr: vaultAddr,
@@ -93,11 +95,11 @@ func NewAccountCache(keydir string, vaultAddr string) (*AccountCache, chan struc
 	return ac, ac.notify
 }
 
-func (ac *AccountCache) Accounts() []config.AccountAndWalletUrl {
+func (ac *AccountCache) Accounts() []accounts.Account {
 	ac.MaybeReload()
 	ac.Mu.Lock()
 	defer ac.Mu.Unlock()
-	cpy := make([]config.AccountAndWalletUrl, len(ac.all))
+	cpy := make([]accounts.Account, len(ac.all))
 	copy(cpy, ac.all)
 	return cpy
 }
@@ -109,41 +111,49 @@ func (ac *AccountCache) HasAddress(addr common.Address) bool {
 	return len(ac.byAddr[addr]) > 0
 }
 
-func (ac *AccountCache) Add(newAccount config.AccountAndWalletUrl) {
+func (ac *AccountCache) Add(newAccount accounts.Account, filepath string) {
 	ac.Mu.Lock()
 	defer ac.Mu.Unlock()
 
-	i := sort.Search(len(ac.all), func(i int) bool { return ac.all[i].Account.URL.Cmp(newAccount.Account.URL) >= 0 })
+	i := sort.Search(len(ac.all), func(i int) bool { return ac.all[i].URL.Cmp(newAccount.URL) >= 0 })
 	if i < len(ac.all) && ac.all[i] == newAccount {
 		return
 	}
 	// newAccount is not in the cache.
-	ac.all = append(ac.all, config.AccountAndWalletUrl{})
+	ac.all = append(ac.all, accounts.Account{})
 	copy(ac.all[i+1:], ac.all[i:])
 	ac.all[i] = newAccount
-	ac.byAddr[newAccount.Account.Address] = append(ac.byAddr[newAccount.Account.Address], newAccount)
+	ac.byAddr[newAccount.Address] = append(ac.byAddr[newAccount.Address], newAccount)
+	ac.byFile[filepath] = newAccount
 }
 
 // deleteByFile removes an account referenced by the given path.
 func (ac *AccountCache) deleteByFile(path string) {
 	ac.Mu.Lock()
 	defer ac.Mu.Unlock()
-	i := sort.Search(len(ac.all), func(i int) bool { return ac.all[i].Account.URL.Path >= path })
 
-	if i < len(ac.all) && ac.all[i].Account.URL.Path == path {
+	acct, ok := ac.byFile[path]
+	if !ok {
+		log.Printf("[DEBUG] no account found for configfile %v", path)
+	}
+
+	i := sort.Search(len(ac.all), func(i int) bool { return ac.all[i].URL.Path >= acct.URL.Path })
+
+	if i < len(ac.all) && ac.all[i].URL.Path == acct.URL.Path {
 		removed := ac.all[i]
 		ac.all = append(ac.all[:i], ac.all[i+1:]...)
-		if ba := removeAccountAndWalletUrl(ac.byAddr[removed.Account.Address], removed); len(ba) == 0 {
-			delete(ac.byAddr, removed.Account.Address)
+		if ba := removeAccount(ac.byAddr[removed.Address], removed); len(ba) == 0 {
+			delete(ac.byAddr, removed.Address)
 		} else {
-			ac.byAddr[removed.Account.Address] = ba
+			ac.byAddr[removed.Address] = ba
 		}
+		delete(ac.byFile, path)
 	}
 }
 
-func removeAccountAndWalletUrl(slice []config.AccountAndWalletUrl, elem config.AccountAndWalletUrl) []config.AccountAndWalletUrl {
+func removeAccount(slice []accounts.Account, elem accounts.Account) []accounts.Account {
 	for i := range slice {
-		if slice[i].Account == elem.Account {
+		if slice[i] == elem {
 			return append(slice[:i], slice[i+1:]...)
 		}
 	}
@@ -165,8 +175,8 @@ func (ac *AccountCache) Find(a accounts.Account) (accounts.Account, error) {
 			a.URL.Path = filepath.Join(ac.keydir, a.URL.Path)
 		}
 		for i := range matches {
-			if matches[i].Account.URL == a.URL {
-				return matches[i].Account, nil
+			if matches[i].URL == a.URL {
+				return matches[i], nil
 			}
 		}
 		if (a.Address == common.Address{}) {
@@ -175,15 +185,25 @@ func (ac *AccountCache) Find(a accounts.Account) (accounts.Account, error) {
 	}
 	switch len(matches) {
 	case 1:
-		return matches[0].Account, nil
+		return matches[0], nil
 	case 0:
 		return accounts.Account{}, ErrNoMatch
 	default:
-		err := &AmbiguousAddrError{Addr: a.Address, Matches: make([]config.AccountAndWalletUrl, len(matches))}
+		err := &AmbiguousAddrError{Addr: a.Address, Matches: make([]accounts.Account, len(matches))}
 		copy(err.Matches, matches)
 		sort.Sort(accountsByURL(err.Matches))
 		return accounts.Account{}, err
 	}
+}
+
+// Callers must hold ac.mu
+func (ac *AccountCache) FindConfigFile(a accounts.Account) (string, error) {
+	for file, acct := range ac.byFile {
+		if acct.Address == a.Address && (acct.URL == (accounts.URL{}) || acct.URL == a.URL) {
+			return file, nil
+		}
+	}
+	return "", fmt.Errorf("no config file found for account %v", a)
 }
 
 func (ac *AccountCache) MaybeReload() {
@@ -240,7 +260,7 @@ func (ac *AccountCache) scanAccounts() error {
 		buf        = new(bufio.Reader)
 		acctConfig config.AccountConfig
 	)
-	readAccount := func(path string) *config.AccountAndWalletUrl {
+	readAccount := func(path string) *accounts.Account {
 		fd, err := os.Open(path)
 		if err != nil {
 			log.Println("[DEBUG] Failed to open acctconfig file", "path", path, "err", err)
@@ -259,7 +279,7 @@ func (ac *AccountCache) scanAccounts() error {
 			return nil
 		}
 
-		acct, err := config.ParseAccount(acctConfig, ac.vaultAddr, path)
+		acct, err := config.ToAccount(acctConfig, ac.vaultAddr)
 		if err != nil {
 			log.Println("[DEBUG] Failed to create account from secret config", "path", path, "err", err)
 			return nil
@@ -272,8 +292,8 @@ func (ac *AccountCache) scanAccounts() error {
 	for _, p := range creates.ToSlice() {
 		log.Printf("[DEBUG] %v added, updating cache", p.(string))
 		if a := readAccount(p.(string)); a != nil {
-			log.Println("[DEBUG] adding acct: ", a.Account.URL.String())
-			ac.Add(*a)
+			log.Println("[DEBUG] adding acct: ", a.URL.String())
+			ac.Add(*a, p.(string))
 		}
 	}
 	for _, p := range deletes.ToSlice() {
@@ -285,7 +305,7 @@ func (ac *AccountCache) scanAccounts() error {
 		path := p.(string)
 		ac.deleteByFile(path)
 		if a := readAccount(path); a != nil {
-			ac.Add(*a)
+			ac.Add(*a, p.(string))
 		}
 	}
 	end := time.Now()

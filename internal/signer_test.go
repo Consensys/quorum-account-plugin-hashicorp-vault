@@ -3,6 +3,8 @@ package internal
 import (
 	"context"
 	"errors"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_event"
 	"math/big"
@@ -11,9 +13,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/golang/mock/gomock"
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/mock_proto"
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
@@ -24,14 +24,14 @@ import (
 )
 
 var (
-	wltUrl = accounts.URL{
-		Scheme: config.WalletScheme,
-		Path:   "FOO@localhost:8200",
-	}
+	//wltUrl = accounts.URL{
+	//	Scheme: config.HashiScheme,
+	//	Path:   "FOO@localhost:8200",
+	//}
 
 	acct1 = accounts.Account{
 		Address: common.HexToAddress("0x4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
-		URL:     accounts.URL{Scheme: config.AcctScheme, Path: "path/to/file1.json"},
+		URL:     accounts.URL{Scheme: config.HashiScheme, Path: "FOO@localhost:8200/1"},
 	}
 	protoAcct1 = &proto.Account{
 		Address: acct1.Address.Bytes(),
@@ -42,7 +42,7 @@ var (
 
 	acct2 = accounts.Account{
 		Address: common.HexToAddress("0x2332f90a329c2c55ba120b1449d36a144d1f9fe4"),
-		URL:     accounts.URL{Scheme: config.AcctScheme, Path: "path/to/file2.json"},
+		URL:     accounts.URL{Scheme: config.HashiScheme, Path: "FOO@localhost:8200/2"},
 	}
 	protoAcct2 = &proto.Account{
 		Address: acct2.Address.Bytes(),
@@ -63,7 +63,7 @@ func TestSigner_Status(t *testing.T) {
 
 	mockBackend.
 		EXPECT().
-		Wallet(wltUrl.String()).
+		Wallet(acct1.URL.String()).
 		Return(mockWallet, nil)
 
 	status := "some status"
@@ -72,7 +72,7 @@ func TestSigner_Status(t *testing.T) {
 		Status().
 		Return(status, nil)
 
-	req := &proto.StatusRequest{WalletUrl: wltUrl.String()}
+	req := &proto.StatusRequest{WalletUrl: acct1.URL.String()}
 	got, err := s.Status(context.Background(), req)
 
 	want := &proto.StatusResponse{Status: status}
@@ -94,7 +94,7 @@ func TestSigner_Open(t *testing.T) {
 
 	mockBackend.
 		EXPECT().
-		Wallet(wltUrl.String()).
+		Wallet(acct1.URL.String()).
 		Return(mockWallet, nil)
 
 	pwd := "pwd"
@@ -104,7 +104,7 @@ func TestSigner_Open(t *testing.T) {
 		Return(nil)
 
 	req := &proto.OpenRequest{
-		WalletUrl:  wltUrl.String(),
+		WalletUrl:  acct1.URL.String(),
 		Passphrase: "pwd",
 	}
 	got, err := s.Open(context.Background(), req)
@@ -128,7 +128,7 @@ func TestSigner_Close(t *testing.T) {
 
 	mockBackend.
 		EXPECT().
-		Wallet(wltUrl.String()).
+		Wallet(acct1.URL.String()).
 		Return(mockWallet, nil)
 
 	mockWallet.
@@ -136,7 +136,7 @@ func TestSigner_Close(t *testing.T) {
 		Close().
 		Return(nil)
 
-	req := &proto.CloseRequest{WalletUrl: wltUrl.String()}
+	req := &proto.CloseRequest{WalletUrl: acct1.URL.String()}
 	got, err := s.Close(context.Background(), req)
 
 	want := &proto.CloseResponse{}
@@ -158,7 +158,7 @@ func TestSigner_Accounts(t *testing.T) {
 
 	mockBackend.
 		EXPECT().
-		Wallet(wltUrl.String()).
+		Wallet(acct1.URL.String()).
 		Return(mockWallet, nil)
 
 	accts := []accounts.Account{acct1, acct2}
@@ -167,7 +167,7 @@ func TestSigner_Accounts(t *testing.T) {
 		Accounts().
 		Return(accts)
 
-	req := &proto.AccountsRequest{WalletUrl: wltUrl.String()}
+	req := &proto.AccountsRequest{WalletUrl: acct1.URL.String()}
 	got, err := s.Accounts(context.Background(), req)
 
 	want := &proto.AccountsResponse{
@@ -191,7 +191,7 @@ func TestSigner_Contains(t *testing.T) {
 
 	mockBackend.
 		EXPECT().
-		Wallet(wltUrl.String()).
+		Wallet(acct1.URL.String()).
 		Return(mockWallet, nil)
 
 	mockWallet.
@@ -200,7 +200,7 @@ func TestSigner_Contains(t *testing.T) {
 		Return(true)
 
 	req := &proto.ContainsRequest{
-		WalletUrl: wltUrl.String(),
+		WalletUrl: acct1.URL.String(),
 		Account:   protoAcct1,
 	}
 	got, err := s.Contains(context.Background(), req)
@@ -224,7 +224,7 @@ func TestSigner_SignHash(t *testing.T) {
 
 	mockBackend.
 		EXPECT().
-		Wallet(wltUrl.String()).
+		Wallet(acct1.URL.String()).
 		Return(mockWallet, nil)
 
 	toSign := []byte("to sign")
@@ -235,7 +235,7 @@ func TestSigner_SignHash(t *testing.T) {
 		Return(signed, nil)
 
 	req := &proto.SignHashRequest{
-		WalletUrl: wltUrl.String(),
+		WalletUrl: acct1.URL.String(),
 		Account:   protoAcct1,
 		Hash:      toSign,
 	}
@@ -260,7 +260,7 @@ func TestSigner_SignTx(t *testing.T) {
 
 	mockBackend.
 		EXPECT().
-		Wallet(wltUrl.String()).
+		Wallet(acct1.URL.String()).
 		Return(mockWallet, nil)
 
 	var (
@@ -291,7 +291,7 @@ func TestSigner_SignTx(t *testing.T) {
 		Return(signed, nil)
 
 	req := &proto.SignTxRequest{
-		WalletUrl: wltUrl.String(),
+		WalletUrl: acct1.URL.String(),
 		Account:   protoAcct1,
 		RlpTx:     rlpToSign,
 		ChainID:   chainID.Bytes(),
@@ -322,7 +322,7 @@ func TestSigner_SignHashWithPassphrase(t *testing.T) {
 
 	mockBackend.
 		EXPECT().
-		Wallet(wltUrl.String()).
+		Wallet(acct1.URL.String()).
 		Return(mockWallet, nil)
 
 	pwd := "pwd"
@@ -334,7 +334,7 @@ func TestSigner_SignHashWithPassphrase(t *testing.T) {
 		Return(signed, nil)
 
 	req := &proto.SignHashWithPassphraseRequest{
-		WalletUrl:  wltUrl.String(),
+		WalletUrl:  acct1.URL.String(),
 		Account:    protoAcct1,
 		Hash:       toSign,
 		Passphrase: pwd,
@@ -360,7 +360,7 @@ func TestSigner_SignTxWithPassphrase(t *testing.T) {
 
 	mockBackend.
 		EXPECT().
-		Wallet(wltUrl.String()).
+		Wallet(acct1.URL.String()).
 		Return(mockWallet, nil)
 
 	var (
@@ -392,7 +392,7 @@ func TestSigner_SignTxWithPassphrase(t *testing.T) {
 		Return(signed, nil)
 
 	req := &proto.SignTxWithPassphraseRequest{
-		WalletUrl:  wltUrl.String(),
+		WalletUrl:  acct1.URL.String(),
 		Account:    protoAcct1,
 		RlpTx:      rlpToSign,
 		ChainID:    chainID.Bytes(),
