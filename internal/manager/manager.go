@@ -209,21 +209,6 @@ func (am *Manager) Wallet(url string) (accounts.Wallet, error) {
 	return nil, accounts.ErrUnknownWallet
 }
 
-// Find attempts to locate the wallet corresponding to a specific account. Since
-// accounts can be dynamically added to and removed from wallets, this method has
-// a linear runtime in the number of wallets.
-func (am *Manager) Find(account accounts.Account) (accounts.Wallet, error) {
-	am.lock.RLock()
-	defer am.lock.RUnlock()
-
-	for _, wallet := range am.wallets {
-		if wallet.Contains(account) {
-			return wallet, nil
-		}
-	}
-	return nil, accounts.ErrUnknownAccount
-}
-
 // Subscribe creates an async subscription to receive notifications when the
 // manager detects the arrival or departure of a wallet from any of its backends.
 func (am *Manager) Subscribe(sink chan<- accounts.WalletEvent) event.Subscription {

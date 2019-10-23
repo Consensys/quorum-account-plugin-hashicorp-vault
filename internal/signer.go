@@ -151,8 +151,12 @@ func (am *HashicorpVaultAccountManagerDelegate) SignTx(_ context.Context, req *p
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	chainID := &big.Int{}
-	chainID.SetBytes(req.ChainID)
+	chainID := new(big.Int)
+	if len(req.ChainID) == 0 {
+		chainID = nil
+	} else {
+		chainID.SetBytes(req.ChainID)
+	}
 
 	result, err := w.SignTx(a, tx, chainID)
 	if err != nil {
@@ -202,8 +206,12 @@ func (am *HashicorpVaultAccountManagerDelegate) SignTxWithPassphrase(_ context.C
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	chainID := &big.Int{}
-	chainID.SetBytes(req.ChainID)
+	chainID := new(big.Int)
+	if len(req.ChainID) == 0 {
+		chainID = nil
+	} else {
+		chainID.SetBytes(req.ChainID)
+	}
 
 	result, err := w.SignTxWithPassphrase(a, req.Passphrase, tx, chainID)
 	if err != nil {

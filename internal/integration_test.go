@@ -201,7 +201,10 @@ func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (Initia
 }
 
 // TODO(cjh)
-//  validation
+//  token renewal
+//  standard token auth
+//  unknown accounts
+//  ambiguous account
 
 func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T) {
 	defer setEnvironmentVariables(
@@ -505,7 +508,7 @@ func Test_Accounts(t *testing.T) {
 	require.Equal(t, common.Bytes2Hex(accts[0].Address), "dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 }
 
-func Test_SignHash_Unlocking(t *testing.T) {
+func Test_SignHashAndUnlocking(t *testing.T) {
 	defer setEnvironmentVariables(
 		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
 		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
@@ -641,7 +644,7 @@ func Test_SignHash_Unlocking(t *testing.T) {
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 }
 
-func Test_SignTx_Unlocking(t *testing.T) {
+func Test_SignTxAndUnlocking_PrivateTransactions(t *testing.T) {
 	defer setEnvironmentVariables(
 		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
 		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
@@ -672,16 +675,12 @@ func Test_SignTx_Unlocking(t *testing.T) {
 	signingKey, err := crypto.HexToECDSA("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28")
 	require.NoError(t, err)
 
-	privateTxSignerHash := types.QuorumPrivateTxSigner{}.Hash(toSign)
-	privateTxSignerSignature, err := crypto.Sign(privateTxSignerHash[:], signingKey)
+	signer := types.QuorumPrivateTxSigner{}
+	txSignerHash := signer.Hash(toSign)
+	txSignerSignature, err := crypto.Sign(txSignerHash[:], signingKey)
 	require.NoError(t, err)
 
-	var (
-		want *types.Transaction
-		got  *types.Transaction
-	)
-
-	want, err = toSign.WithSignature(types.QuorumPrivateTxSigner{}, privateTxSignerSignature)
+	want, err := toSign.WithSignature(signer, txSignerSignature)
 	require.NoError(t, err)
 	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.  When the caller decodes it back to a tx, the size field of the tx will be populated (see types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that we can compare the returned tx with want.  This is achieved by calling Size().
 	want.Size()
@@ -689,36 +688,136 @@ func Test_SignTx_Unlocking(t *testing.T) {
 	// mark the tx as private so the plugin account manager knows to sign with the QuorumPrivateTxSigner
 	toSign.SetPrivate()
 
+	chainID := big.NewInt(42)
+	signTxAndUnlockingTestCases(t, &impl, vaultUrl, chainID, toSign, want)
+}
+
+func Test_SignTxAndUnlocking_PublicTransactions_EIP155(t *testing.T) {
+	defer setEnvironmentVariables(
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
+	)()
+
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
+			URL: "", // this will be populated once the mock vault server is started
+			TLS: config.TLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
+			AccountConfigDir: "", // this will be populated once the mock vault server is started
+			Unlock:           "",
+			Auth: []config.VaultAuth{{
+				AuthID:      "FOO",
+				ApprolePath: "", // defaults to approle
+			}},
+		}},
+	}
+
+	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
+	defer toClose()
+
+	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
+
+	signingKey, err := crypto.HexToECDSA("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28")
+	require.NoError(t, err)
+
+	chainID := big.NewInt(42)
+	signer := types.NewEIP155Signer(chainID)
+	txSignerHash := signer.Hash(toSign)
+	txSignerSignature, err := crypto.Sign(txSignerHash[:], signingKey)
+	require.NoError(t, err)
+
+	want, err := toSign.WithSignature(signer, txSignerSignature)
+	require.NoError(t, err)
+	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.  When the caller decodes it back to a tx, the size field of the tx will be populated (see types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that we can compare the returned tx with want.  This is achieved by calling Size().
+	want.Size()
+
+	signTxAndUnlockingTestCases(t, &impl, vaultUrl, chainID, toSign, want)
+}
+
+func Test_SignTxAndUnlocking_PublicTransactions_Homestead(t *testing.T) {
+	defer setEnvironmentVariables(
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
+		fmt.Sprintf("%v_%v", "FOO", manager.DefaultSecretIDEnv),
+	)()
+
+	pluginConfig := config.PluginAccountManagerConfig{
+		Vaults: []config.VaultConfig{{
+			URL: "", // this will be populated once the mock vault server is started
+			TLS: config.TLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
+			AccountConfigDir: "", // this will be populated once the mock vault server is started
+			Unlock:           "",
+			Auth: []config.VaultAuth{{
+				AuthID:      "FOO",
+				ApprolePath: "", // defaults to approle
+			}},
+		}},
+	}
+
+	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
+	defer toClose()
+
+	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
+
+	signingKey, err := crypto.HexToECDSA("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28")
+	require.NoError(t, err)
+
+	signer := types.HomesteadSigner{}
+	txSignerHash := signer.Hash(toSign)
+	txSignerSignature, err := crypto.Sign(txSignerHash[:], signingKey)
+	require.NoError(t, err)
+
+	want, err := toSign.WithSignature(signer, txSignerSignature)
+	require.NoError(t, err)
+	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.  When the caller decodes it back to a tx, the size field of the tx will be populated (see types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that we can compare the returned tx with want.  This is achieved by calling Size().
+	want.Size()
+
+	var chainID *big.Int
+	signTxAndUnlockingTestCases(t, &impl, vaultUrl, chainID, toSign, want)
+}
+
+func signTxAndUnlockingTestCases(t *testing.T, impl *InitializerSignerClient, vaultUrl string, chainID *big.Int, toSign *types.Transaction, want *types.Transaction) {
+	var (
+		got *types.Transaction
+		err error
+	)
+
 	// manually lock the account
-	lockDelegate(t, &impl, acct1JsonConfig)
+	lockDelegate(t, impl, acct1JsonConfig)
 
 	// signTx fails as acct locked
-	_, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	_, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signTxWithPassphrase succeeds as it unlocks the acct
-	got, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
 
 	// signTx fails as signTxWithPassphrase only unlocks the acct for the duration of the call
-	_, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	_, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
-	timedUnlockDelegate(t, &impl, acct1JsonConfig, 100*time.Millisecond)
+	timedUnlockDelegate(t, impl, acct1JsonConfig, 100*time.Millisecond)
 
 	// signTx succeeds as acct unlocked
-	got, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
 
 	// signTxWithPassphrase succeeds when acct is already unlocked
-	got, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
@@ -727,24 +826,24 @@ func Test_SignTx_Unlocking(t *testing.T) {
 	time.Sleep(250 * time.Millisecond)
 
 	// signTx fails after unlock expires
-	_, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	_, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signTxWithPassphrase succeeds after acct is re-locked
-	got, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
 
 	// unlock the account for a long period
-	timedUnlockDelegate(t, &impl, acct1JsonConfig, 100*time.Second)
+	timedUnlockDelegate(t, impl, acct1JsonConfig, 100*time.Second)
 
 	// override the unlock to be for a shorter duration
-	timedUnlockDelegate(t, &impl, acct1JsonConfig, 100*time.Millisecond)
+	timedUnlockDelegate(t, impl, acct1JsonConfig, 100*time.Millisecond)
 
 	// signTx succeeds as acct unlocked
-	got, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
@@ -753,18 +852,18 @@ func Test_SignTx_Unlocking(t *testing.T) {
 	time.Sleep(250 * time.Millisecond)
 
 	// signTx fails after unlock expires
-	_, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	_, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
-	timedUnlockDelegate(t, &impl, acct1JsonConfig, 100*time.Millisecond)
+	timedUnlockDelegate(t, impl, acct1JsonConfig, 100*time.Millisecond)
 
 	// override the unlock to be indefinite
-	timedUnlockDelegate(t, &impl, acct1JsonConfig, 0)
+	timedUnlockDelegate(t, impl, acct1JsonConfig, 0)
 
 	// signTx succeeds as acct unlocked
-	got, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
@@ -773,16 +872,16 @@ func Test_SignTx_Unlocking(t *testing.T) {
 	time.Sleep(250 * time.Millisecond)
 
 	// signTx succeeds as acct unlocked
-	got, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
 
 	// manually lock the account
-	lockDelegate(t, &impl, acct1JsonConfig)
+	lockDelegate(t, impl, acct1JsonConfig)
 
 	// signTx fails after manual lock
-	_, err = signTxDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	_, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 }
@@ -1394,7 +1493,7 @@ func signHashWithPassphraseDelegate(t *testing.T, client *InitializerSignerClien
 	})
 }
 
-func signTxDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign *types.Transaction) (*types.Transaction, error) {
+func signTxDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
@@ -1406,6 +1505,11 @@ func signTxDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl stri
 	rlpTx, err := rlp.EncodeToBytes(toSign)
 	require.NoError(t, err)
 
+	var chainIDBytes []byte
+	if chainID != nil {
+		chainIDBytes = chainID.Bytes()
+	}
+
 	resp, err := client.SignTx(context.Background(), &proto.SignTxRequest{
 		WalletUrl: url.String(),
 		Account: &proto.Account{
@@ -1413,7 +1517,7 @@ func signTxDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl stri
 			Url:     "",
 		},
 		RlpTx:   rlpTx,
-		ChainID: big.NewInt(42).Bytes(),
+		ChainID: chainIDBytes,
 	})
 
 	if err != nil {
@@ -1428,7 +1532,7 @@ func signTxDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl stri
 	return signedTx, nil
 }
 
-func signTxWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign *types.Transaction) (*types.Transaction, error) {
+func signTxWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
@@ -1440,6 +1544,11 @@ func signTxWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient,
 	rlpTx, err := rlp.EncodeToBytes(toSign)
 	require.NoError(t, err)
 
+	var chainIDBytes []byte
+	if chainID != nil {
+		chainIDBytes = chainID.Bytes()
+	}
+
 	resp, err := client.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
 		WalletUrl: url.String(),
 		Account: &proto.Account{
@@ -1448,7 +1557,7 @@ func signTxWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient,
 		},
 		Passphrase: "pwd", // this value is arbitary as the hashicorp acct manager does not use the password for anything
 		RlpTx:      rlpTx,
-		ChainID:    big.NewInt(42).Bytes(),
+		ChainID:    chainIDBytes,
 	})
 
 	if err != nil {

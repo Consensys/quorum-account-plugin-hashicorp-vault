@@ -149,21 +149,6 @@ func (b *Backend) Subscribe(sink chan<- accounts.WalletEvent) event.Subscription
 	return sub
 }
 
-// HasAddress reports whether a key with the given address is present.
-func (b *Backend) HasAddress(addr common.Address) bool {
-	return b.cache.HasAddress(addr)
-}
-
-// Accounts returns all key files present in the directory.
-func (b *Backend) Accounts() []accounts.Account {
-	a := b.cache.Accounts()
-	accts := make([]accounts.Account, len(a))
-	for i := range a {
-		accts[i] = a[i]
-	}
-	return accts
-}
-
 // SignHash calculates a ECDSA signature for the given hash. The produced
 // signature is in the [R || S || V] format where V is 0 or 1.
 func (b *Backend) SignHash(a accounts.Account, hash []byte) ([]byte, error) {
@@ -296,12 +281,12 @@ func (b *Backend) Find(a accounts.Account) (accounts.Account, string, error) {
 	if err != nil {
 		return accounts.Account{}, "", err
 	}
-	filepath, err := b.cache.FindConfigFile(a)
+	file, err := b.cache.FindConfigFile(a)
 	if err != nil {
 		return accounts.Account{}, "", err
 	}
 
-	return a, filepath, nil
+	return a, file, nil
 }
 
 // NewAccount generates a new key and stores it into the key directory,
