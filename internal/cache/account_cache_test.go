@@ -16,393 +16,416 @@
 
 package cache
 
-// TODO dont use hashicorp keystore scheme and mock out other needed symbols from hashicorp pkg to prevent import cycle
-//
-//var (
-//	cachetestDir, _   = filepath.Abs(filepath.Join("testdata", "keystore"))
-//	cachetestAccounts = []accounts.Account{
-//		{
-//			Address: common.HexToAddress("7ef5a6135f1fd6a02593eedc869c6d41d934aef8"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(cachetestDir, "UTC--2016-03-22T12-57-55.920751759Z--7ef5a6135f1fd6a02593eedc869c6d41d934aef8")},
-//		},
-//		{
-//			Address: common.HexToAddress("f466859ead1932d743d622cb74fc058882e8648a"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(cachetestDir, "aaa")},
-//		},
-//		{
-//			Address: common.HexToAddress("289d485d9771714cce91d3393d764e1311907acc"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(cachetestDir, "zzz")},
-//		},
-//	}
-//)
-//
-//func TestWatchNewFile(t *testing.T) {
-//	t.Parallel()
-//
-//	dir, ks := TmpKeyStore(t, false)
-//	defer os.RemoveAll(dir)
-//
-//	// Ensure the watcher is started before adding any files.
-//	ks.Accounts()
-//	time.Sleep(1000 * time.Millisecond)
-//
-//	// Move in the files.
-//	wantAccounts := make([]accounts.Account, len(cachetestAccounts))
-//	for i := range cachetestAccounts {
-//		wantAccounts[i] = accounts.Account{
-//			Address: cachetestAccounts[i].Address,
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(dir, filepath.Base(cachetestAccounts[i].URL.Path))},
-//		}
-//		if err := cp.CopyFile(wantAccounts[i].URL.Path, cachetestAccounts[i].URL.Path); err != nil {
-//			t.Fatal(err)
-//		}
-//	}
-//
-//	// ks should see the accounts.
-//	var list []accounts.Account
-//	for d := 200 * time.Millisecond; d < 5*time.Second; d *= 2 {
-//		list = ks.Accounts()
-//		if reflect.DeepEqual(list, wantAccounts) {
-//			// ks should have also received change notifications
-//			select {
-//			case <-ks.Changes:
-//			default:
-//				t.Fatalf("wasn't notified of new accounts")
-//			}
-//			return
-//		}
-//		time.Sleep(d)
-//	}
-//	t.Errorf("got %s, want %s", spew.Sdump(list), spew.Sdump(wantAccounts))
-//}
-//
-//func TestWatchNoDir(t *testing.T) {
-//	t.Parallel()
-//
-//	// Create ks but not the directory that it watches.
-//	rand.Seed(time.Now().UnixNano())
-//	dir := filepath.Join(os.TempDir(), fmt.Sprintf("eth-keystore-watch-test-%d-%d", os.Getpid(), rand.Int()))
-//	ks := hashicorp.NewKeyStore(dir, hashicorp.LightScryptN, hashicorp.LightScryptP)
-//
-//	list := ks.Accounts()
-//	if len(list) > 0 {
-//		t.Error("initial account list not empty:", list)
-//	}
-//	time.Sleep(100 * time.Millisecond)
-//
-//	// Create the directory and copy a key file into it.
-//	os.MkdirAll(dir, 0700)
-//	defer os.RemoveAll(dir)
-//	file := filepath.Join(dir, "aaa")
-//	if err := cp.CopyFile(file, cachetestAccounts[0].URL.Path); err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	// ks should see the account.
-//	wantAccounts := []accounts.Account{cachetestAccounts[0]}
-//	wantAccounts[0].URL = accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: file}
-//	for d := 200 * time.Millisecond; d < 8*time.Second; d *= 2 {
-//		list = ks.Accounts()
-//		if reflect.DeepEqual(list, wantAccounts) {
-//			// ks should have also received change notifications
-//			select {
-//			case <-ks.Changes:
-//			default:
-//				t.Fatalf("wasn't notified of new accounts")
-//			}
-//			return
-//		}
-//		time.Sleep(d)
-//	}
-//	t.Errorf("\ngot  %v\nwant %v", list, wantAccounts)
-//}
-//
-//func TestCacheInitialReload(t *testing.T) {
-//	cache, _ := NewAccountCache(cachetestDir)
-//	accounts := cache.Accounts()
-//	if !reflect.DeepEqual(accounts, cachetestAccounts) {
-//		t.Fatalf("got initial accounts: %swant %s", spew.Sdump(accounts), spew.Sdump(cachetestAccounts))
-//	}
-//}
-//
-//func TestCacheAddDeleteOrder(t *testing.T) {
-//	cache, _ := NewAccountCache("testdata/no-such-dir")
-//	cache.watcher.running = true // prevent unexpected reloads
-//
-//	accs := []accounts.Account{
-//		{
-//			Address: common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "-309830980"},
-//		},
-//		{
-//			Address: common.HexToAddress("2cac1adea150210703ba75ed097ddfe24e14f213"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "ggg"},
-//		},
-//		{
-//			Address: common.HexToAddress("8bda78331c916a08481428e4b07c96d3e916d165"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "zzzzzz-the-very-last-one.keyXXX"},
-//		},
-//		{
-//			Address: common.HexToAddress("d49ff4eeb0b2686ed89c0fc0f2b6ea533ddbbd5e"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "SOMETHING.key"},
-//		},
-//		{
-//			Address: common.HexToAddress("7ef5a6135f1fd6a02593eedc869c6d41d934aef8"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "UTC--2016-03-22T12-57-55.920751759Z--7ef5a6135f1fd6a02593eedc869c6d41d934aef8"},
-//		},
-//		{
-//			Address: common.HexToAddress("f466859ead1932d743d622cb74fc058882e8648a"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "aaa"},
-//		},
-//		{
-//			Address: common.HexToAddress("289d485d9771714cce91d3393d764e1311907acc"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "zzz"},
-//		},
-//	}
-//	for _, a := range accs {
-//		cache.Add(a)
-//	}
-//	// Add some of them twice to check that they don't get reinserted.
-//	cache.Add(accs[0])
-//	cache.Add(accs[2])
-//
-//	// Check that the account list is sorted by filename.
-//	wantAccounts := make([]accounts.Account, len(accs))
-//	copy(wantAccounts, accs)
-//	sort.Sort(accountsByURL(wantAccounts))
-//	list := cache.Accounts()
-//	if !reflect.DeepEqual(list, wantAccounts) {
-//		t.Fatalf("got accounts: %s\nwant %s", spew.Sdump(accs), spew.Sdump(wantAccounts))
-//	}
-//	for _, a := range accs {
-//		if !cache.HasAddress(a.Address) {
-//			t.Errorf("expected hasAccount(%x) to return true", a.Address)
-//		}
-//	}
-//	if cache.HasAddress(common.HexToAddress("fd9bd350f08ee3c0c19b85a8e16114a11a60aa4e")) {
-//		t.Errorf("expected hasAccount(%x) to return false", common.HexToAddress("fd9bd350f08ee3c0c19b85a8e16114a11a60aa4e"))
-//	}
-//
-//	// Delete a few keys from the cache.
-//	for i := 0; i < len(accs); i += 2 {
-//		cache.Delete(wantAccounts[i])
-//	}
-//	cache.Delete(accounts.Account{Address: common.HexToAddress("fd9bd350f08ee3c0c19b85a8e16114a11a60aa4e"), URL: accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: "something"}})
-//
-//	// Check content again after deletion.
-//	wantAccountsAfterDelete := []accounts.Account{
-//		wantAccounts[1],
-//		wantAccounts[3],
-//		wantAccounts[5],
-//	}
-//	list = cache.Accounts()
-//	if !reflect.DeepEqual(list, wantAccountsAfterDelete) {
-//		t.Fatalf("got accounts after delete: %s\nwant %s", spew.Sdump(list), spew.Sdump(wantAccountsAfterDelete))
-//	}
-//	for _, a := range wantAccountsAfterDelete {
-//		if !cache.HasAddress(a.Address) {
-//			t.Errorf("expected hasAccount(%x) to return true", a.Address)
-//		}
-//	}
-//	if cache.HasAddress(wantAccounts[0].Address) {
-//		t.Errorf("expected hasAccount(%x) to return false", wantAccounts[0].Address)
-//	}
-//}
-//
-//func TestCacheFind(t *testing.T) {
-//	dir := filepath.Join("testdata", "dir")
-//	cache, _ := NewAccountCache(dir)
-//	cache.watcher.running = true // prevent unexpected reloads
-//
-//	accs := []accounts.Account{
-//		{
-//			Address: common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(dir, "a.key")},
-//		},
-//		{
-//			Address: common.HexToAddress("2cac1adea150210703ba75ed097ddfe24e14f213"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(dir, "b.key")},
-//		},
-//		{
-//			Address: common.HexToAddress("d49ff4eeb0b2686ed89c0fc0f2b6ea533ddbbd5e"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(dir, "c.key")},
-//		},
-//		{
-//			Address: common.HexToAddress("d49ff4eeb0b2686ed89c0fc0f2b6ea533ddbbd5e"),
-//			URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(dir, "c2.key")},
-//		},
-//	}
-//	for _, a := range accs {
-//		cache.Add(a)
-//	}
-//
-//	nomatchAccount := accounts.Account{
-//		Address: common.HexToAddress("f466859ead1932d743d622cb74fc058882e8648a"),
-//		URL:     accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Join(dir, "something")},
-//	}
-//	tests := []struct {
-//		Query      accounts.Account
-//		WantResult accounts.Account
-//		WantError  error
-//	}{
-//		// by address
-//		{Query: accounts.Account{Address: accs[0].Address}, WantResult: accs[0]},
-//		// by file
-//		{Query: accounts.Account{URL: accs[0].URL}, WantResult: accs[0]},
-//		// by basename
-//		{Query: accounts.Account{URL: accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Base(accs[0].URL.Path)}}, WantResult: accs[0]},
-//		// by file and address
-//		{Query: accs[0], WantResult: accs[0]},
-//		// ambiguous address, tie resolved by file
-//		{Query: accs[2], WantResult: accs[2]},
-//		// ambiguous address error
-//		{
-//			Query: accounts.Account{Address: accs[2].Address},
-//			WantError: &AmbiguousAddrError{
-//				URL:    accs[2].Address,
-//				Matches: []accounts.Account{accs[2], accs[3]},
-//			},
-//		},
-//		// no match error
-//		{Query: nomatchAccount, WantError: hashicorp.ErrNoMatch},
-//		{Query: accounts.Account{URL: nomatchAccount.URL}, WantError: hashicorp.ErrNoMatch},
-//		{Query: accounts.Account{URL: accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: filepath.Base(nomatchAccount.URL.Path)}}, WantError: hashicorp.ErrNoMatch},
-//		{Query: accounts.Account{Address: nomatchAccount.Address}, WantError: hashicorp.ErrNoMatch},
-//	}
-//	for i, test := range tests {
-//		a, err := cache.Find(test.Query)
-//		if !reflect.DeepEqual(err, test.WantError) {
-//			t.Errorf("test %d: error mismatch for query %v\ngot %q\nwant %q", i, test.Query, err, test.WantError)
-//			continue
-//		}
-//		if a != test.WantResult {
-//			t.Errorf("test %d: result mismatch for query %v\ngot %v\nwant %v", i, test.Query, a, test.WantResult)
-//			continue
-//		}
-//	}
-//}
-//
-//func waitForAccounts(wantAccounts []accounts.Account, ks *hashicorp.KeyStore) error {
-//	var list []accounts.Account
-//	for d := 200 * time.Millisecond; d < 16*time.Second; d *= 2 {
-//		list = ks.Accounts()
-//		if reflect.DeepEqual(list, wantAccounts) {
-//			// ks should have also received change notifications
-//			select {
-//			case <-ks.Changes:
-//			default:
-//				return fmt.Errorf("wasn't notified of new accounts")
-//			}
-//			return nil
-//		}
-//		time.Sleep(d)
-//	}
-//	return fmt.Errorf("\ngot  %v\nwant %v", list, wantAccounts)
-//}
-//
-//// TestUpdatedKeyfileContents tests that updating the contents of a keystore file
-//// is noticed by the watcher, and the account cache is updated accordingly
-//func TestUpdatedKeyfileContents(t *testing.T) {
-//	t.Parallel()
-//
-//	// Create a temporary kesytore to test with
-//	rand.Seed(time.Now().UnixNano())
-//	dir := filepath.Join(os.TempDir(), fmt.Sprintf("eth-keystore-watch-test-%d-%d", os.Getpid(), rand.Int()))
-//	ks := hashicorp.NewKeyStore(dir, hashicorp.LightScryptN, hashicorp.LightScryptP)
-//
-//	list := ks.Accounts()
-//	if len(list) > 0 {
-//		t.Error("initial account list not empty:", list)
-//	}
-//	time.Sleep(100 * time.Millisecond)
-//
-//	// Create the directory and copy a key file into it.
-//	os.MkdirAll(dir, 0700)
-//	defer os.RemoveAll(dir)
-//	file := filepath.Join(dir, "aaa")
-//
-//	// Place one of our testfiles in there
-//	if err := cp.CopyFile(file, cachetestAccounts[0].URL.Path); err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	// ks should see the account.
-//	wantAccounts := []accounts.Account{cachetestAccounts[0]}
-//	wantAccounts[0].URL = accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: file}
-//	if err := waitForAccounts(wantAccounts, ks); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//
-//	// needed so that modTime of `file` is different to its current value after forceCopyFile
-//	time.Sleep(1000 * time.Millisecond)
-//
-//	// Now replace file contents
-//	if err := forceCopyFile(file, cachetestAccounts[1].URL.Path); err != nil {
-//		t.Fatal(err)
-//		return
-//	}
-//	wantAccounts = []accounts.Account{cachetestAccounts[1]}
-//	wantAccounts[0].URL = accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: file}
-//	if err := waitForAccounts(wantAccounts, ks); err != nil {
-//		t.Errorf("First replacement failed")
-//		t.Error(err)
-//		return
-//	}
-//
-//	// needed so that modTime of `file` is different to its current value after forceCopyFile
-//	time.Sleep(1000 * time.Millisecond)
-//
-//	// Now replace file contents again
-//	if err := forceCopyFile(file, cachetestAccounts[2].URL.Path); err != nil {
-//		t.Fatal(err)
-//		return
-//	}
-//	wantAccounts = []accounts.Account{cachetestAccounts[2]}
-//	wantAccounts[0].URL = accounts.URL{Scheme: hashicorp.KeyStoreScheme, Path: file}
-//	if err := waitForAccounts(wantAccounts, ks); err != nil {
-//		t.Errorf("Second replacement failed")
-//		t.Error(err)
-//		return
-//	}
-//
-//	// needed so that modTime of `file` is different to its current value after ioutil.WriteFile
-//	time.Sleep(1000 * time.Millisecond)
-//
-//	// Now replace file contents with crap
-//	if err := ioutil.WriteFile(file, []byte("foo"), 0644); err != nil {
-//		t.Fatal(err)
-//		return
-//	}
-//	if err := waitForAccounts([]accounts.Account{}, ks); err != nil {
-//		t.Errorf("Emptying account file failed")
-//		t.Error(err)
-//		return
-//	}
-//}
-//
-//// forceCopyFile is like cp.CopyFile, but doesn't complain if the destination exists.
-//func forceCopyFile(dst, src string) error {
-//	data, err := ioutil.ReadFile(src)
-//	if err != nil {
-//		return err
-//	}
-//	return ioutil.WriteFile(dst, data, 0644)
-//}
-//
-//const (
-//	veryLightScryptN = 2
-//	veryLightScryptP = 1
-//)
-//
-//func TmpKeyStore(t *testing.T, encrypted bool) (string, *hashicorp.KeyStore) {
-//	d, err := ioutil.TempDir("", "eth-keystore-test")
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	new := hashicorp.NewPlaintextKeyStore
-//	if encrypted {
-//		new = func(kd string) *hashicorp.KeyStore { return hashicorp.NewKeyStore(kd, veryLightScryptN, veryLightScryptP) }
-//	}
-//	return d, new(d)
-//}
+import (
+	"fmt"
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/utils"
+	"github.com/pborman/uuid"
+	"github.com/stretchr/testify/require"
+	"io/ioutil"
+	"os"
+	"reflect"
+	"sort"
+	"testing"
+	"time"
+)
+
+var (
+	initialAccounts = []accounts.Account{
+		{
+			Address: common.HexToAddress("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
+			URL: accounts.URL{
+				Scheme: config.HashiScheme,
+				Path:   fmt.Sprintf("FOO@url/v1/engine/data/engineacct?version=2#addr=4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
+			},
+		},
+		{
+			Address: common.HexToAddress("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+			URL: accounts.URL{
+				Scheme: config.HashiScheme,
+				Path:   fmt.Sprintf("FOO@url/v1/kv/data/kvacct?version=1#addr=dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+			},
+		},
+	}
+)
+
+func TestCache_InitialReload_OrderByUrl(t *testing.T) {
+	// t.Parallel()
+
+	// create temporary acctconfigdir
+	dir, err := ioutil.TempDir("../test/data", "acctconfig")
+	require.NoError(t, err)
+
+	// add 2 acctconfigs to acctconfigdir
+	if _, err := utils.AddTempFile(dir, utils.Acct1JsonConfig); err != nil {
+		os.RemoveAll(dir)
+		t.Fatal(err)
+	}
+	if _, err := utils.AddTempFile(dir, utils.Acct2JsonConfig); err != nil {
+		os.RemoveAll(dir)
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	vaulturl := "http://url"
+	cache, _ := NewAccountCache(dir, vaulturl)
+	accts := cache.Accounts()
+
+	if !reflect.DeepEqual(accts, initialAccounts) {
+		t.Fatalf("got initial accounts: %+v\nwant %+v", accts, initialAccounts)
+	}
+}
+
+func TestCache_AddDeletePreserveOrder(t *testing.T) {
+	// t.Parallel()
+
+	// create temporary acctconfigdir
+	dir, err := ioutil.TempDir("../test/data", "acctconfig")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+	vaulturl := "http://url"
+	cache, _ := NewAccountCache(dir, vaulturl)
+
+	cache.watcher.running = true // prevent unexpected reloads
+
+	accs := []accounts.Account{
+		{
+			Address: common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"),
+			URL:     accounts.URL{Scheme: config.HashiScheme, Path: "url:1/path"},
+		},
+		{
+			Address: common.HexToAddress("2cac1adea150210703ba75ed097ddfe24e14f213"),
+			URL:     accounts.URL{Scheme: config.HashiScheme, Path: "ggg:43/something"},
+		},
+		{
+			Address: common.HexToAddress("8bda78331c916a08481428e4b07c96d3e916d165"),
+			URL:     accounts.URL{Scheme: config.HashiScheme, Path: "BAR@aah:11/secret/path"},
+		},
+		{
+			Address: common.HexToAddress("d49ff4eeb0b2686ed89c0fc0f2b6ea533ddbbd5e"),
+			URL:     accounts.URL{Scheme: config.HashiScheme, Path: "AUTH@vaulturl:8080/v1/kv/data/secret?version=1#addr=something"},
+		},
+		{
+			Address: common.HexToAddress("7ef5a6135f1fd6a02593eedc869c6d41d934aef8"),
+			URL:     accounts.URL{Scheme: config.HashiScheme, Path: "url:2/path"},
+		},
+		{
+			Address: common.HexToAddress("f466859ead1932d743d622cb74fc058882e8648a"),
+			URL:     accounts.URL{Scheme: config.HashiScheme, Path: "ENV@addr/1"},
+		},
+		{
+			Address: common.HexToAddress("289d485d9771714cce91d3393d764e1311907acc"),
+			URL:     accounts.URL{Scheme: config.HashiScheme, Path: "zzz/secret/data"},
+		},
+	}
+
+	files := make([]string, len(accs))
+	for i := range accs {
+		files[i] = fmt.Sprintf("filepath%v", i)
+	}
+
+	for i, a := range accs {
+		cache.Add(a, files[i])
+	}
+	// Add some of them twice to check that they don't get reinserted.
+	cache.Add(accs[0], files[0])
+	cache.Add(accs[2], files[2])
+
+	// Check that the account list is sorted by filename.
+	wantAccounts := make([]accounts.Account, len(accs))
+	copy(wantAccounts, accs)
+	sort.Sort(accountsByURL(wantAccounts))
+	list := cache.Accounts()
+	if !reflect.DeepEqual(list, wantAccounts) {
+		t.Fatalf("got accounts: %+v\nwant %+v", accs, wantAccounts)
+	}
+
+	// check existing accts show up with HasAddress
+	for _, a := range accs {
+		if !cache.HasAddress(a.Address) {
+			t.Errorf("expected hasAccount(%x) to return true", a.Address)
+		}
+	}
+
+	// check nonexistent accts do not show up with HasAddress
+	if cache.HasAddress(common.HexToAddress("fd9bd350f08ee3c0c19b85a8e16114a11a60aa4e")) {
+		t.Errorf("expected hasAccount(%x) to return false", common.HexToAddress("fd9bd350f08ee3c0c19b85a8e16114a11a60aa4e"))
+	}
+
+	// Delete a few keys from the cache.
+	for i := 0; i < len(accs); i += 2 {
+		cache.deleteByFile(files[i])
+	}
+	// delete a nonexistent acct
+	cache.deleteByFile("notanacctfile")
+
+	// Check content again after deletion.
+	wantAccountsAfterDelete := []accounts.Account{
+		accs[1],
+		accs[3],
+		accs[5],
+	}
+
+	sortedWantAccountsAfterDelete := make([]accounts.Account, len(wantAccountsAfterDelete))
+	copy(sortedWantAccountsAfterDelete, wantAccountsAfterDelete)
+	sort.Sort(accountsByURL(sortedWantAccountsAfterDelete))
+
+	list = cache.Accounts()
+	if !reflect.DeepEqual(list, sortedWantAccountsAfterDelete) {
+		t.Fatalf("got accounts after delete: %+v\nwant %+v", list, sortedWantAccountsAfterDelete)
+	}
+	for _, a := range sortedWantAccountsAfterDelete {
+		if !cache.HasAddress(a.Address) {
+			t.Errorf("expected hasAccount(%x) to return true", a.Address)
+		}
+	}
+	if cache.HasAddress(accs[0].Address) {
+		t.Errorf("expected hasAccount(%x) to return false", wantAccounts[0].Address)
+	}
+}
+
+func TestCache_Find(t *testing.T) {
+	// t.Parallel()
+
+	// create temporary acctconfigdir
+	dir, err := ioutil.TempDir("../test/data", "acctconfig")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+	vaulturl := "http://url"
+	cache, _ := NewAccountCache(dir, vaulturl)
+
+	cache.watcher.running = true // prevent unexpected reloads
+
+	accs := []accounts.Account{
+		{
+			Address: common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"),
+			URL:     accounts.URL{Scheme: config.HashiScheme, Path: "url/1"},
+		},
+		{
+			Address: common.HexToAddress("2cac1adea150210703ba75ed097ddfe24e14f213"),
+			URL:     accounts.URL{Scheme: config.HashiScheme, Path: "url/2"},
+		},
+		{
+			Address: common.HexToAddress("d49ff4eeb0b2686ed89c0fc0f2b6ea533ddbbd5e"),
+			URL:     accounts.URL{Scheme: config.HashiScheme, Path: "url/3"},
+		},
+		{
+			Address: common.HexToAddress("d49ff4eeb0b2686ed89c0fc0f2b6ea533ddbbd5e"),
+			URL:     accounts.URL{Scheme: config.HashiScheme, Path: "url/4"},
+		},
+	}
+	for i, a := range accs {
+		cache.Add(a, fmt.Sprintf("filepath%v", i))
+	}
+
+	nomatchAccount := accounts.Account{
+		Address: common.HexToAddress("f466859ead1932d743d622cb74fc058882e8648a"),
+		URL:     accounts.URL{Scheme: config.HashiScheme, Path: "url/5"},
+	}
+	tests := []struct {
+		Query      accounts.Account
+		WantResult accounts.Account
+		WantError  error
+	}{
+		// by address
+		{Query: accounts.Account{Address: accs[0].Address}, WantResult: accs[0]},
+		// by file
+		{Query: accounts.Account{URL: accs[0].URL}, WantResult: accs[0]},
+		// by file and address
+		{Query: accs[0], WantResult: accs[0]},
+		// ambiguous address, tie resolved by file
+		{Query: accs[2], WantResult: accs[2]},
+		// ambiguous address error
+		{
+			Query: accounts.Account{Address: accs[2].Address},
+			WantError: &AmbiguousAddrError{
+				Addr:    accs[2].Address,
+				Matches: []accounts.Account{accs[2], accs[3]},
+			},
+		},
+		// no match error
+		{Query: nomatchAccount, WantError: ErrNoMatch},
+		{Query: accounts.Account{URL: nomatchAccount.URL}, WantError: ErrNoMatch},
+		{Query: accounts.Account{Address: nomatchAccount.Address}, WantError: ErrNoMatch},
+	}
+	for i, test := range tests {
+		a, err := cache.Find(test.Query)
+		if !reflect.DeepEqual(err, test.WantError) {
+			t.Errorf("test %d: error mismatch for query %v\ngot %q\nwant %q", i, test.Query, err, test.WantError)
+			continue
+		}
+		if a != test.WantResult {
+			t.Errorf("test %d: result mismatch for query %v\ngot %v\nwant %v", i, test.Query, a, test.WantResult)
+			continue
+		}
+	}
+}
+
+func TestCache_WatchForNewFiles(t *testing.T) {
+	// t.Parallel()
+
+	// create temporary acctconfigdir
+	dir, err := ioutil.TempDir("../test/data", "acctconfig")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	// start the cache with no files in the dir
+	vaulturl := "http://url"
+	cache, _ := NewAccountCache(dir, vaulturl)
+	accts := cache.Accounts()
+	require.Len(t, accts, 0)
+
+	// add acctconfigs to acctconfigdir
+	_, err = utils.AddTempFile(dir, utils.Acct1JsonConfig)
+	require.NoError(t, err)
+	_, err = utils.AddTempFile(dir, utils.Acct2JsonConfig)
+	require.NoError(t, err)
+
+	// add an invalid acctconfig (addr is not valid) - this should not be added to the cache
+	invalidAcctJsonConfig := []byte(`{
+  "address": "invalid",
+  "vaultsecret": {
+    "pathparams": {
+      "secretenginepath": "engine",
+      "secretpath": "engineacct",
+      "secretversion": 2
+    },
+    "authid": "FOO"
+  },
+  "id": "d88bd481-4db4-4ee5-8ea6-84042d2fb0cf",
+  "version": 1
+}`)
+
+	_, err = utils.AddTempFile(dir, invalidAcctJsonConfig)
+	require.NoError(t, err)
+
+	time.Sleep(2500 * time.Millisecond)
+
+	accts = cache.Accounts()
+	require.Len(t, accts, 2)
+
+	if !reflect.DeepEqual(accts, initialAccounts) {
+		t.Fatalf("got initial accounts: %+v\nwant %+v", accts, initialAccounts)
+	}
+}
+
+func TestCache_WatchForFileDeletes(t *testing.T) {
+	// t.Parallel()
+
+	// create temporary acctconfigdir
+	dir, err := ioutil.TempDir("../test/data", "acctconfig")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	// add acctconfigs to acctconfigdir
+	file, err := utils.AddTempFile(dir, utils.Acct1JsonConfig)
+	require.NoError(t, err)
+
+	// start the cache with no files in the dir
+	vaulturl := "http://url"
+	cache, _ := NewAccountCache(dir, vaulturl)
+	accts := cache.Accounts()
+	require.Len(t, accts, 1)
+	require.Contains(t, accts, initialAccounts[1])
+
+	// delete the file and check the account is removed from the cache
+	err = os.Remove(file)
+	require.NoError(t, err)
+	time.Sleep(2500 * time.Millisecond)
+
+	accts = cache.Accounts()
+	require.Len(t, accts, 0)
+}
+
+// TestUpdatedKeyfileContents tests that updating the contents of a keystore file
+// is noticed by the watcher, and the account cache is updated accordingly
+func TestCache_WatchForFileUpdates(t *testing.T) {
+	// t.Parallel()
+
+	// create temporary acctconfigdir
+	dir, err := ioutil.TempDir("../test/data", "acctconfig")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	// add acctconfigs to acctconfigdir
+	file, err := utils.AddTempFile(dir, utils.Acct1JsonConfig)
+	require.NoError(t, err)
+
+	vaulturl := "http://url"
+	cache, _ := NewAccountCache(dir, vaulturl)
+	accts := cache.Accounts()
+	require.Contains(t, accts, initialAccounts[1])
+
+	// update the file and check that the account in the cache is replaced
+	err = ioutil.WriteFile(file, utils.Acct2JsonConfig, 0644)
+	require.NoError(t, err)
+	time.Sleep(2500 * time.Millisecond)
+	accts = cache.Accounts()
+	require.Contains(t, accts, initialAccounts[0])
+
+	// update the file to contain invalid contents and check that there are no accts in the cache
+	err = ioutil.WriteFile(file, []byte("invalid"), 0644)
+	require.NoError(t, err)
+	time.Sleep(2500 * time.Millisecond)
+	accts = cache.Accounts()
+	require.Len(t, accts, 0)
+}
+
+func TestCache_WatchNoDir(t *testing.T) {
+	// t.Parallel()
+
+	dir := fmt.Sprintf("../test/data/acctconfig%v", uuid.New())
+
+	// start the cache with non-existent dir
+	vaulturl := "http://url"
+	cache, _ := NewAccountCache(dir, vaulturl)
+	accts := cache.Accounts()
+	require.Len(t, accts, 0)
+
+	// create the dir and add acctconfig
+	err := os.Mkdir(dir, 0744)
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	_, err = utils.AddTempFile(dir, utils.Acct1JsonConfig)
+	require.NoError(t, err)
+
+	time.Sleep(2500 * time.Millisecond)
+
+	accts = cache.Accounts()
+	require.Len(t, accts, 1)
+	require.Contains(t, accts, initialAccounts[1])
+}
+
+func TestCache_CloseStopsWatch(t *testing.T) {
+	// t.Parallel()
+
+	// create temporary acctconfigdir
+	dir, err := ioutil.TempDir("../test/data", "acctconfig")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	// start the cache with no files in the dir
+	vaulturl := "http://url"
+	cache, _ := NewAccountCache(dir, vaulturl)
+	accts := cache.Accounts()
+	require.Len(t, accts, 0)
+
+	// close the cache
+	cache.Close()
+
+	// add acctconfigs to acctconfigdir
+	_, err = utils.AddTempFile(dir, utils.Acct1JsonConfig)
+	require.NoError(t, err)
+	_, err = utils.AddTempFile(dir, utils.Acct2JsonConfig)
+	require.NoError(t, err)
+
+	time.Sleep(2500 * time.Millisecond)
+
+	//check that the accounts are not added to the cache
+	cache.watcher.running = true // prevent unexpected reloads
+	accts = cache.Accounts()
+	require.Len(t, accts, 0)
+}

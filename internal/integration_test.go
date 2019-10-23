@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/cache"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/utils"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -173,11 +174,11 @@ func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (Initia
 	}
 
 	// add 2 acctconfigs to acctconfigdir
-	if _, err := addTempFile(dir, acct1JsonConfig); err != nil {
+	if _, err := utils.AddTempFile(dir, utils.Acct1JsonConfig); err != nil {
 		toCloseAndDelete()
 		t.Fatal(err)
 	}
-	if _, err := addTempFile(dir, acct2JsonConfig); err != nil {
+	if _, err := utils.AddTempFile(dir, utils.Acct2JsonConfig); err != nil {
 		toCloseAndDelete()
 		t.Fatal(err)
 	}
@@ -277,7 +278,7 @@ func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T
 	}
 
 	// add another config file and check that the corresponding event is streamed to caller
-	filepath, err := addTempFile(dir, acct3JsonConfig)
+	filepath, err := utils.AddTempFile(dir, utils.Acct3JsonConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,7 +300,7 @@ func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T
 
 	// edit the file.  The old wallet should be dropped and the updated wallet added. Check that both these events are streamed to the caller.
 	// (Note the order of the events received __IS__ dependent on the contents of the files.  Wallets are added or dropped in URL order so make sure that the URL of the updated wallet will be alphabetically after that of the original wallet.)
-	if err := ioutil.WriteFile(filepath, acct4JsonConfig, 0644); err != nil {
+	if err := ioutil.WriteFile(filepath, utils.Acct4JsonConfig, 0644); err != nil {
 		t.Fatalf("unable to update file %v: %v", filepath, err)
 	}
 	select {
@@ -379,11 +380,11 @@ func Test_UnlockAccountsAtStartup(t *testing.T) {
 		err    error
 	)
 
-	status, err = statusDelegate(t, &impl, vaultUrl, acct1JsonConfig)
+	status, err = statusDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig)
 	require.NoError(t, err)
 	require.Equal(t, "Unlocked", status, "account should be unlocked")
 
-	status, err = statusDelegate(t, &impl, vaultUrl, acct2JsonConfig)
+	status, err = statusDelegate(t, &impl, vaultUrl, utils.Acct2JsonConfig)
 	require.NoError(t, err)
 	require.Equal(t, "Unlocked", status, "account should be unlocked")
 }
@@ -422,11 +423,11 @@ func Test_UnlockOneAccountAtStartup(t *testing.T) {
 		err    error
 	)
 
-	status, err = statusDelegate(t, &impl, vaultUrl, acct1JsonConfig)
+	status, err = statusDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig)
 	require.NoError(t, err)
 	require.Equal(t, "Locked", status, "account should be locked")
 
-	status, err = statusDelegate(t, &impl, vaultUrl, acct2JsonConfig)
+	status, err = statusDelegate(t, &impl, vaultUrl, utils.Acct2JsonConfig)
 	require.NoError(t, err)
 	require.Equal(t, "Unlocked", status, "account should be unlocked")
 }
@@ -465,11 +466,11 @@ func Test_UnlockNoAccountsAtStartup(t *testing.T) {
 		err    error
 	)
 
-	status, err = statusDelegate(t, &impl, vaultUrl, acct1JsonConfig)
+	status, err = statusDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig)
 	require.NoError(t, err)
 	require.Equal(t, "Locked", status, "account should be locked")
 
-	status, err = statusDelegate(t, &impl, vaultUrl, acct2JsonConfig)
+	status, err = statusDelegate(t, &impl, vaultUrl, utils.Acct2JsonConfig)
 	require.NoError(t, err)
 	require.Equal(t, "Locked", status, "account should be locked")
 }
@@ -500,8 +501,8 @@ func Test_Contains(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	require.True(t, containsDelegate(t, &impl, vaultUrl, acct1JsonConfig))
-	require.True(t, containsDelegate(t, &impl, vaultUrl, acct2JsonConfig))
+	require.True(t, containsDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig))
+	require.True(t, containsDelegate(t, &impl, vaultUrl, utils.Acct2JsonConfig))
 }
 
 func Test_Accounts(t *testing.T) {
@@ -530,7 +531,7 @@ func Test_Accounts(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	accts := accountsDelegate(t, &impl, vaultUrl, acct1JsonConfig)
+	accts := accountsDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig)
 	require.Len(t, accts, 1)
 	require.Equal(t, common.Bytes2Hex(accts[0].Address), "dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 }
@@ -574,37 +575,37 @@ func Test_SignHashAndUnlocking(t *testing.T) {
 	require.NoError(t, err)
 
 	// manually lock the account
-	err = lockDelegate(&impl, acct1JsonConfig)
+	err = lockDelegate(&impl, utils.Acct1JsonConfig)
 	require.NoError(t, err)
 
 	// signHash fails as acct locked
-	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	_, err = signHashDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signHashWithPassphrase succeeds as it unlocks the acct
-	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign, false)
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
 
 	// signHash fails as signHashWithPassphrase only unlocks the acct for the duration of the call
-	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	_, err = signHashDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
-	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 100*time.Millisecond, false)
+	err = timedUnlockDelegate(&impl, vaultUrl, utils.Acct1JsonConfig, 100*time.Millisecond, false)
 	require.NoError(t, err)
 
 	// signHash succeeds as acct unlocked
-	got, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signHashDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
 
 	// signHashWithPassphrase succeeds when acct is already unlocked
-	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign, false)
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
@@ -613,26 +614,26 @@ func Test_SignHashAndUnlocking(t *testing.T) {
 	time.Sleep(250 * time.Millisecond)
 
 	// signHash fails after unlock expires
-	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	_, err = signHashDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signHashWithPassphrase succeeds after acct is re-locked
-	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign, false)
+	got, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
 
 	// unlock the account for a long period
-	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 100*time.Second, false)
+	err = timedUnlockDelegate(&impl, vaultUrl, utils.Acct1JsonConfig, 100*time.Second, false)
 	require.NoError(t, err)
 
 	// override the unlock to be for a shorter duration
-	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 100*time.Millisecond, false)
+	err = timedUnlockDelegate(&impl, vaultUrl, utils.Acct1JsonConfig, 100*time.Millisecond, false)
 	require.NoError(t, err)
 
 	// signHash succeeds as acct unlocked
-	got, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signHashDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
@@ -641,20 +642,20 @@ func Test_SignHashAndUnlocking(t *testing.T) {
 	time.Sleep(250 * time.Millisecond)
 
 	// signHash fails after unlock expires
-	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	_, err = signHashDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
-	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 100*time.Millisecond, false)
+	err = timedUnlockDelegate(&impl, vaultUrl, utils.Acct1JsonConfig, 100*time.Millisecond, false)
 	require.NoError(t, err)
 
 	// override the unlock to be indefinite
-	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 0, false)
+	err = timedUnlockDelegate(&impl, vaultUrl, utils.Acct1JsonConfig, 0, false)
 	require.NoError(t, err)
 
 	// signHash succeeds as acct unlocked
-	got, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signHashDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
@@ -663,17 +664,17 @@ func Test_SignHashAndUnlocking(t *testing.T) {
 	time.Sleep(250 * time.Millisecond)
 
 	// signHash succeeds as acct unlocked
-	got, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	got, err = signHashDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got.Result)
 
 	// manually lock the account
-	err = lockDelegate(&impl, acct1JsonConfig)
+	err = lockDelegate(&impl, utils.Acct1JsonConfig)
 	require.NoError(t, err)
 
 	// signHash fails after manual lock
-	_, err = signHashDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign)
+	_, err = signHashDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 }
@@ -823,37 +824,37 @@ func signTxAndUnlockingTestCases(t *testing.T, impl *InitializerSignerClient, va
 	)
 
 	// manually lock the account
-	err = lockDelegate(impl, acct1JsonConfig)
+	err = lockDelegate(impl, utils.Acct1JsonConfig)
 	require.NoError(t, err)
 
 	// signTx fails as acct locked
-	_, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
+	_, err = signTxDelegate(t, impl, vaultUrl, utils.Acct1JsonConfig, toSign, chainID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signTxWithPassphrase succeeds as it unlocks the acct
-	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID, false)
+	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, utils.Acct1JsonConfig, toSign, chainID, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
 
 	// signTx fails as signTxWithPassphrase only unlocks the acct for the duration of the call
-	_, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
+	_, err = signTxDelegate(t, impl, vaultUrl, utils.Acct1JsonConfig, toSign, chainID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
-	err = timedUnlockDelegate(impl, vaultUrl, acct1JsonConfig, 100*time.Millisecond, false)
+	err = timedUnlockDelegate(impl, vaultUrl, utils.Acct1JsonConfig, 100*time.Millisecond, false)
 	require.NoError(t, err)
 
 	// signTx succeeds as acct unlocked
-	got, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
+	got, err = signTxDelegate(t, impl, vaultUrl, utils.Acct1JsonConfig, toSign, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
 
 	// signTxWithPassphrase succeeds when acct is already unlocked
-	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID, false)
+	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, utils.Acct1JsonConfig, toSign, chainID, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
@@ -862,26 +863,26 @@ func signTxAndUnlockingTestCases(t *testing.T, impl *InitializerSignerClient, va
 	time.Sleep(250 * time.Millisecond)
 
 	// signTx fails after unlock expires
-	_, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
+	_, err = signTxDelegate(t, impl, vaultUrl, utils.Acct1JsonConfig, toSign, chainID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// signTxWithPassphrase succeeds after acct is re-locked
-	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID, false)
+	got, err = signTxWithPassphraseDelegate(t, impl, vaultUrl, utils.Acct1JsonConfig, toSign, chainID, false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
 
 	// unlock the account for a long period
-	err = timedUnlockDelegate(impl, vaultUrl, acct1JsonConfig, 100*time.Second, false)
+	err = timedUnlockDelegate(impl, vaultUrl, utils.Acct1JsonConfig, 100*time.Second, false)
 	require.NoError(t, err)
 
 	// override the unlock to be for a shorter duration
-	err = timedUnlockDelegate(impl, vaultUrl, acct1JsonConfig, 100*time.Millisecond, false)
+	err = timedUnlockDelegate(impl, vaultUrl, utils.Acct1JsonConfig, 100*time.Millisecond, false)
 	require.NoError(t, err)
 
 	// signTx succeeds as acct unlocked
-	got, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
+	got, err = signTxDelegate(t, impl, vaultUrl, utils.Acct1JsonConfig, toSign, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
@@ -890,20 +891,20 @@ func signTxAndUnlockingTestCases(t *testing.T, impl *InitializerSignerClient, va
 	time.Sleep(250 * time.Millisecond)
 
 	// signTx fails after unlock expires
-	_, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
+	_, err = signTxDelegate(t, impl, vaultUrl, utils.Acct1JsonConfig, toSign, chainID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 
 	// unlock the account for a short period
-	err = timedUnlockDelegate(impl, vaultUrl, acct1JsonConfig, 100*time.Millisecond, false)
+	err = timedUnlockDelegate(impl, vaultUrl, utils.Acct1JsonConfig, 100*time.Millisecond, false)
 	require.NoError(t, err)
 
 	// override the unlock to be indefinite
-	err = timedUnlockDelegate(impl, vaultUrl, acct1JsonConfig, 0, false)
+	err = timedUnlockDelegate(impl, vaultUrl, utils.Acct1JsonConfig, 0, false)
 	require.NoError(t, err)
 
 	// signTx succeeds as acct unlocked
-	got, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
+	got, err = signTxDelegate(t, impl, vaultUrl, utils.Acct1JsonConfig, toSign, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
@@ -912,17 +913,17 @@ func signTxAndUnlockingTestCases(t *testing.T, impl *InitializerSignerClient, va
 	time.Sleep(250 * time.Millisecond)
 
 	// signTx succeeds as acct unlocked
-	got, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
+	got, err = signTxDelegate(t, impl, vaultUrl, utils.Acct1JsonConfig, toSign, chainID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equal(t, want, got)
 
 	// manually lock the account
-	err = lockDelegate(impl, acct1JsonConfig)
+	err = lockDelegate(impl, utils.Acct1JsonConfig)
 	require.NoError(t, err)
 
 	// signTx fails after manual lock
-	_, err = signTxDelegate(t, impl, vaultUrl, acct1JsonConfig, toSign, chainID)
+	_, err = signTxDelegate(t, impl, vaultUrl, utils.Acct1JsonConfig, toSign, chainID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), manager.ErrLocked.Error())
 }
@@ -954,29 +955,29 @@ func Test_UnknownAccount(t *testing.T) {
 	defer toClose()
 
 	// status fails
-	_, err := statusDelegate(t, &impl, vaultUrl, acct4JsonConfig)
+	_, err := statusDelegate(t, &impl, vaultUrl, utils.Acct4JsonConfig)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
 
 	// unlock fails
-	err = timedUnlockDelegate(&impl, vaultUrl, acct4JsonConfig, 0, false)
+	err = timedUnlockDelegate(&impl, vaultUrl, utils.Acct4JsonConfig, 0, false)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
 
 	// lock fails
-	err = lockDelegate(&impl, acct4JsonConfig)
+	err = lockDelegate(&impl, utils.Acct4JsonConfig)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
 
 	// signHashWithPassphrase fails
 	toSign := crypto.Keccak256([]byte("to sign"))
-	_, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct4JsonConfig, toSign, false)
+	_, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, utils.Acct4JsonConfig, toSign, false)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
 
 	// signTxWithPassphrase fails
 	toSignTx := new(types.Transaction)
-	_, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, acct4JsonConfig, toSignTx, nil, false)
+	_, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, utils.Acct4JsonConfig, toSignTx, nil, false)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), accounts.ErrUnknownWallet.Error())
 }
@@ -1010,7 +1011,7 @@ func Test_AmbiguousAccount(t *testing.T) {
 	var err error
 
 	// add another accountconfigfile that has the same address but different path params to give a different account/wallet url.  This will result in the plugin account manager having the same address loaded from two different locations
-	_, err = addTempFile(dir, acct1JsonConfigDiffPathParams)
+	_, err = utils.AddTempFile(dir, utils.Acct1JsonConfigDiffPathParams)
 	require.NoError(t, err)
 
 	// wait to give the account manager time to recognise the filesystem change
@@ -1018,31 +1019,31 @@ func Test_AmbiguousAccount(t *testing.T) {
 
 	// unlock
 	// fails if account URL not provided
-	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 0, false)
+	err = timedUnlockDelegate(&impl, vaultUrl, utils.Acct1JsonConfig, 0, false)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), cache.AmbiguousAddrMsg)
 	// succeeds if account URL provided
-	err = timedUnlockDelegate(&impl, vaultUrl, acct1JsonConfig, 0, true)
+	err = timedUnlockDelegate(&impl, vaultUrl, utils.Acct1JsonConfig, 0, true)
 	require.NoError(t, err)
 
 	// signHashWithPassphrase
 	// fails if account URL not provided
 	toSign := crypto.Keccak256([]byte("to sign"))
-	_, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign, false)
+	_, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign, false)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), cache.AmbiguousAddrMsg)
 	// succeeds if account URL provided
-	_, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSign, true)
+	_, err = signHashWithPassphraseDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSign, true)
 	require.NoError(t, err)
 
 	// signTxWithPassphrase
 	// fails if account URL not provided
 	toSignTx := new(types.Transaction)
-	_, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSignTx, nil, false)
+	_, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSignTx, nil, false)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), cache.AmbiguousAddrMsg)
 	// succeeds if account URL provided
-	_, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, acct1JsonConfig, toSignTx, nil, true)
+	_, err = signTxWithPassphraseDelegate(t, &impl, vaultUrl, utils.Acct1JsonConfig, toSignTx, nil, true)
 	require.NoError(t, err)
 }
 

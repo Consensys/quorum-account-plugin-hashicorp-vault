@@ -25,9 +25,7 @@ import (
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"log"
 	"os"
-	"path/filepath"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -172,10 +170,6 @@ func (ac *AccountCache) Find(a accounts.Account) (accounts.Account, error) {
 		matches = ac.byAddr[a.Address]
 	}
 	if a.URL.Path != "" {
-		// If only the basename is specified, complete the path.
-		if !strings.ContainsRune(a.URL.Path, filepath.Separator) {
-			a.URL.Path = filepath.Join(ac.keydir, a.URL.Path)
-		}
 		for i := range matches {
 			if matches[i].URL == a.URL {
 				return matches[i], nil

@@ -3,7 +3,8 @@ module github.com/goquorum/quorum-plugin-hashicorp-account-store
 require (
 	github.com/aristanetworks/goarista v0.0.0-20190924011532-60b7b74727fd // indirect
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3 // indirect
-	github.com/cespare/cp v1.1.1 // indirect
+	github.com/cespare/cp v1.1.1
+	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.7.1
 	github.com/ethereum/go-ethereum v0.0.0
 	github.com/go-stack/stack v1.8.0 // indirect
