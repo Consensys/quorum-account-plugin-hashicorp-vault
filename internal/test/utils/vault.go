@@ -4,6 +4,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"fmt"
+	"github.com/hashicorp/vault/sdk/helper/consts"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -14,13 +16,11 @@ type PathHandler struct {
 	Handler http.HandlerFunc
 }
 
-func SetupMockTLSVaultServer(handlers ...PathHandler) (*httptest.Server, error) {
+func SetupMockTLSVaultServer(caCert, serverCert, serverKey string, handlers ...PathHandler) (*httptest.Server, error) {
 	var vaultServer *httptest.Server
 
 	if len(handlers) == 0 {
 		return nil, errors.New("no handlers defined")
-	} else if len(handlers) == 1 {
-		vaultServer = httptest.NewUnstartedServer(handlers[0].Handler)
 	} else {
 		mux := http.NewServeMux()
 		for i := range handlers {
@@ -30,7 +30,7 @@ func SetupMockTLSVaultServer(handlers ...PathHandler) (*httptest.Server, error) 
 	}
 
 	// read TLS certs
-	rootCert, err := ioutil.ReadFile(CaCert)
+	rootCert, err := ioutil.ReadFile(caCert)
 	if err != nil {
 		return nil, err
 	}
@@ -65,10 +65,31 @@ func SetupMockTLSVaultServer(handlers ...PathHandler) (*httptest.Server, error) 
 	return vaultServer, nil
 }
 
-const (
-	CaCert     = "test/data/tls/caRoot.pem"
-	ClientCert = "test/data/tls/quorum-client-chain.pem"
-	ClientKey  = "test/data/tls/quorum-client.key"
-	serverCert = "test/data/tls/localhost-with-san-chain.pem"
-	serverKey  = "test/data/tls/localhost-with-san.key"
-)
+func SetupMockVaultServer(handlers ...PathHandler) (*httptest.Server, error) {
+	var vaultServer *httptest.Server
+
+	if len(handlers) == 0 {
+		return nil, errors.New("no handlers defined")
+	} else {
+		mux := http.NewServeMux()
+		for i := range handlers {
+			mux.HandleFunc(handlers[i].Path, handlers[i].Handler)
+		}
+		vaultServer = httptest.NewServer(mux)
+	}
+
+	return vaultServer, nil
+}
+
+func RequireRequestIsAuthenticated(r *http.Request, token string) error {
+	header := map[string][]string(r.Header)
+	requestTokens := header[consts.AuthHeaderName]
+
+	if len(requestTokens) != 1 {
+		return fmt.Errorf("want 1 element in header[%v], got %v", consts.AuthHeaderName, len(requestTokens))
+	}
+	if token != requestTokens[0] {
+		return fmt.Errorf("incorrect auth token for request: want %v, got %v", token, requestTokens[0])
+	}
+	return nil
+}

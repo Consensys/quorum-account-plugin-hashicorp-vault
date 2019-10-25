@@ -223,6 +223,8 @@ type vaultClientManager struct {
 	clients       map[string]*authenticatedClient
 }
 
+// TODO(cjh) godoc
+
 func newVaultClientManager(config config.VaultConfig) (*vaultClientManager, error) {
 	clients := make(map[string]*authenticatedClient, len(config.Auth))
 	for _, auth := range config.Auth {

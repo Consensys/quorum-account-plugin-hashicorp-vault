@@ -58,3 +58,11 @@ func makeWalletUrl(scheme string, vaultUrl string, acctConfig config.AccountConf
 
 	return accounts.URL{Scheme: scheme, Path: wltPath}, nil
 }
+
+const (
+	caCert     = "test/data/tls/caRoot.pem"
+	clientCert = "test/data/tls/quorum-client-chain.pem"
+	clientKey  = "test/data/tls/quorum-client.key"
+	serverCert = "test/data/tls/localhost-with-san-chain.pem"
+	serverKey  = "test/data/tls/localhost-with-san.key"
+)

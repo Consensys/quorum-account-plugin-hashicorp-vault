@@ -12,7 +12,6 @@ import (
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/cache"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/utils"
-	"github.com/hashicorp/vault/sdk/helper/consts"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -35,13 +34,6 @@ var (
 	authToken               = "authToken"
 )
 
-func requireRequestIsAuthenticated(t *testing.T, r *http.Request, token string) {
-	header := map[string][]string(r.Header)
-	requestTokens := header[consts.AuthHeaderName]
-	require.Len(t, requestTokens, 1)
-	require.Equal(t, token, requestTokens[0])
-}
-
 func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (InitializerSignerClient, string, string, func()) {
 
 	authVaultHandler := utils.PathHandler{
@@ -56,7 +48,8 @@ func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (Initia
 	acct1VaultHandler := utils.PathHandler{
 		Path: "/v1/kv/data/kvacct",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
-			requireRequestIsAuthenticated(t, r, authToken)
+			err := utils.RequireRequestIsAuthenticated(r, authToken)
+			require.NoError(t, err)
 			vaultResponse := &api.Secret{
 				Data: map[string]interface{}{
 					"data": map[string]interface{}{
@@ -72,7 +65,8 @@ func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (Initia
 	acct2VaultHandler := utils.PathHandler{
 		Path: "/v1/engine/data/engineacct",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
-			requireRequestIsAuthenticated(t, r, authToken)
+			err := utils.RequireRequestIsAuthenticated(r, authToken)
+			require.NoError(t, err)
 			vaultResponse := &api.Secret{
 				Data: map[string]interface{}{
 					"data": map[string]interface{}{
@@ -88,7 +82,8 @@ func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (Initia
 	acctCreationVaultHandler := utils.PathHandler{
 		Path: "/v1/newengine/data/newpath",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
-			requireRequestIsAuthenticated(t, r, authToken)
+			err := utils.RequireRequestIsAuthenticated(r, authToken)
+			require.NoError(t, err)
 			switch r.Method {
 			case http.MethodPut: // account creation
 
@@ -148,7 +143,7 @@ func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (Initia
 		acct2VaultHandler,
 		acctCreationVaultHandler,
 	}
-	vault, err := utils.SetupMockTLSVaultServer(vaultHandlers...)
+	vault, err := utils.SetupMockTLSVaultServer(caCert, serverCert, serverKey, vaultHandlers...)
 	require.NoError(t, err, "unable to set up mock Vault")
 
 	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
@@ -231,9 +226,9 @@ func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -373,9 +368,9 @@ func Test_UnlockAccountsAtStartup(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           unlockOnStartup,
@@ -416,9 +411,9 @@ func Test_UnlockOneAccountAtStartup(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           unlockOnStartup,
@@ -459,9 +454,9 @@ func Test_UnlockNoAccountsAtStartup(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           unlockOnStartup,
@@ -499,9 +494,9 @@ func Test_Contains(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -529,9 +524,9 @@ func Test_Accounts(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -560,9 +555,9 @@ func Test_SignHashAndUnlocking(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -703,9 +698,9 @@ func Test_SignTxAndUnlocking_PrivateTransactions(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -751,9 +746,9 @@ func Test_SignTxAndUnlocking_PublicTransactions_EIP155(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -796,9 +791,9 @@ func Test_SignTxAndUnlocking_PublicTransactions_Homestead(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -952,9 +947,9 @@ func Test_UnknownAccount(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -1006,9 +1001,9 @@ func Test_AmbiguousAccount(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -1071,9 +1066,9 @@ func Test_NewAccount_CorrectCasValue(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -1178,9 +1173,9 @@ func Test_NewAccount_IncorrectCasValue(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -1222,9 +1217,9 @@ func Test_NewAccount_SkipCasCheck(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -1329,9 +1324,9 @@ func Test_ImportRawKey_CorrectCasValue(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -1437,9 +1432,9 @@ func Test_ImportRawKey_IncorrectCasValue(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
@@ -1482,9 +1477,9 @@ func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
 		Vaults: []config.VaultConfig{{
 			URL: "", // this will be populated once the mock vault server is started
 			TLS: config.TLS{
-				CaCert:     utils.CaCert,
-				ClientCert: utils.ClientCert,
-				ClientKey:  utils.ClientKey,
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
 			},
 			AccountConfigDir: "", // this will be populated once the mock vault server is started
 			Unlock:           "",
