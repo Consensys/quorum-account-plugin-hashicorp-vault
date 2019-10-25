@@ -2,22 +2,13 @@ package internal
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/utils"
-	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"testing"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
 	sproto "github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/utils"
 	"github.com/hashicorp/go-plugin"
-	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
 
@@ -45,83 +36,6 @@ func newInitializerSignerClient(cc *grpc.ClientConn) (interface{}, error) {
 		SignerClient:            signerClient,
 	}, nil
 }
-
-// set the given environment variables with their own names.  Caller should call returned function when finished to unset the env variables
-func setEnvironmentVariables(toSet ...string) func() {
-	for _, s := range toSet {
-		os.Setenv(s, s)
-	}
-
-	return func() {
-		for _, s := range toSet {
-			os.Unsetenv(s)
-		}
-	}
-}
-
-type pathHandler struct {
-	path    string
-	handler http.HandlerFunc
-}
-
-func newPathHandler(path string, handler http.HandlerFunc) pathHandler {
-	return pathHandler{
-		path:    path,
-		handler: handler,
-	}
-}
-
-func setupMockTLSVaultServer(t *testing.T, handlers ...pathHandler) *httptest.Server {
-	testrequire := require.New(t)
-
-	var vaultServer *httptest.Server
-
-	testrequire.NotZero(len(handlers))
-	if len(handlers) == 1 {
-		vaultServer = httptest.NewUnstartedServer(handlers[0].handler)
-	} else {
-		mux := http.NewServeMux()
-		for i := range handlers {
-			mux.HandleFunc(handlers[i].path, handlers[i].handler)
-		}
-		vaultServer = httptest.NewUnstartedServer(mux)
-	}
-
-	// read TLS certs
-	rootCert, err := ioutil.ReadFile(caCert)
-	testrequire.NoError(err)
-	certPool := x509.NewCertPool()
-	certPool.AppendCertsFromPEM(rootCert)
-
-	cert, err := ioutil.ReadFile(serverCert)
-	testrequire.NoError(err)
-
-	key, err := ioutil.ReadFile(serverKey)
-	testrequire.NoError(err)
-
-	keypair, err := tls.X509KeyPair(cert, key)
-	testrequire.NoError(err)
-
-	serverTlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{keypair},
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		ClientCAs:    certPool,
-	}
-
-	// add TLS config to server and start
-	vaultServer.TLS = serverTlsConfig
-	vaultServer.StartTLS()
-
-	return vaultServer
-}
-
-const (
-	caCert     = "test/data/tls/caRoot.pem"
-	clientCert = "test/data/tls/quorum-client-chain.pem"
-	clientKey  = "test/data/tls/quorum-client.key"
-	serverCert = "test/data/tls/localhost-with-san-chain.pem"
-	serverKey  = "test/data/tls/localhost-with-san.key"
-)
 
 func makeWalletUrl(scheme string, vaultUrl string, acctConfig config.AccountConfig) (accounts.URL, error) {
 	url, err := utils.ToUrl(vaultUrl)
