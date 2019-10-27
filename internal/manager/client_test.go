@@ -7,10 +7,10 @@ import (
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/utils"
 	"github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 const (
@@ -110,9 +110,9 @@ func TestNewAuthenticatedClient_InvalidApproleCredentials(t *testing.T) {
 			}
 
 			_, err := newAuthenticatedClient("", conf, config.TLS{})
+			unsetFn()
 
 			assert.EqualError(t, err, tt.wantErr.Error())
-			unsetFn()
 		})
 	}
 }
@@ -176,11 +176,14 @@ func TestNewAuthenticatedClient_Approle_NonDefaultApprolePath(t *testing.T) {
 					// check that the correct credentials are included in the login request
 					var body map[string]interface{}
 					err := json.NewDecoder(r.Body).Decode(&body)
-					require.NoError(t, err)
-					require.Contains(t, body, "role_id")
-					require.Equal(t, body["role_id"].(string), roleID)
-					require.Contains(t, body, "secret_id")
-					require.Equal(t, body["secret_id"].(string), secretID)
+					if assert.NoError(t, err) {
+						if assert.Contains(t, body, "role_id") {
+							assert.Equal(t, body["role_id"].(string), roleID)
+						}
+						if assert.Contains(t, body, "secret_id") {
+							assert.Equal(t, body["secret_id"].(string), secretID)
+						}
+					}
 
 					// respond to the login request
 					vaultResponse := &api.Secret{Auth: &api.SecretAuth{ClientToken: clientToken}}
@@ -195,7 +198,7 @@ func TestNewAuthenticatedClient_Approle_NonDefaultApprolePath(t *testing.T) {
 				Handler: func(w http.ResponseWriter, r *http.Request) {
 					// check that the correct credentials are included in the login request
 					err := utils.RequireRequestIsAuthenticated(r, clientToken)
-					require.NoError(t, err)
+					assert.NoError(t, err)
 				},
 			}
 
@@ -211,21 +214,27 @@ func TestNewAuthenticatedClient_Approle_NonDefaultApprolePath(t *testing.T) {
 					ClientKey:  clientKey,
 				}
 				vault, err = utils.SetupMockTLSVaultServer(caCert, serverCert, serverKey, handlers...)
-				require.NoError(t, err)
+				if err != nil {
+					unsetFn()
+				}
 			} else {
 				vault, err = utils.SetupMockVaultServer(handlers...)
-				require.NoError(t, err)
+				if err != nil {
+					unsetFn()
+				}
 			}
 
 			got, err := newAuthenticatedClient(vault.URL, authConf, tlsConf)
-			require.NoError(t, err)
-			require.Equal(t, clientToken, got.Token())
-
-			// make a request to the checker handler to ensure the auth token is being used
-			_, err = got.Logical().Read("check")
-			require.NoError(t, err)
+			if assert.NoError(t, err) {
+				if assert.Equal(t, clientToken, got.Token()) {
+					// make a request to the checker handler to ensure the auth token is being used
+					_, err = got.Logical().Read("check")
+					assert.NoError(t, err)
+				}
+			}
 
 			unsetFn()
+			vault.Close()
 		})
 	}
 }
@@ -285,11 +294,14 @@ func TestNewAuthenticatedClient_Approle_DefaultApprolePath(t *testing.T) {
 					// check that the correct credentials are included in the login request
 					var body map[string]interface{}
 					err := json.NewDecoder(r.Body).Decode(&body)
-					require.NoError(t, err)
-					require.Contains(t, body, "role_id")
-					require.Equal(t, body["role_id"].(string), roleID)
-					require.Contains(t, body, "secret_id")
-					require.Equal(t, body["secret_id"].(string), secretID)
+					if assert.NoError(t, err) {
+						if assert.Contains(t, body, "role_id") {
+							assert.Equal(t, body["role_id"].(string), roleID)
+						}
+						if assert.Contains(t, body, "secret_id") {
+							assert.Equal(t, body["secret_id"].(string), secretID)
+						}
+					}
 
 					// respond to the login request
 					vaultResponse := &api.Secret{Auth: &api.SecretAuth{ClientToken: clientToken}}
@@ -304,7 +316,7 @@ func TestNewAuthenticatedClient_Approle_DefaultApprolePath(t *testing.T) {
 				Handler: func(w http.ResponseWriter, r *http.Request) {
 					// check that the correct credentials are included in the login request
 					err := utils.RequireRequestIsAuthenticated(r, clientToken)
-					require.NoError(t, err)
+					assert.NoError(t, err)
 				},
 			}
 
@@ -320,21 +332,28 @@ func TestNewAuthenticatedClient_Approle_DefaultApprolePath(t *testing.T) {
 					ClientKey:  clientKey,
 				}
 				vault, err = utils.SetupMockTLSVaultServer(caCert, serverCert, serverKey, handlers...)
-				require.NoError(t, err)
+				if err != nil {
+					unsetFn()
+				}
 			} else {
 				vault, err = utils.SetupMockVaultServer(handlers...)
-				require.NoError(t, err)
+				if err != nil {
+					unsetFn()
+				}
 			}
 
 			got, err := newAuthenticatedClient(vault.URL, authConf, tlsConf)
-			require.NoError(t, err)
-			require.Equal(t, clientToken, got.Token())
 
-			// make a request to the checker handler to ensure the auth token is being used
-			_, err = got.Logical().Read("check")
-			require.NoError(t, err)
+			if assert.NoError(t, err) {
+				if assert.Equal(t, clientToken, got.Token()) {
+					// make a request to the checker handler to ensure the auth token is being used
+					_, err = got.Logical().Read("check")
+					assert.NoError(t, err)
+				}
+			}
 
 			unsetFn()
+			vault.Close()
 		})
 	}
 }
@@ -392,7 +411,7 @@ func TestNewAuthenticatedClient_Token(t *testing.T) {
 				Handler: func(w http.ResponseWriter, r *http.Request) {
 					// check that the correct credentials are included in the login request
 					err := utils.RequireRequestIsAuthenticated(r, tokenEnv)
-					require.NoError(t, err)
+					assert.NoError(t, err)
 				},
 			}
 
@@ -407,21 +426,177 @@ func TestNewAuthenticatedClient_Token(t *testing.T) {
 					ClientKey:  clientKey,
 				}
 				vault, err = utils.SetupMockTLSVaultServer(caCert, serverCert, serverKey, handlers...)
-				require.NoError(t, err)
+				if err != nil {
+					unsetFn()
+				}
 			} else {
 				vault, err = utils.SetupMockVaultServer(handlers...)
-				require.NoError(t, err)
+				if err != nil {
+					unsetFn()
+				}
 			}
 
 			got, err := newAuthenticatedClient(vault.URL, authConf, tlsConf)
-			require.NoError(t, err)
-			require.Equal(t, tokenEnv, got.Token())
 
-			// make a request to the checker handler to ensure the auth token is being used
-			_, err = got.Logical().Read("check")
-			require.NoError(t, err)
+			if assert.NoError(t, err) {
+				if assert.Equal(t, tokenEnv, got.Token()) {
+					// make a request to the checker handler to ensure the auth token is being used
+					_, err = got.Logical().Read("check")
+					assert.NoError(t, err)
+				}
+			}
 
 			unsetFn()
+			vault.Close()
 		})
 	}
+}
+
+func TestNewAuthenticatedClient_RenewsToken(t *testing.T) {
+	var (
+		authConf config.VaultAuth
+		tlsConf  config.TLS
+		vault    *httptest.Server
+		err      error
+	)
+
+	unsetFn := utils.SetEnvironmentVariables(DefaultRoleIDEnv, DefaultSecretIDEnv)
+
+	authVaultHandler := utils.PathHandler{
+		Path: "/v1/auth/approle/login",
+		Handler: func(w http.ResponseWriter, r *http.Request) {
+			// respond to the login request
+			vaultResponse := &api.Secret{
+				Auth: &api.SecretAuth{
+					ClientToken:   clientToken,
+					Renewable:     true,
+					LeaseDuration: 1,
+				},
+			}
+			b, _ := json.Marshal(vaultResponse)
+			_, _ = w.Write(b)
+		},
+	}
+
+	var renews int
+
+	renewHandler := utils.PathHandler{
+		Path: "/v1/auth/token/renew-self",
+		Handler: func(w http.ResponseWriter, r *http.Request) {
+			// record that a reauth request has been made
+			renews++
+
+			// check that the correct credentials are included in the login request
+			err := utils.RequireRequestIsAuthenticated(r, clientToken)
+			assert.NoError(t, err)
+
+			vaultResponse := &api.Secret{
+				Auth: &api.SecretAuth{
+					ClientToken:   clientToken,
+					Renewable:     true,
+					LeaseDuration: 1,
+				},
+			}
+			b, _ := json.Marshal(vaultResponse)
+			_, _ = w.Write(b)
+		},
+	}
+
+	handlers := []utils.PathHandler{
+		authVaultHandler,
+		renewHandler,
+	}
+
+	vault, err = utils.SetupMockVaultServer(handlers...)
+	if err != nil {
+		unsetFn()
+	}
+
+	_, err = newAuthenticatedClient(vault.URL, authConf, tlsConf)
+	if assert.NoError(t, err) {
+		time.Sleep(1 * time.Second)
+		assert.Equal(t, 2, renews, fmt.Sprintf("expected 2 renews before timeout, got %v", renews))
+	}
+
+	unsetFn()
+	vault.Close()
+}
+
+func TestNewAuthenticatedClient_ReauthsWhenTokenExpires(t *testing.T) {
+	var (
+		authConf config.VaultAuth
+		tlsConf  config.TLS
+		vault    *httptest.Server
+		err      error
+	)
+
+	unsetFn := utils.SetEnvironmentVariables(DefaultRoleIDEnv, DefaultSecretIDEnv)
+
+	var (
+		auths  int
+		renews int
+	)
+
+	authVaultHandler := utils.PathHandler{
+		Path: "/v1/auth/approle/login",
+		Handler: func(w http.ResponseWriter, r *http.Request) {
+			auths++
+
+			// respond to the login request
+			vaultResponse := &api.Secret{
+				Auth: &api.SecretAuth{
+					ClientToken:   clientToken,
+					Renewable:     true,
+					LeaseDuration: 1,
+				},
+			}
+			b, _ := json.Marshal(vaultResponse)
+			_, _ = w.Write(b)
+		},
+	}
+
+	renewHandler := utils.PathHandler{
+		Path: "/v1/auth/token/renew-self",
+		Handler: func(w http.ResponseWriter, r *http.Request) {
+			// record that a reauth request has been made
+			renews++
+
+			// check that the correct credentials are included in the login request
+			err := utils.RequireRequestIsAuthenticated(r, clientToken)
+			assert.NoError(t, err)
+
+			// every second renewed token is non-renewable (similar to if token expires), so client should reauthenticate next time round
+			renewable := (renews % 2) == 0
+
+			vaultResponse := &api.Secret{
+				Auth: &api.SecretAuth{
+					ClientToken:   clientToken,
+					Renewable:     renewable,
+					LeaseDuration: 2,
+				},
+			}
+			b, _ := json.Marshal(vaultResponse)
+			_, _ = w.Write(b)
+		},
+	}
+
+	handlers := []utils.PathHandler{
+		authVaultHandler,
+		renewHandler,
+	}
+
+	vault, err = utils.SetupMockVaultServer(handlers...)
+	if err != nil {
+		unsetFn()
+	}
+
+	_, err = newAuthenticatedClient(vault.URL, authConf, tlsConf)
+	if assert.NoError(t, err) {
+		time.Sleep(1 * time.Second)
+		assert.Equal(t, 2, renews, fmt.Sprintf("expected 2 renews before timeout, got %v", renews))
+		assert.Equal(t, 2, auths, fmt.Sprintf("expected 2 auths before timeout, got %v", auths))
+	}
+
+	unsetFn()
+	vault.Close()
 }

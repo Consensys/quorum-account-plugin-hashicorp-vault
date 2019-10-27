@@ -212,10 +212,6 @@ func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (Initia
 	return impl, vault.URL, dir, toCloseAndDelete
 }
 
-// TODO(cjh)
-//  token renewal
-//  standard token auth
-
 func Test_GetEventStream_InformsCallerOfAddedRemovedOrEditedWallets(t *testing.T) {
 	defer utils.SetEnvironmentVariables(
 		fmt.Sprintf("%v_%v", "FOO", manager.DefaultRoleIDEnv),
