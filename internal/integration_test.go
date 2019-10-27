@@ -34,7 +34,7 @@ var (
 	authToken               = "authToken"
 )
 
-func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (InitializerSignerClient, string, string, func()) {
+func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (InitializerAccountManagerClient, string, string, func()) {
 
 	authVaultHandler := utils.PathHandler{
 		Path: "/v1/auth/approle/login",
@@ -147,7 +147,7 @@ func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (Initia
 	require.NoError(t, err, "unable to set up mock Vault")
 
 	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
-		"HashicorpVaultAccountManagerDelegate": new(testableSignerPluginImpl),
+		"HashicorpVaultAccountManagerDelegate": new(testableAccountManagerPluginImpl),
 	})
 
 	toClose := func() {
@@ -162,7 +162,7 @@ func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (Initia
 		t.Fatal(err)
 	}
 
-	impl, ok := raw.(InitializerSignerClient)
+	impl, ok := raw.(InitializerAccountManagerClient)
 	if !ok {
 		toClose()
 		t.Fatalf("bad: %#v", raw)
@@ -822,7 +822,7 @@ func Test_SignTxAndUnlocking_PublicTransactions_Homestead(t *testing.T) {
 	signTxAndUnlockingTestCases(t, &impl, vaultUrl, chainID, toSign, want)
 }
 
-func signTxAndUnlockingTestCases(t *testing.T, impl *InitializerSignerClient, vaultUrl string, chainID *big.Int, toSign *types.Transaction, want *types.Transaction) {
+func signTxAndUnlockingTestCases(t *testing.T, impl *InitializerAccountManagerClient, vaultUrl string, chainID *big.Int, toSign *types.Transaction, want *types.Transaction) {
 	var (
 		got *types.Transaction
 		err error
@@ -1571,7 +1571,7 @@ func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
 	require.Equal(t, want, got.Result)
 }
 
-func statusDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte) (string, error) {
+func statusDelegate(t *testing.T, client *InitializerAccountManagerClient, vaultUrl string, acctJsonConfig []byte) (string, error) {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
@@ -1588,7 +1588,7 @@ func statusDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl stri
 	return resp.Status, nil
 }
 
-func containsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte) bool {
+func containsDelegate(t *testing.T, client *InitializerAccountManagerClient, vaultUrl string, acctJsonConfig []byte) bool {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
@@ -1607,7 +1607,7 @@ func containsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl st
 	return resp.IsContained
 }
 
-func accountsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte) []*proto.Account {
+func accountsDelegate(t *testing.T, client *InitializerAccountManagerClient, vaultUrl string, acctJsonConfig []byte) []*proto.Account {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
@@ -1622,7 +1622,7 @@ func accountsDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl st
 	return resp.Accounts
 }
 
-func signHashDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign []byte) (*proto.SignHashResponse, error) {
+func signHashDelegate(t *testing.T, client *InitializerAccountManagerClient, vaultUrl string, acctJsonConfig []byte, toSign []byte) (*proto.SignHashResponse, error) {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
@@ -1641,7 +1641,7 @@ func signHashDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl st
 	})
 }
 
-func signHashWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign []byte, sendAcctUrl bool) (*proto.SignHashResponse, error) {
+func signHashWithPassphraseDelegate(t *testing.T, client *InitializerAccountManagerClient, vaultUrl string, acctJsonConfig []byte, toSign []byte, sendAcctUrl bool) (*proto.SignHashResponse, error) {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
@@ -1670,7 +1670,7 @@ func signHashWithPassphraseDelegate(t *testing.T, client *InitializerSignerClien
 	})
 }
 
-func signTxDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
+func signTxDelegate(t *testing.T, client *InitializerAccountManagerClient, vaultUrl string, acctJsonConfig []byte, toSign *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
@@ -1709,7 +1709,7 @@ func signTxDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl stri
 	return signedTx, nil
 }
 
-func signTxWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, toSign *types.Transaction, chainID *big.Int, sendAcctUrl bool) (*types.Transaction, error) {
+func signTxWithPassphraseDelegate(t *testing.T, client *InitializerAccountManagerClient, vaultUrl string, acctJsonConfig []byte, toSign *types.Transaction, chainID *big.Int, sendAcctUrl bool) (*types.Transaction, error) {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
@@ -1758,7 +1758,7 @@ func signTxWithPassphraseDelegate(t *testing.T, client *InitializerSignerClient,
 	return signedTx, nil
 }
 
-func timedUnlockDelegate(client *InitializerSignerClient, vaultUrl string, acctJsonConfig []byte, unlockDuration time.Duration, sendAcctUrl bool) error {
+func timedUnlockDelegate(client *InitializerAccountManagerClient, vaultUrl string, acctJsonConfig []byte, unlockDuration time.Duration, sendAcctUrl bool) error {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
@@ -1784,7 +1784,7 @@ func timedUnlockDelegate(client *InitializerSignerClient, vaultUrl string, acctJ
 	return err
 }
 
-func lockDelegate(client *InitializerSignerClient, acctJsonConfig []byte) error {
+func lockDelegate(client *InitializerAccountManagerClient, acctJsonConfig []byte) error {
 	acctConfig := new(config.AccountConfig)
 	_ = json.Unmarshal(acctJsonConfig, acctConfig)
 
@@ -1800,7 +1800,7 @@ func lockDelegate(client *InitializerSignerClient, acctJsonConfig []byte) error 
 	return err
 }
 
-func newAccountDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, vaultAccountConfig config.VaultSecretConfig) (*proto.NewAccountResponse, error) {
+func newAccountDelegate(t *testing.T, client *InitializerAccountManagerClient, vaultUrl string, vaultAccountConfig config.VaultSecretConfig) (*proto.NewAccountResponse, error) {
 	return client.NewAccount(context.Background(), &proto.NewAccountRequest{
 		NewVaultAccount: &proto.NewVaultAccount{
 			VaultAddress:     vaultUrl,
@@ -1813,7 +1813,7 @@ func newAccountDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl 
 	})
 }
 
-func importRawKeyDelegate(t *testing.T, client *InitializerSignerClient, vaultUrl string, vaultAccountConfig config.VaultSecretConfig, rawKey string) (*proto.ImportRawKeyResponse, error) {
+func importRawKeyDelegate(t *testing.T, client *InitializerAccountManagerClient, vaultUrl string, vaultAccountConfig config.VaultSecretConfig, rawKey string) (*proto.ImportRawKeyResponse, error) {
 	return client.ImportRawKey(context.Background(), &proto.ImportRawKeyRequest{
 		RawKey: rawKey,
 		NewVaultAccount: &proto.NewVaultAccount{

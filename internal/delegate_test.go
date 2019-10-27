@@ -45,7 +45,7 @@ var (
 	}
 )
 
-func TestSigner_Status(t *testing.T) {
+func TestDelegate_Status(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -76,7 +76,7 @@ func TestSigner_Status(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestSigner_Open(t *testing.T) {
+func TestDelegate_Open(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -110,7 +110,7 @@ func TestSigner_Open(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestSigner_Close(t *testing.T) {
+func TestDelegate_Close(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -140,7 +140,7 @@ func TestSigner_Close(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestSigner_Accounts(t *testing.T) {
+func TestDelegate_Accounts(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -173,7 +173,7 @@ func TestSigner_Accounts(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestSigner_Contains(t *testing.T) {
+func TestDelegate_Contains(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -206,7 +206,7 @@ func TestSigner_Contains(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestSigner_SignHash(t *testing.T) {
+func TestDelegate_SignHash(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -242,7 +242,7 @@ func TestSigner_SignHash(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestSigner_SignTx(t *testing.T) {
+func TestDelegate_SignTx(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -304,7 +304,7 @@ func TestSigner_SignTx(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestSigner_SignHashWithPassphrase(t *testing.T) {
+func TestDelegate_SignHashWithPassphrase(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -342,7 +342,7 @@ func TestSigner_SignHashWithPassphrase(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestSigner_SignTxWithPassphrase(t *testing.T) {
+func TestDelegate_SignTxWithPassphrase(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -406,7 +406,7 @@ func TestSigner_SignTxWithPassphrase(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestSigner_GetEventStream(t *testing.T) {
+func TestDelegate_GetEventStream(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -485,7 +485,7 @@ func TestSigner_GetEventStream(t *testing.T) {
 	require.EqualError(t, err, "return an error to close the event listening loop")
 }
 
-func TestSigner_TimedUnlock(t *testing.T) {
+func TestDelegate_TimedUnlock(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -517,7 +517,7 @@ func TestSigner_TimedUnlock(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestSigner_Lock(t *testing.T) {
+func TestDelegate_Lock(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -542,7 +542,7 @@ func TestSigner_Lock(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestSigner_NewAccount(t *testing.T) {
+func TestDelegate_NewAccount(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -605,7 +605,7 @@ func TestSigner_NewAccount(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestSigner_ImportRawKey(t *testing.T) {
+func TestDelegate_ImportRawKey(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 

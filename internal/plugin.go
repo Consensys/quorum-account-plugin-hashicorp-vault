@@ -30,7 +30,7 @@ func (p *HashicorpVaultAccountManagerPlugin) Init(ctx context.Context, req *ipro
 	defer func() {
 		log.Println("[INFO] plugin initialization took", time.Now().Sub(startTime).Round(time.Microsecond))
 	}()
-	conf, err := newSignerConfiguration(req.GetRawConfiguration())
+	conf, err := newPluginAccountManagerConfiguration(req.GetRawConfiguration())
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
@@ -42,7 +42,7 @@ func (p *HashicorpVaultAccountManagerPlugin) Init(ctx context.Context, req *ipro
 	return &iproto.PluginInitialization_Response{}, nil
 }
 
-func newSignerConfiguration(rawJSON []byte) (config.PluginAccountManagerConfig, error) {
+func newPluginAccountManagerConfiguration(rawJSON []byte) (config.PluginAccountManagerConfig, error) {
 	var conf config.PluginAccountManagerConfig
 	if err := json.Unmarshal(rawJSON, &conf); err != nil {
 		return config.PluginAccountManagerConfig{}, fmt.Errorf("can't parse configuration")

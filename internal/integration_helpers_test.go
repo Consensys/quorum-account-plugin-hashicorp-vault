@@ -13,28 +13,27 @@ import (
 	"google.golang.org/grpc"
 )
 
-// testableSignerPluginImpl is a HashicorpVaultAccountManagerPlugin but provides a simple gRPC client implementation for integration testing without needing the geth side
-type testableSignerPluginImpl struct {
+// testableAccountManagerPluginImpl is a HashicorpVaultAccountManagerPlugin but provides a simple gRPC client implementation for integration testing without needing the geth side
+type testableAccountManagerPluginImpl struct {
 	HashicorpVaultAccountManagerPlugin
 }
 
-func (testableSignerPluginImpl) GRPCClient(ctx context.Context, b *plugin.GRPCBroker, cc *grpc.ClientConn) (interface{}, error) {
-	//return sproto.NewSignerClient(cc), nil
-	return newInitializerSignerClient(cc)
+func (testableAccountManagerPluginImpl) GRPCClient(ctx context.Context, b *plugin.GRPCBroker, cc *grpc.ClientConn) (interface{}, error) {
+	return newInitializerAccountManagerClient(cc)
 }
 
-type InitializerSignerClient struct {
+type InitializerAccountManagerClient struct {
 	iproto.PluginInitializerClient
 	sproto.SignerClient
 }
 
-func newInitializerSignerClient(cc *grpc.ClientConn) (interface{}, error) {
+func newInitializerAccountManagerClient(cc *grpc.ClientConn) (interface{}, error) {
 	initializerClient := iproto.NewPluginInitializerClient(cc)
-	signerClient := sproto.NewSignerClient(cc)
+	accountManagerClient := sproto.NewSignerClient(cc)
 
-	return InitializerSignerClient{
+	return InitializerAccountManagerClient{
 		PluginInitializerClient: initializerClient,
-		SignerClient:            signerClient,
+		SignerClient:            accountManagerClient,
 	}, nil
 }
 
