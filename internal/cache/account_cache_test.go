@@ -52,8 +52,6 @@ var (
 )
 
 func TestCache_InitialReload_OrderByUrl(t *testing.T) {
-	// t.Parallel()
-
 	// create temporary acctconfigdir
 	dir, err := ioutil.TempDir("../test/data", "acctconfig")
 	require.NoError(t, err)
@@ -79,16 +77,15 @@ func TestCache_InitialReload_OrderByUrl(t *testing.T) {
 }
 
 func TestCache_AddDeletePreserveOrder(t *testing.T) {
-	// t.Parallel()
-
 	// create temporary acctconfigdir
 	dir, err := ioutil.TempDir("../test/data", "acctconfig")
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 	vaulturl := "http://url"
 	cache, _ := NewAccountCache(dir, vaulturl)
+	cacheImpl := cache.(*accountCache)
 
-	cache.watcher.running = true // prevent unexpected reloads
+	cacheImpl.watcher.running = true // prevent unexpected reloads
 
 	accs := []accounts.Account{
 		{
@@ -156,10 +153,10 @@ func TestCache_AddDeletePreserveOrder(t *testing.T) {
 
 	// Delete a few keys from the cache.
 	for i := 0; i < len(accs); i += 2 {
-		cache.deleteByFile(files[i])
+		cacheImpl.deleteByFile(files[i])
 	}
 	// delete a nonexistent acct
-	cache.deleteByFile("notanacctfile")
+	cacheImpl.deleteByFile("notanacctfile")
 
 	// Check content again after deletion.
 	wantAccountsAfterDelete := []accounts.Account{
@@ -187,16 +184,15 @@ func TestCache_AddDeletePreserveOrder(t *testing.T) {
 }
 
 func TestCache_Find(t *testing.T) {
-	// t.Parallel()
-
 	// create temporary acctconfigdir
 	dir, err := ioutil.TempDir("../test/data", "acctconfig")
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 	vaulturl := "http://url"
 	cache, _ := NewAccountCache(dir, vaulturl)
+	cacheImpl := cache.(*accountCache)
 
-	cache.watcher.running = true // prevent unexpected reloads
+	cacheImpl.watcher.running = true // prevent unexpected reloads
 
 	accs := []accounts.Account{
 		{
@@ -264,8 +260,6 @@ func TestCache_Find(t *testing.T) {
 }
 
 func TestCache_WatchForNewFiles(t *testing.T) {
-	// t.Parallel()
-
 	// create temporary acctconfigdir
 	dir, err := ioutil.TempDir("../test/data", "acctconfig")
 	require.NoError(t, err)
@@ -312,8 +306,6 @@ func TestCache_WatchForNewFiles(t *testing.T) {
 }
 
 func TestCache_WatchForFileDeletes(t *testing.T) {
-	// t.Parallel()
-
 	// create temporary acctconfigdir
 	dir, err := ioutil.TempDir("../test/data", "acctconfig")
 	require.NoError(t, err)
@@ -342,8 +334,6 @@ func TestCache_WatchForFileDeletes(t *testing.T) {
 // TestUpdatedKeyfileContents tests that updating the contents of a keystore file
 // is noticed by the watcher, and the account cache is updated accordingly
 func TestCache_WatchForFileUpdates(t *testing.T) {
-	// t.Parallel()
-
 	// create temporary acctconfigdir
 	dir, err := ioutil.TempDir("../test/data", "acctconfig")
 	require.NoError(t, err)
@@ -374,8 +364,6 @@ func TestCache_WatchForFileUpdates(t *testing.T) {
 }
 
 func TestCache_WatchNoDir(t *testing.T) {
-	// t.Parallel()
-
 	dir := fmt.Sprintf("../test/data/acctconfig%v", uuid.New())
 
 	// start the cache with non-existent dir
@@ -400,8 +388,6 @@ func TestCache_WatchNoDir(t *testing.T) {
 }
 
 func TestCache_CloseStopsWatch(t *testing.T) {
-	// t.Parallel()
-
 	// create temporary acctconfigdir
 	dir, err := ioutil.TempDir("../test/data", "acctconfig")
 	require.NoError(t, err)
@@ -425,7 +411,8 @@ func TestCache_CloseStopsWatch(t *testing.T) {
 	time.Sleep(2500 * time.Millisecond)
 
 	//check that the accounts are not added to the cache
-	cache.watcher.running = true // prevent unexpected reloads
+	cacheImpl := cache.(*accountCache)
+	cacheImpl.watcher.running = true // prevent unexpected reloads
 	accts = cache.Accounts()
 	require.Len(t, accts, 0)
 }

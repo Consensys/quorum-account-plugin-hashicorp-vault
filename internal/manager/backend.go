@@ -47,8 +47,8 @@ const walletRefreshCycle = 3 * time.Second
 
 // Backend manages a key storage directory on disk.
 type Backend struct {
-	storage  keyStore                     // Storage backend, might be cleartext or encrypted
-	cache    *cache.AccountCache          // In-memory account cache over the filesystem storage
+	storage  Storage                      // Storage backend, might be cleartext or encrypted
+	cache    cache.AccountCache           // In-memory account cache over the filesystem storage
 	changes  chan struct{}                // Channel receiving change notifications from the cache
 	unlocked map[common.Address]*unlocked // Currently unlocked account (decrypted private keys)
 

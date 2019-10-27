@@ -46,7 +46,7 @@ type Key struct {
 	PrivateKey *ecdsa.PrivateKey
 }
 
-type keyStore interface {
+type Storage interface {
 	// Loads and decrypts the key from disk.
 	GetKey(addr common.Address, filename string, auth string) (*Key, error)
 	// Writes and encrypts the key.
@@ -73,7 +73,7 @@ func newKey(rand io.Reader) (*Key, error) {
 	return newKeyFromECDSA(privateKeyECDSA), nil
 }
 
-func storeNewKey(ks keyStore, rand io.Reader, vaultAccountConfig config.VaultSecretConfig) (*Key, accounts.Account, string, string, error) {
+func storeNewKey(ks Storage, rand io.Reader, vaultAccountConfig config.VaultSecretConfig) (*Key, accounts.Account, string, string, error) {
 	key, err := newKey(rand)
 	if err != nil {
 		return nil, accounts.Account{}, "", "", err

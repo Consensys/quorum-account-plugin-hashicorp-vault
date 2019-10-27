@@ -23,6 +23,6 @@ package cache
 
 type watcher struct{ running bool }
 
-func newWatcher(*AccountCache) *watcher { return new(watcher) }
+func newWatcher(*accountCache) *watcher { return new(watcher) }
 func (*watcher) start()                 {}
 func (*watcher) close()                 {}
