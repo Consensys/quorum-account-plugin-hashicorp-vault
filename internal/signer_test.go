@@ -3,32 +3,27 @@ package internal
 import (
 	"context"
 	"errors"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_event"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_manager"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/golang/mock/gomock"
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/mock_proto"
 	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_accounts"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_hashicorp"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_event"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_internal"
 	"github.com/stretchr/testify/require"
 )
 
 var (
-	//wltUrl = accounts.URL{
-	//	Scheme: config.HashiScheme,
-	//	Path:   "FOO@localhost:8200",
-	//}
-
 	acct1 = accounts.Account{
 		Address: common.HexToAddress("0x4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
 		URL:     accounts.URL{Scheme: config.HashiScheme, Path: "FOO@localhost:8200/1"},
@@ -552,7 +547,7 @@ func TestSigner_NewAccount(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
-	mockAccountCreator := mock_hashicorp.NewMockAccountCreator(ctrl)
+	mockAccountCreator := mock_manager.NewMockAccountCreator(ctrl)
 
 	s := &HashicorpVaultAccountManagerDelegate{
 		HashicorpVaultAccountManager: mockBackend,
@@ -615,7 +610,7 @@ func TestSigner_ImportRawKey(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockBackend := mock_internal.NewMockHashicorpVaultAccountManager(ctrl)
-	mockAccountCreator := mock_hashicorp.NewMockAccountCreator(ctrl)
+	mockAccountCreator := mock_manager.NewMockAccountCreator(ctrl)
 
 	s := &HashicorpVaultAccountManagerDelegate{
 		HashicorpVaultAccountManager: mockBackend,

@@ -28,9 +28,9 @@ import (
 	mapset "github.com/deckarep/golang-set"
 )
 
-// fileCache is a cache of files seen during scan of keystore.
+// fileCache is a cache of files seen during scan of the acctconfig directory.
 type fileCache struct {
-	all     mapset.Set // Set of all files from the keystore folder
+	all     mapset.Set // Set of all files from the acctconfig directory
 	lastMod time.Time  // Last time instance when a file was modified
 	mu      sync.RWMutex
 }
@@ -40,7 +40,7 @@ type fileCache struct {
 func (fc *fileCache) scan(keyDir string) (mapset.Set, mapset.Set, mapset.Set, error) {
 	t0 := time.Now()
 
-	// List all the failes from the keystore folder
+	// List all the files from the acctconfig directory
 	files, err := ioutil.ReadDir(keyDir)
 	if err != nil {
 		return nil, nil, nil, err
@@ -62,7 +62,7 @@ func (fc *fileCache) scan(keyDir string) (mapset.Set, mapset.Set, mapset.Set, er
 			log.Println("[DEBUG] Ignoring file on account scan", "path", path)
 			continue
 		}
-		// Gather the set of all and fresly modified files
+		// Gather the set of all and freshly modified files
 		all.Add(path)
 
 		modified := fi.ModTime()

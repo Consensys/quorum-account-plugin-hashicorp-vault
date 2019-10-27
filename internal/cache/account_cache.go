@@ -21,8 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	//"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"log"
 	"os"
 	"sort"
@@ -32,10 +30,11 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 )
 
 // Minimum amount of time between cache reloads. This limit applies if the platform does
-// not support change notifications. It also applies if the keystore directory does not
+// not support change notifications. It also applies if the acctconfig directory does not
 // exist yet, the code will attempt to create a watcher at most this often.
 const minReloadInterval = 2 * time.Second
 
@@ -79,7 +78,7 @@ type AccountCache interface {
 	Unlock()
 }
 
-// accountCache is a live index of all accounts in the keystore.
+// accountCache is a live index of all accounts with configs in the acctconfig directory.
 type accountCache struct {
 	keydir   string
 	watcher  *watcher
@@ -94,6 +93,7 @@ type accountCache struct {
 	vaultAddr string
 }
 
+// NewAccountCache creates an account cache for the Vault vaultAddr and with accounts configured in the keydir.  A notification channel is returned indicating when the cache has been updated.
 func NewAccountCache(keydir string, vaultAddr string) (AccountCache, chan struct{}) {
 	ac := &accountCache{
 		keydir:    keydir,
@@ -123,6 +123,7 @@ func (ac *accountCache) HasAddress(addr common.Address) bool {
 	return len(ac.byAddr[addr]) > 0
 }
 
+// Add newAccount to the cache where filepath is the path to the configfile for the account.
 func (ac *accountCache) Add(newAccount accounts.Account, filepath string) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
@@ -172,9 +173,9 @@ func removeAccount(slice []accounts.Account, elem accounts.Account) []accounts.A
 	return slice
 }
 
-// find returns the cached account for address if there is a unique match.
+// Find returns the cached account for address if there is a unique match.
 // The exact matching rules are explained by the documentation of accounts.Account.
-// Callers must hold ac.mu.
+// Callers must hold ac.mu (by calling ac.Lock())
 func (ac *accountCache) Find(a accounts.Account) (accounts.Account, error) {
 	// Limit search to address candidates if possible.
 	matches := ac.all
@@ -204,7 +205,7 @@ func (ac *accountCache) Find(a accounts.Account) (accounts.Account, error) {
 	}
 }
 
-// Callers must hold ac.mu
+// FindConfigFile returns the path to the configfile for account a. Callers must hold ac.mu (by calling ac.Lock()).
 func (ac *accountCache) FindConfigFile(a accounts.Account) (string, error) {
 	for file, acct := range ac.byFile {
 		if acct.Address == a.Address && (acct.URL == (accounts.URL{}) || acct.URL == a.URL) {
@@ -214,6 +215,7 @@ func (ac *accountCache) FindConfigFile(a accounts.Account) (string, error) {
 	return "", fmt.Errorf("no config file found for account %v", a)
 }
 
+// MaybeReload updates the cache only if a file watcher is not already running or the cache has not already been reloaded recently.
 func (ac *accountCache) MaybeReload() {
 	ac.mu.Lock()
 

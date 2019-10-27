@@ -2,8 +2,9 @@ package config
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestPluginAccountManagerConfig_Validate_NoVaultConfig_Invalid(t *testing.T) {

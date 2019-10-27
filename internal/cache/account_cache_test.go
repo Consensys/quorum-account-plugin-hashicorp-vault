@@ -18,18 +18,19 @@ package cache
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/utils"
-	"github.com/pborman/uuid"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/utils"
+	"github.com/pborman/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 var (

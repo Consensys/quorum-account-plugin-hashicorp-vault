@@ -24,12 +24,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// wallet implements the accounts.Wallet interface for the original
-// keystore.
+// wallet implements the accounts.Wallet interface for Hashicorp Vault-stored accounts
 type wallet struct {
 	url     accounts.URL
 	account accounts.Account // Single account contained in this wallet
-	backend *Backend         // Keystore where the account originates from
+	backend *Backend
 }
 
 // URL implements accounts.Wallet, returning the URL of the account within.
@@ -38,7 +37,7 @@ func (w *wallet) URL() accounts.URL {
 }
 
 // Status implements accounts.Wallet, returning whether the account held by the
-// keystore wallet is unlocked or not.
+// wallet is unlocked or not.
 func (w *wallet) Status() (string, error) {
 	w.backend.mu.RLock()
 	defer w.backend.mu.RUnlock()
@@ -49,40 +48,35 @@ func (w *wallet) Status() (string, error) {
 	return "Locked", nil
 }
 
-// Open implements accounts.Wallet, but is a noop for plain wallets since there
-// is no connection or decryption step necessary to access the list of accounts.
+// Open implements accounts.Wallet, but is a noop for Vault wallets
 func (w *wallet) Open(passphrase string) error { return nil }
 
-// Close implements accounts.Wallet, but is a noop for plain wallets since is no
-// meaningful open operation.
+// Close implements accounts.Wallet, but is a noop for Vault wallets
 func (w *wallet) Close() error { return nil }
 
-// Accounts implements accounts.Wallet, returning an account list consisting of
-// a single account that the plain kestore wallet contains.
+// Accounts implements accounts.Wallet, returning the account wrapped by the wallet as a slice
 func (w *wallet) Accounts() []accounts.Account {
 	return []accounts.Account{w.account}
 }
 
-// Contains implements accounts.Wallet, returning whether a particular account is
-// or is not wrapped by this wallet instance.
+// Contains implements accounts.Wallet, returning whether a particular account is wrapped by the wallet.
 func (w *wallet) Contains(account accounts.Account) bool {
 	return account.Address == w.account.Address && (account.URL == (accounts.URL{}) || account.URL == w.account.URL)
 }
 
-// Derive implements accounts.Wallet, but is a noop for plain wallets since there
-// is no notion of hierarchical account derivation for plain keystore accounts.
+// Derive implements accounts.Wallet, but is a noop for Vault wallets since these have no notion of hierarchical
+// account derivation.
 func (w *wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Account, error) {
 	return accounts.Account{}, accounts.ErrNotSupported
 }
 
-// SelfDerive implements accounts.Wallet, but is a noop for plain wallets since
-// there is no notion of hierarchical account derivation for plain keystore accounts.
+// SelfDerive implements accounts.Wallet, but is a noop for Vault wallets since these have no notion of hierarchical
+// account derivation.
 func (w *wallet) SelfDerive(base accounts.DerivationPath, chain ethereum.ChainStateReader) {}
 
 // SignHash implements accounts.Wallet, attempting to sign the given hash with
 // the given account. If the wallet does not wrap this particular account, an
-// error is returned to avoid account leakage (even though in theory we may be
-// able to sign via our shared keystore backend).
+// error is returned.
 func (w *wallet) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
 	// Make sure the requested account is contained within
 	if account.Address != w.account.Address {
@@ -97,8 +91,7 @@ func (w *wallet) SignHash(account accounts.Account, hash []byte) ([]byte, error)
 
 // SignTx implements accounts.Wallet, attempting to sign the given transaction
 // with the given account. If the wallet does not wrap this particular account,
-// an error is returned to avoid account leakage (even though in theory we may
-// be able to sign via our shared keystore backend).
+// an error is returned.
 func (w *wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	// Make sure the requested account is contained within
 	if account.Address != w.account.Address {
@@ -112,7 +105,7 @@ func (w *wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID
 }
 
 // SignHashWithPassphrase implements accounts.Wallet, attempting to sign the
-// given hash with the given account using passphrase as extra authentication.
+// given hash with the given account if the account is locked.
 func (w *wallet) SignHashWithPassphrase(account accounts.Account, passphrase string, hash []byte) ([]byte, error) {
 	// Make sure the requested account is contained within
 	if account.Address != w.account.Address {
@@ -126,7 +119,7 @@ func (w *wallet) SignHashWithPassphrase(account accounts.Account, passphrase str
 }
 
 // SignTxWithPassphrase implements accounts.Wallet, attempting to sign the given
-// transaction with the given account using passphrase as extra authentication.
+// transaction with the given account if the account is locked.
 func (w *wallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	// Make sure the requested account is contained within
 	if account.Address != w.account.Address {

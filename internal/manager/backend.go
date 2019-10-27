@@ -21,7 +21,6 @@ import (
 	crand "crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"log"
 	"math/big"
 	"path/filepath"
@@ -36,23 +35,24 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/cache"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 )
 
 var (
 	ErrLocked = accounts.NewAuthNeededError("password or unlock")
 )
 
-// Maximum time between wallet refreshes (if filesystem notifications don't work).
+// walletRefreshCycle is the maximum time between wallet refreshes (if filesystem notifications don't work)
 const walletRefreshCycle = 3 * time.Second
 
-// Backend manages a key storage directory on disk.
+// Backend manages acct storage for a Hashicorp Vault, using an acctconfig storage directory on disk.
 type Backend struct {
-	storage  Storage                      // Storage backend, might be cleartext or encrypted
-	cache    cache.AccountCache           // In-memory account cache over the filesystem storage
-	changes  chan struct{}                // Channel receiving change notifications from the cache
-	unlocked map[common.Address]*unlocked // Currently unlocked account (decrypted private keys)
+	vaultClientManager *vaultClientManager          // Manages the authenticated clients for a Vault server, providing the means to add and retrieve accts from the Vault
+	cache              cache.AccountCache           // In-memory account cache for the acctconfig directory
+	changes            chan struct{}                // Channel receiving change notifications from the cache
+	unlocked           map[common.Address]*unlocked // Currently unlocked accounts (decrypted private keys)
 
-	wallets     []accounts.Wallet       // Wallet wrappers around the individual key files
+	wallets     []accounts.Wallet       // Wallet wrappers around the individual accounts
 	updateFeed  event.Feed              // Event feed to notify wallet additions/removals
 	updateScope event.SubscriptionScope // Subscription scope tracking current live listeners
 	initialised bool
@@ -71,9 +71,8 @@ type AccountCreator interface {
 	ImportECDSA(priv *ecdsa.PrivateKey, vaultAccountConfig config.VaultSecretConfig) (accounts.Account, string, error)
 }
 
-// NewKeyStore creates a keystore for the given directory.
+// NewBackend creates a backend for the Hashicorp Vault and acctconfig directory accounts defined in the VaultConfig.
 func NewBackend(config config.VaultConfig) (*Backend, error) {
-	log.Println("[DEBUG] PLUGIN BACKEND Init")
 	keydir, _ := filepath.Abs(config.AccountConfigDir)
 	b := &Backend{}
 	if err := b.init(keydir, config); err != nil {
@@ -93,15 +92,14 @@ func (b *Backend) init(keydir string, vaultConfig config.VaultConfig) error {
 	if err != nil {
 		return err
 	}
-	b.storage = clientManager
+	b.vaultClientManager = clientManager
 
 	// Initialize the set of unlocked keys and the account cache
 	b.unlocked = make(map[common.Address]*unlocked)
-	b.cache, b.changes = cache.NewAccountCache(keydir, b.storage.(*vaultClientManager).vaultAddr)
+	b.cache, b.changes = cache.NewAccountCache(keydir, b.vaultClientManager.vaultAddr)
 
-	// TODO: In order for this finalizer to work, there must be no references
-	// to b. addressCache doesn't keep a reference but unlocked keys do,
-	// so the finalizer will not trigger until all timed unlocks have expired.
+	// In order for this finalizer to work, there must be no references
+	// to b.
 	runtime.SetFinalizer(b, func(m *Backend) {
 		m.cache.Close()
 	})
@@ -117,7 +115,7 @@ func (b *Backend) init(keydir string, vaultConfig config.VaultConfig) error {
 }
 
 // Wallets implements accounts.Backend, returning all single-key wallets from the
-// keystore directory.
+// acctconfig directory.
 func (b *Backend) Wallets() []accounts.Wallet {
 	// Make sure the list of wallets is in sync with the account cache
 	b.refreshWallets()
@@ -131,7 +129,7 @@ func (b *Backend) Wallets() []accounts.Wallet {
 }
 
 // Subscribe implements accounts.Backend, creating an async subscription to
-// receive notifications on the addition or removal of keystore wallets.
+// receive notifications on the addition or removal of wallets.
 func (b *Backend) Subscribe(sink chan<- accounts.WalletEvent) event.Subscription {
 	// We need the mutex to reliably start/stop the update loop
 	b.mu.Lock()
@@ -174,11 +172,9 @@ func (b *Backend) SignTx(a accounts.Account, tx *types.Transaction, chainID *big
 		return nil, ErrLocked
 	}
 
-	// start quorum specific
 	if tx.IsPrivate() {
-		log.Println("[INFO] Private transaction signing with QuorumPrivateTxSigner")
 		return types.SignTx(tx, types.QuorumPrivateTxSigner{}, unlockedKey.PrivateKey)
-	} // End quorum specific
+	}
 
 	// Depending on the presence of the chain ID, sign with EIP155 or homestead
 	if chainID != nil {
@@ -187,9 +183,8 @@ func (b *Backend) SignTx(a accounts.Account, tx *types.Transaction, chainID *big
 	return types.SignTx(tx, types.HomesteadSigner{}, unlockedKey.PrivateKey)
 }
 
-// SignHashWithPassphrase signs hash if the private key matching the given address
-// can be decrypted with the given passphrase. The produced signature is in the
-// [R || S || V] format where V is 0 or 1.
+// SignHashWithPassphrase retrieves the key for the given account from the Vault and uses it to sign the hash.
+// passphrase is not used.  The produced signature is in the [R || S || V] format where V is 0 or 1.
 func (b *Backend) SignHashWithPassphrase(a accounts.Account, passphrase string, hash []byte) (signature []byte, err error) {
 	_, key, err := b.getDecryptedKey(a, passphrase)
 	if err != nil {
@@ -199,8 +194,8 @@ func (b *Backend) SignHashWithPassphrase(a accounts.Account, passphrase string, 
 	return crypto.Sign(hash, key.PrivateKey)
 }
 
-// SignTxWithPassphrase signs the transaction if the private key matching the
-// given address can be decrypted with the given passphrase.
+// SignTxWithPassphrase retrieves the key for the given account from the Vault and uses it to sign the transaction.
+// passphrase is not used.
 func (b *Backend) SignTxWithPassphrase(a accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	_, key, err := b.getDecryptedKey(a, passphrase)
 	if err != nil {
@@ -218,7 +213,7 @@ func (b *Backend) SignTxWithPassphrase(a accounts.Account, passphrase string, tx
 	return types.SignTx(tx, types.HomesteadSigner{}, key.PrivateKey)
 }
 
-// Unlock unlocks the given account indefinitely.
+// Unlock retrieves the given account from the Vault and stores it in memory indefinitely.  passphrase is not used.
 func (b *Backend) Unlock(a accounts.Account, passphrase string) error {
 	return b.TimedUnlock(a, passphrase, 0)
 }
@@ -235,7 +230,7 @@ func (b *Backend) Lock(addr common.Address) error {
 	return nil
 }
 
-// TimedUnlock unlocks the given account with the passphrase. The account
+// TimedUnlock retrieves the given account from the Vault.  passphrase is not used. The account
 // stays unlocked for the duration of timeout. A timeout of 0 unlocks the account
 // until the program exits. The account must match a unique key file.
 //
@@ -271,7 +266,8 @@ func (b *Backend) TimedUnlock(a accounts.Account, passphrase string, timeout tim
 	return nil
 }
 
-// Find resolves the given account into a unique entry in the keystore.
+// Find resolves the given account into a unique entry in the cache, returning the complete account (i.e. address and URL)
+// and the path to the accounts acctconfig file
 func (b *Backend) Find(a accounts.Account) (accounts.Account, string, error) {
 	b.cache.MaybeReload()
 	b.cache.Lock()
@@ -288,15 +284,15 @@ func (b *Backend) Find(a accounts.Account) (accounts.Account, string, error) {
 	return a, file, nil
 }
 
-// NewAccount generates a new key and stores it into the key directory,
-// encrypting it with the passphrase.
+// NewAccount generates a new key and stores it in Vault at the location defined by the VaultSecretConfig.  The necessary
+// config is written to the acctconfig directory for use as an account.
 func (b *Backend) NewAccount(vaultAccountConfig config.VaultSecretConfig) (accounts.Account, string, error) {
 	toValidate := config.AccountConfig{VaultSecret: vaultAccountConfig}
 	if err := toValidate.ValidateForAccountCreation(); err != nil {
 		return accounts.Account{}, "", err
 	}
 
-	_, account, secretUri, configfilepath, err := storeNewKey(b.storage, crand.Reader, vaultAccountConfig)
+	_, account, secretUri, configfilepath, err := storeNewKey(b.vaultClientManager, crand.Reader, vaultAccountConfig)
 	if err != nil {
 		return accounts.Account{}, "", err
 	}
@@ -307,7 +303,8 @@ func (b *Backend) NewAccount(vaultAccountConfig config.VaultSecretConfig) (accou
 	return account, secretUri, nil
 }
 
-// ImportECDSA stores the given key into the key directory, encrypting it with the passphrase.
+// ImportECDSA stores the provided key in Vault at the location defined by the VaultSecretConfig.  The necessary
+// config is written to the acctconfig directory for use as an account.
 func (b *Backend) ImportECDSA(priv *ecdsa.PrivateKey, vaultAccountConfig config.VaultSecretConfig) (accounts.Account, string, error) {
 	key := newKeyFromECDSA(priv)
 	if b.cache.HasAddress(key.Address) {
@@ -316,14 +313,11 @@ func (b *Backend) ImportECDSA(priv *ecdsa.PrivateKey, vaultAccountConfig config.
 	return b.importKey(key, vaultAccountConfig)
 }
 
-// refreshWallets retrieves the current account list and based on that does any
-// necessary wallet refreshes.
+// refreshWallets retrieves the current account list from the cache and does any necessary wallet updates.
 func (b *Backend) refreshWallets() {
-	log.Println("[PLUGIN Backend] refreshWallets")
 	// Retrieve the current list of accounts
 	b.mu.Lock()
 	accs := b.cache.Accounts()
-	log.Println("[PLUGIN Backend] refreshWallets: cache len(accts)", len(accs), ", backend len(wallets)", len(b.wallets))
 
 	// Transform the current list of wallets into the new one
 	wallets := make([]accounts.Wallet, 0, len(accs))
@@ -332,13 +326,14 @@ func (b *Backend) refreshWallets() {
 	for _, account := range accs {
 		// Drop wallets while they were in front of the next account
 		for len(b.wallets) > 0 && b.wallets[0].URL().Cmp(account.URL) < 0 {
+			log.Println("[DEBUG] wallet removed by backend", b.wallets[0])
 			events = append(events, accounts.WalletEvent{Wallet: b.wallets[0], Kind: accounts.WalletDropped})
 			b.wallets = b.wallets[1:]
 		}
 		// If there are no more wallets or the account is before the next, wrap new wallet
 		if len(b.wallets) == 0 || b.wallets[0].URL().Cmp(account.URL) > 0 {
 			wallet := &wallet{url: account.URL, account: account, backend: b}
-			log.Println("[PLUGIN Backend] refreshWallets: new wallet wrapped", wallet)
+			log.Println("[DEBUG] new wallet wrapped by backend", wallet)
 			events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletArrived})
 			wallets = append(wallets, wallet)
 			continue
@@ -360,16 +355,14 @@ func (b *Backend) refreshWallets() {
 
 	// Fire all wallet events and return
 	for _, event := range events {
-		log.Println("[PLUGIN Backend] sending event: ", event.Kind, event.Wallet.URL().String())
+		log.Println("[DEBUG] backend sending event: ", event.Kind, event.Wallet.URL().String())
 		b.updateFeed.Send(event)
 	}
 }
 
-// updater is responsible for maintaining an up-to-date list of wallets stored in
-// the keystore, and for firing wallet addition/removal events. It listens for
-// account change events from the underlying account cache, and also periodically
-// forces a manual refresh (only triggers for systems where the filesystem notifier
-// is not running).
+// updater is responsible for maintaining an up-to-date list of wallets from the acctconfig directory, and for firing
+// wallet addition/removal events. It listens for account change events from the underlying account cache, and also
+// periodically forces a manual refresh (only triggers for systems where the filesystem notifier is not running).
 func (b *Backend) updater() {
 	for {
 		// Wait for an account update or a refresh timeout
@@ -377,14 +370,13 @@ func (b *Backend) updater() {
 		case <-b.changes:
 		case <-time.After(walletRefreshCycle):
 		}
-		log.Println("[PLUGIN Backend] updater: change detected")
 		// Run the wallet refresher
 		b.refreshWallets()
 
 		// If all our subscribers left, stop the updater
 		b.mu.Lock()
 		if b.updateScope.Count() == 0 {
-			log.Println("[PLUGIN Backend] updater: stopping updater")
+			log.Println("[DEBUG] backend updater stopping")
 			b.updating = false
 			b.mu.Unlock()
 			return
@@ -397,13 +389,15 @@ var (
 	incorrectKeyForAddrErr = errors.New("the address of the account provided does not match the address derived from the private key retrieved from the Vault.  Ensure the correct secret names and versions are specified in the node config.")
 )
 
+// getDecryptedKey retrieves the key for the provided account from the Vault using the specified authentication credentials.
+// The retrieved key is cross-referenced with the account address to make sure that the matching key has been retrieved.
 func (b *Backend) getDecryptedKey(a accounts.Account, auth string) (accounts.Account, *Key, error) {
 	a, file, err := b.Find(a)
 	if err != nil {
 		return a, nil, err
 	}
 
-	key, err := b.storage.GetKey(a.Address, file, auth)
+	key, err := b.vaultClientManager.GetKey(a.Address, file, auth)
 	if err != nil {
 		return a, nil, err
 	}
@@ -436,10 +430,12 @@ func (b *Backend) expire(addr common.Address, u *unlocked, timeout time.Duration
 	}
 }
 
+// importKey adds the provided key to the Vault and created the necessary acctconfig file using the VaultSecretConfig.
+// The cache is updated after import.  The new account and Vault URI for the created secret are returned.
 func (b *Backend) importKey(key *Key, vaultAccountConfig config.VaultSecretConfig) (accounts.Account, string, error) {
-	configfilepath := b.storage.JoinPath(keyFileName(key.Address))
+	configfilepath := b.vaultClientManager.JoinPath(keyFileName(key.Address))
 
-	acct, secretUri, err := b.storage.StoreKey(configfilepath, vaultAccountConfig, key)
+	acct, secretUri, err := b.vaultClientManager.StoreKey(configfilepath, vaultAccountConfig, key)
 	if err != nil {
 		zeroKey(key.PrivateKey)
 		return accounts.Account{}, "", err

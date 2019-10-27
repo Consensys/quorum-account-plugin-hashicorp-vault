@@ -20,16 +20,16 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"github.com/pborman/uuid"
 )
 
@@ -44,15 +44,6 @@ type Key struct {
 	// we only store privkey as pubkey/address can be derived from it
 	// privkey in this struct is always in plaintext
 	PrivateKey *ecdsa.PrivateKey
-}
-
-type Storage interface {
-	// Loads and decrypts the key from disk.
-	GetKey(addr common.Address, filename string, auth string) (*Key, error)
-	// Writes and encrypts the key.
-	StoreKey(filename string, vaultConfig config.VaultSecretConfig, k *Key) (accounts.Account, string, error)
-	// Joins filename with the key directory unless it is already absolute.
-	JoinPath(filename string) string
 }
 
 func newKeyFromECDSA(privateKeyECDSA *ecdsa.PrivateKey) *Key {
@@ -73,16 +64,18 @@ func newKey(rand io.Reader) (*Key, error) {
 	return newKeyFromECDSA(privateKeyECDSA), nil
 }
 
-func storeNewKey(ks Storage, rand io.Reader, vaultAccountConfig config.VaultSecretConfig) (*Key, accounts.Account, string, string, error) {
+// storeNewKey creates a new random key, stores it in the Vault location defined by the VaultSecretConfig, writes the
+// necessary config to the acctconfig directory and returns the new key, the corresponding account, the URI of the new
+// secret's location in the Vault, and the path to the newly created configfile
+func storeNewKey(cm *vaultClientManager, rand io.Reader, vaultAccountConfig config.VaultSecretConfig) (*Key, accounts.Account, string, string, error) {
 	key, err := newKey(rand)
 	if err != nil {
 		return nil, accounts.Account{}, "", "", err
 	}
 
-	//a := accounts.Account{Address: key.Address, URL: accounts.URL{Scheme: AcctScheme, Path: ks.JoinPath(keyFileName(key.Address))}}
-	configfilepath := ks.JoinPath(keyFileName(key.Address))
+	configfilepath := cm.JoinPath(keyFileName(key.Address))
 
-	acct, secretUri, err := ks.StoreKey(configfilepath, vaultAccountConfig, key)
+	acct, secretUri, err := cm.StoreKey(configfilepath, vaultAccountConfig, key)
 	if err != nil {
 		zeroKey(key.PrivateKey)
 		return nil, acct, "", "", err
@@ -91,7 +84,7 @@ func storeNewKey(ks Storage, rand io.Reader, vaultAccountConfig config.VaultSecr
 }
 
 func writeTemporaryKeyFile(file string, content []byte) (string, error) {
-	// Create the keystore directory with appropriate permissions
+	// Create the acctconfig directory with appropriate permissions
 	// in case it is not present yet.
 	const dirPerm = 0700
 	if err := os.MkdirAll(filepath.Dir(file), dirPerm); err != nil {
@@ -112,7 +105,7 @@ func writeTemporaryKeyFile(file string, content []byte) (string, error) {
 	return f.Name(), nil
 }
 
-// keyFileName implements the naming convention for keyfiles:
+// keyFileName implements the same naming convention for acctconfig files as for keyfiles:
 // UTC--<created_at UTC ISO8601>-<address hex>
 func keyFileName(keyAddr common.Address) string {
 	ts := time.Now().UTC()

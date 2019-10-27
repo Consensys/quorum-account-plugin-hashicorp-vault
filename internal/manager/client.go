@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,8 +12,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"github.com/hashicorp/vault/api"
 	"github.com/pborman/uuid"
 )
@@ -43,12 +43,17 @@ func (e invalidApproleAuthErr) Error() string {
 	return fmt.Sprintf("both %v and %v environment variables must be set if using Approle authentication", e.roleIdEnv, e.secretIdEnv)
 }
 
+// authenticatedClient contains a Vault Client and Renewer for the client to perform reauthentication of the  client when
+// necessary.
 type authenticatedClient struct {
 	*api.Client
 	renewer    *api.Renewer
 	authConfig config.VaultAuth
 }
 
+// newAuthenticatedClient creates an authenticated Vault client using the credentials provided as environment variables
+// (either logging in using the AppRole or using a provided token directly).  Providing tls will configure the client
+// to use TLS for Vault communications.  If the AppRole token is renewable the client will be started with a renewer.
 func newAuthenticatedClient(vaultAddr string, authConfig config.VaultAuth, tls config.TLS) (*authenticatedClient, error) {
 	conf := api.DefaultConfig()
 	conf.Address = vaultAddr
@@ -105,6 +110,8 @@ func newAuthenticatedClient(vaultAddr string, authConfig config.VaultAuth, tls c
 	return ac, nil
 }
 
+// approleLogin returns the result of a login request to the Vault using the client and the authCredentials.  If approlePath
+// is not provided the default value of approle will be used.
 func approleLogin(c *api.Client, creds authCredentials, approlePath string) (*api.Secret, error) {
 	body := map[string]interface{}{"role_id": creds.roleID, "secret_id": creds.secretID}
 
@@ -124,6 +131,9 @@ func (a authCredentials) usingApproleAuth() bool {
 	return a.roleID != "" && a.secretID != ""
 }
 
+// getAuthCredentials retrieves the authCredentials set on the environment, returning an error if an invalid combination
+// has been set.  If authID is provided, getAuthCredentials will expect each environment variable name to be prefixed with
+// "{authID}_".
 func getAuthCredentials(authID string) (authCredentials, error) {
 	roleIDEnv := applyPrefix(authID, DefaultRoleIDEnv)
 	secretIDEnv := applyPrefix(authID, DefaultSecretIDEnv)
@@ -150,6 +160,8 @@ func getAuthCredentials(authID string) (authCredentials, error) {
 
 const reauthRetryInterval time.Duration = 5000
 
+// renew starts the client's background process for renewing the its auth token.  If the renewal fails, renew will attempt
+// reauthentication indefinitely.
 func (ac *authenticatedClient) renew() {
 	go ac.renewer.Renew()
 
@@ -182,6 +194,8 @@ func (ac *authenticatedClient) renew() {
 	}
 }
 
+// reauthenticate re-reads the authentication credentials from the environments, makes the approle login request to the
+// Vault, updates the client and resets the renewal process.
 func (ac *authenticatedClient) reauthenticate() error {
 	creds, err := getAuthCredentials(ac.authConfig.AuthID)
 	if err != nil {
@@ -217,14 +231,18 @@ func applyPrefix(pre, val string) string {
 	return fmt.Sprintf("%v_%v", pre, val)
 }
 
+// vaultClientManager manages all the authenticated clients configured for a particular Vault
+// server.  It contains all the clients configured for use, each authenticated using individual auth config.
+// vaultClientManager is used for Vault read and write operations.
 type vaultClientManager struct {
 	vaultAddr     string
 	acctConfigDir string
-	clients       map[string]*authenticatedClient
+	// map of authenticated clients with keys equal to their corresponding authID
+	clients map[string]*authenticatedClient
 }
 
-// TODO(cjh) godoc
-
+// newVaultClientManager creates a authenticated clients for each auth config provided in the VaultConfig and returns them
+// wrapped in a vaultClientManager
 func newVaultClientManager(config config.VaultConfig) (*vaultClientManager, error) {
 	clients := make(map[string]*authenticatedClient, len(config.Auth))
 	for _, auth := range config.Auth {
@@ -241,6 +259,8 @@ func newVaultClientManager(config config.VaultConfig) (*vaultClientManager, erro
 	}, nil
 }
 
+// GetKey reads the configfile contents of filename, retrieving the defined secret from the Vault
+// using the client authenticated using the auth set of credentials
 func (m *vaultClientManager) GetKey(addr common.Address, filename string, auth string) (*Key, error) {
 	fileBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -254,6 +274,15 @@ func (m *vaultClientManager) GetKey(addr common.Address, filename string, auth s
 
 	if conf == (config.AccountConfig{}) {
 		return nil, fmt.Errorf("unable to read vault account config from file %v", filename)
+	}
+
+	// Make sure the contents of the file matches the requested key
+	if !common.IsHexAddress(conf.Address) {
+		return nil, fmt.Errorf("invalid hex address from file contents: %v", addr)
+	}
+
+	if confAddr := common.HexToAddress(conf.Address); confAddr != addr {
+		return nil, fmt.Errorf("acctconfig file content mismatch: have account %x, want %x", confAddr, addr)
 	}
 
 	hexKey, err := m.getSecretFromVault(conf.VaultSecret)
@@ -273,7 +302,7 @@ func (m *vaultClientManager) GetKey(addr common.Address, filename string, auth s
 	}, nil
 }
 
-// getSecretFromVault retrieves a particular version of the secret 'name' from the provided secret engine. Expects RLock to be held.
+// getSecretFromVault retrieves the secret described by the VaultSecretConfig from the Vault. Expects RLock to be held.
 func (m *vaultClientManager) getSecretFromVault(vaultAccountConfig config.VaultSecretConfig) (string, error) {
 	client, ok := m.clients[vaultAccountConfig.AuthID]
 	if !ok {
@@ -314,6 +343,8 @@ func (m *vaultClientManager) getSecretFromVault(vaultAccountConfig config.VaultS
 	return secret, nil
 }
 
+// StoreKey stores the Key in the Vault location defined by the VaultSecretConfig.  The necessary config is written to filename.
+// The new account is returned along with the URI of the secret's Vault location.
 func (m vaultClientManager) StoreKey(filename string, vaultConfig config.VaultSecretConfig, k *Key) (accounts.Account, string, error) {
 	secretUri, secretVersion, err := m.storeInVault(vaultConfig, k)
 	if err != nil {
@@ -341,6 +372,8 @@ func (m vaultClientManager) StoreKey(filename string, vaultConfig config.VaultSe
 	return acct, secretUri, nil
 }
 
+// storeInVault stores the Key in the Vault location defined by the VaultSecretConfig.  The URI of the secret's Vault
+// location is returned along with the version of the new secret.
 func (m vaultClientManager) storeInVault(vaultConfig config.VaultSecretConfig, k *Key) (string, int64, error) {
 	client, ok := m.clients[vaultConfig.AuthID]
 	if !ok {
@@ -401,6 +434,7 @@ func (m vaultClientManager) storeInFile(filename string, acctConfig config.Accou
 	return os.Rename(tmpName, filename)
 }
 
+// JoinPath joins filename with the acctconfig directory unless it is already absolute.
 func (m vaultClientManager) JoinPath(filename string) string {
 	if filepath.IsAbs(filename) {
 		return filename

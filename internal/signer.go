@@ -3,6 +3,11 @@ package internal
 import (
 	"context"
 	"fmt"
+	"log"
+	"math/big"
+	"strings"
+	"time"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -15,12 +20,9 @@ import (
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"log"
-	"math/big"
-	"strings"
-	"time"
 )
 
+// HashicorpVaultAccountManager defines the behaviour needed for a Vault account manager
 type HashicorpVaultAccountManager interface {
 	accounts.Backend
 	GetAccountCreator(vaultAddr string) (manager.AccountCreator, error)
@@ -29,14 +31,16 @@ type HashicorpVaultAccountManager interface {
 	Lock(acct accounts.Account) error
 }
 
+// HashicorpVaultAccountManagerDelegate is used to call the HashicorpVaultAccountManager, performing any necessary
+// conversion on protobuf types
 type HashicorpVaultAccountManagerDelegate struct {
 	HashicorpVaultAccountManager
 	events            chan accounts.WalletEvent
 	eventSubscription event.Subscription
 }
 
+// init creates the HashicorpVaultAccountManager
 func (am *HashicorpVaultAccountManagerDelegate) init(config config.PluginAccountManagerConfig) error {
-	log.Println("[PLUGIN SIGNER] init")
 	manager, err := manager.NewManager(config.Vaults)
 	if err != nil {
 		return err

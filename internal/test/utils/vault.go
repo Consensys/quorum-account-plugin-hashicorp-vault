@@ -5,10 +5,11 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/vault/sdk/helper/consts"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+
+	"github.com/hashicorp/vault/sdk/helper/consts"
 )
 
 type PathHandler struct {

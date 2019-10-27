@@ -65,12 +65,12 @@ func (w *watcher) loop() {
 	}()
 
 	if err := notify.Watch(w.ac.keydir, w.ev, notify.All); err != nil {
-		log.Println("[DEBUG] Failed to watch keystore folder", "path", w.ac.keydir, "err", err)
+		log.Println("[DEBUG] Failed to watch acctconfig directory", "path", w.ac.keydir, "err", err)
 		return
 	}
 	defer notify.Stop(w.ev)
-	log.Println("[DEBUG] Started watching keystore folder", "path", w.ac.keydir)
-	defer log.Println("[DEBUG] Stopped watching keystore folder")
+	log.Println("[DEBUG] Started watching acctconfig directory", "path", w.ac.keydir)
+	defer log.Println("[DEBUG] Stopped watching acctconfig directory")
 
 	w.ac.mu.Lock()
 	w.running = true

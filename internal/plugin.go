@@ -5,23 +5,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"log"
 	"time"
 
 	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
 	sproto "github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
+// HashicorpVaultAccountManagerPlugin implements Plugin and embeds HashicorpVaultAccountManagerDelegate.  It is the entrypoint.
 type HashicorpVaultAccountManagerPlugin struct {
 	plugin.Plugin
 	HashicorpVaultAccountManagerDelegate
 }
 
+// Init implements PluginInitializerServer.  It parses and validates the config in req, and initializes the HashicorpVaultAccountManager.
 func (p *HashicorpVaultAccountManagerPlugin) Init(ctx context.Context, req *iproto.PluginInitialization_Request) (*iproto.PluginInitialization_Response, error) {
 	// read config and start HashicorpVaultAccountManagerDelegate
 	startTime := time.Now()
@@ -48,7 +50,6 @@ func newSignerConfiguration(rawJSON []byte) (config.PluginAccountManagerConfig, 
 	if err := conf.Validate(); err != nil {
 		return config.PluginAccountManagerConfig{}, fmt.Errorf("invalid configuration: %s", err)
 	}
-	//conf.SetDefaults()
 	return conf, nil
 }
 

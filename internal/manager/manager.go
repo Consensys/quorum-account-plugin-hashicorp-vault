@@ -19,7 +19,6 @@ package manager
 import (
 	"errors"
 	"fmt"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"log"
 	"sort"
 	"strings"
@@ -29,10 +28,11 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 )
 
-// Manager is an overarching account manager that can communicate with various
-// backends for signing transactions.
+// Manager is the top-level account manager for Hashicorp Vault accounts that can communicate with various
+// backends for multiple Vault servers to signing transactions.
 type Manager struct {
 	backends []accounts.Backend        // Index of backends currently registered
 	updaters []event.Subscription      // Wallet update subscriptions for all backends
@@ -45,11 +45,9 @@ type Manager struct {
 	lock sync.RWMutex
 }
 
-// NewManager creates a generic account manager to sign transaction via various
-// supported backends.
+// NewManager creates the Hashicorp Vault account manager to sign transaction via various
+// Vault servers, defined by VaultConfig.
 func NewManager(config []config.VaultConfig) (*Manager, error) {
-	log.Println("[PLUGIN Manager] NewManager")
-
 	backends := make([]accounts.Backend, len(config))
 	updates := make(chan accounts.WalletEvent, 4*len(backends))
 	subs := make([]event.Subscription, len(backends))
@@ -119,7 +117,7 @@ func (am *Manager) Close() error {
 	return <-errc
 }
 
-// update is the wallet event loop listening for notifications from the backends
+// update is the wallet event loop listening for notifications from the backend's
 // and updating the cache of wallets.
 func (am *Manager) update() {
 	// Close all subscriptions when the manager terminates
@@ -137,7 +135,7 @@ func (am *Manager) update() {
 		select {
 		case event := <-am.updates:
 			// Wallet event arrived, update local cache
-			log.Println("[MANAGER] wallet event arrived")
+			log.Println("[DEBUG] wallet event arrived at Hashicorp Vault manager")
 			am.lock.Lock()
 			switch event.Kind {
 			case accounts.WalletArrived:
@@ -158,6 +156,7 @@ func (am *Manager) update() {
 	}
 }
 
+// Backend retrieves the backend registered with the manager that contains the provided account
 func (am *Manager) Backend(account accounts.Account) (accounts.Backend, error) {
 	for _, b := range am.backends {
 		for _, w := range b.Wallets() {
@@ -169,20 +168,21 @@ func (am *Manager) Backend(account accounts.Account) (accounts.Backend, error) {
 	return nil, accounts.ErrUnknownWallet
 }
 
+// GetAccountCreator returns an AccountCreator for the given vaultAddr
 func (am *Manager) GetAccountCreator(vaultAddr string) (AccountCreator, error) {
 	for _, backend := range am.backends {
 		switch b := backend.(type) {
 		case *Backend:
-			a := b.storage.(*vaultClientManager).vaultAddr
+			a := b.vaultClientManager.vaultAddr
 			if vaultAddr == a {
 				return b, nil
 			}
 		}
 	}
-	return nil, fmt.Errorf("plugin signer not configured to use Vault %v", vaultAddr)
+	return nil, fmt.Errorf("plugin account manager not configured to use Vault %v", vaultAddr)
 }
 
-// Wallets returns all signer accounts registered under this account manager.
+// Wallets returns all wallets registered under this account manager.
 func (am *Manager) Wallets() []accounts.Wallet {
 	am.lock.RLock()
 	defer am.lock.RUnlock()
@@ -231,8 +231,8 @@ func merge(slice []accounts.Wallet, wallets ...accounts.Wallet) []accounts.Walle
 	return slice
 }
 
-// drop is the couterpart of merge, which looks up wallets from within the sorted
-// cache and removes the ones specified.
+// drop is the counterpart of merge, which looks up wallets from within the sorted
+// cache and removes the ones specified, preserving order.
 func drop(slice []accounts.Wallet, wallets ...accounts.Wallet) []accounts.Wallet {
 	for _, wallet := range wallets {
 		n := sort.Search(len(slice), func(i int) bool { return slice[i].URL().Cmp(wallet.URL()) >= 0 })
@@ -245,7 +245,7 @@ func drop(slice []accounts.Wallet, wallets ...accounts.Wallet) []accounts.Wallet
 	return slice
 }
 
-// Lock removes the private key with the given address from memory.
+// Lock removes the private key corresponding to the provided account from memory.
 func (am *Manager) Lock(account accounts.Account) error {
 	b, err := am.Backend(account)
 	if err != nil {
@@ -258,7 +258,7 @@ func (am *Manager) Lock(account accounts.Account) error {
 	return nil
 }
 
-// TimedUnlock unlocks the given account with the passphrase. The account
+// TimedUnlock retrieves the given account from the Vault.  passphrase is not used. The account
 // stays unlocked for the duration of timeout. A timeout of 0 unlocks the account
 // until the program exits. The account must match a unique key file.
 //

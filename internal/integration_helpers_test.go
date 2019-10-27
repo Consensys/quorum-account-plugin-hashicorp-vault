@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
 	sproto "github.com/goquorum/quorum-plugin-definitions/signer/go/proto"

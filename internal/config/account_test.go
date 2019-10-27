@@ -2,9 +2,10 @@ package config
 
 import (
 	"encoding/hex"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestAccountConfig_ValidateForAccountRetrieval_MinimumValidConfig(t *testing.T) {

@@ -3,14 +3,15 @@ package manager
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/utils"
-	"github.com/hashicorp/vault/api"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/utils"
+	"github.com/hashicorp/vault/api"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
