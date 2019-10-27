@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
+	"github.com/goquorum/quorum-plugin-definitions/account_manager/go/proto"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/manager"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/utils"
@@ -230,7 +230,7 @@ func (am *HashicorpVaultAccountManagerDelegate) SignTxWithPassphrase(_ context.C
 	return &proto.SignTxResponse{RlpTx: rlpTx}, nil
 }
 
-func (am *HashicorpVaultAccountManagerDelegate) GetEventStream(req *proto.GetEventStreamRequest, stream proto.Signer_GetEventStreamServer) error {
+func (am *HashicorpVaultAccountManagerDelegate) GetEventStream(req *proto.GetEventStreamRequest, stream proto.AccountManager_GetEventStreamServer) error {
 	defer func() {
 		am.eventSubscription.Unsubscribe()
 		am.eventSubscription = nil

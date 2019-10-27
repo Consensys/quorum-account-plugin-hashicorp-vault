@@ -8,8 +8,8 @@ import (
 	"log"
 	"time"
 
+	amproto "github.com/goquorum/quorum-plugin-definitions/account_manager/go/proto"
 	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
-	sproto "github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
@@ -55,7 +55,7 @@ func newPluginAccountManagerConfiguration(rawJSON []byte) (config.PluginAccountM
 
 func (p *HashicorpVaultAccountManagerPlugin) GRPCServer(b *plugin.GRPCBroker, s *grpc.Server) error {
 	iproto.RegisterPluginInitializerServer(s, p)
-	sproto.RegisterSignerServer(s, p)
+	amproto.RegisterAccountManagerServer(s, p)
 	return nil
 }
 

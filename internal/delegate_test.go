@@ -14,8 +14,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/golang/mock/gomock"
-	"github.com/goquorum/quorum-plugin-definitions/signer/go/mock_proto"
-	"github.com/goquorum/quorum-plugin-definitions/signer/go/proto"
+	"github.com/goquorum/quorum-plugin-definitions/account_manager/go/mock_proto"
+	"github.com/goquorum/quorum-plugin-definitions/account_manager/go/proto"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_accounts"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_event"
@@ -463,7 +463,7 @@ func TestDelegate_GetEventStream(t *testing.T) {
 	)
 
 	req := &proto.GetEventStreamRequest{}
-	mockStream := mock_proto.NewMockSigner_GetEventStreamServer(ctrl)
+	mockStream := mock_proto.NewMockAccountManager_GetEventStreamServer(ctrl)
 
 	// assert that the events are correctly parsed into protobuf compatible event types
 	gomock.InOrder(
