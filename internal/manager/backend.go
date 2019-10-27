@@ -47,10 +47,9 @@ const walletRefreshCycle = 3 * time.Second
 
 // Backend manages a key storage directory on disk.
 type Backend struct {
-	storage keyStore            // Storage backend, might be cleartext or encrypted
-	cache   *cache.AccountCache // In-memory account cache over the filesystem storage
-	//TODO has been exported for cache tests due to moving cache into a separate pkg.  Probably don't want to keep exported so review the cache tests
-	Changes  chan struct{}                // Channel receiving change notifications from the cache
+	storage  keyStore                     // Storage backend, might be cleartext or encrypted
+	cache    *cache.AccountCache          // In-memory account cache over the filesystem storage
+	changes  chan struct{}                // Channel receiving change notifications from the cache
 	unlocked map[common.Address]*unlocked // Currently unlocked account (decrypted private keys)
 
 	wallets     []accounts.Wallet       // Wallet wrappers around the individual key files
@@ -98,7 +97,7 @@ func (b *Backend) init(keydir string, vaultConfig config.VaultConfig) error {
 
 	// Initialize the set of unlocked keys and the account cache
 	b.unlocked = make(map[common.Address]*unlocked)
-	b.cache, b.Changes = cache.NewAccountCache(keydir, b.storage.(*vaultClientManager).vaultAddr)
+	b.cache, b.changes = cache.NewAccountCache(keydir, b.storage.(*vaultClientManager).vaultAddr)
 
 	// TODO: In order for this finalizer to work, there must be no references
 	// to b. addressCache doesn't keep a reference but unlocked keys do,
@@ -275,8 +274,8 @@ func (b *Backend) TimedUnlock(a accounts.Account, passphrase string, timeout tim
 // Find resolves the given account into a unique entry in the keystore.
 func (b *Backend) Find(a accounts.Account) (accounts.Account, string, error) {
 	b.cache.MaybeReload()
-	b.cache.Mu.Lock()
-	defer b.cache.Mu.Unlock()
+	b.cache.Lock()
+	defer b.cache.Unlock()
 	a, err := b.cache.Find(a)
 	if err != nil {
 		return accounts.Account{}, "", err
@@ -375,7 +374,7 @@ func (b *Backend) updater() {
 	for {
 		// Wait for an account update or a refresh timeout
 		select {
-		case <-b.Changes:
+		case <-b.changes:
 		case <-time.After(walletRefreshCycle):
 		}
 		log.Println("[PLUGIN Backend] updater: change detected")

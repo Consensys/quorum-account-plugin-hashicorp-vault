@@ -71,7 +71,7 @@ func (err *AmbiguousAddrError) Error() string {
 type AccountCache struct {
 	keydir   string
 	watcher  *watcher
-	Mu       sync.Mutex // TODO has been exported due to moving into separate pkg, do we want to keep it this way?
+	mu       sync.Mutex
 	all      accountsByURL
 	byAddr   map[common.Address][]accounts.Account
 	byFile   map[string]accounts.Account
@@ -97,8 +97,8 @@ func NewAccountCache(keydir string, vaultAddr string) (*AccountCache, chan struc
 
 func (ac *AccountCache) Accounts() []accounts.Account {
 	ac.MaybeReload()
-	ac.Mu.Lock()
-	defer ac.Mu.Unlock()
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
 	cpy := make([]accounts.Account, len(ac.all))
 	copy(cpy, ac.all)
 	return cpy
@@ -106,14 +106,14 @@ func (ac *AccountCache) Accounts() []accounts.Account {
 
 func (ac *AccountCache) HasAddress(addr common.Address) bool {
 	ac.MaybeReload()
-	ac.Mu.Lock()
-	defer ac.Mu.Unlock()
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
 	return len(ac.byAddr[addr]) > 0
 }
 
 func (ac *AccountCache) Add(newAccount accounts.Account, filepath string) {
-	ac.Mu.Lock()
-	defer ac.Mu.Unlock()
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
 
 	i := sort.Search(len(ac.all), func(i int) bool { return ac.all[i].URL.Cmp(newAccount.URL) >= 0 })
 	if i < len(ac.all) && ac.all[i] == newAccount {
@@ -129,8 +129,8 @@ func (ac *AccountCache) Add(newAccount accounts.Account, filepath string) {
 
 // deleteByFile removes an account referenced by the given path.
 func (ac *AccountCache) deleteByFile(path string) {
-	ac.Mu.Lock()
-	defer ac.Mu.Unlock()
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
 
 	acct, ok := ac.byFile[path]
 	if !ok {
@@ -203,10 +203,10 @@ func (ac *AccountCache) FindConfigFile(a accounts.Account) (string, error) {
 }
 
 func (ac *AccountCache) MaybeReload() {
-	ac.Mu.Lock()
+	ac.mu.Lock()
 
 	if ac.watcher.running {
-		ac.Mu.Unlock()
+		ac.mu.Unlock()
 		return // A watcher is running and will keep the cache up-to-date.
 	}
 	if ac.throttle == nil {
@@ -215,19 +215,19 @@ func (ac *AccountCache) MaybeReload() {
 		select {
 		case <-ac.throttle.C:
 		default:
-			ac.Mu.Unlock()
+			ac.mu.Unlock()
 			return // The cache was reloaded recently.
 		}
 	}
 	// No watcher running, start it.
 	ac.watcher.start()
 	ac.throttle.Reset(minReloadInterval)
-	ac.Mu.Unlock()
+	ac.mu.Unlock()
 	ac.scanAccounts()
 }
 
 func (ac *AccountCache) Close() {
-	ac.Mu.Lock()
+	ac.mu.Lock()
 	ac.watcher.close()
 	if ac.throttle != nil {
 		ac.throttle.Stop()
@@ -236,7 +236,15 @@ func (ac *AccountCache) Close() {
 		close(ac.notify)
 		ac.notify = nil
 	}
-	ac.Mu.Unlock()
+	ac.mu.Unlock()
+}
+
+func (ac *AccountCache) Lock() {
+	ac.mu.Lock()
+}
+
+func (ac *AccountCache) Unlock() {
+	ac.mu.Unlock()
 }
 
 // scanAccounts checks if any changes have occurred on the filesystem, and

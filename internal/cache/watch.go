@@ -58,10 +58,10 @@ func (w *watcher) close() {
 
 func (w *watcher) loop() {
 	defer func() {
-		w.ac.Mu.Lock()
+		w.ac.mu.Lock()
 		w.running = false
 		w.starting = false
-		w.ac.Mu.Unlock()
+		w.ac.mu.Unlock()
 	}()
 
 	if err := notify.Watch(w.ac.keydir, w.ev, notify.All); err != nil {
@@ -72,9 +72,9 @@ func (w *watcher) loop() {
 	log.Println("[DEBUG] Started watching keystore folder", "path", w.ac.keydir)
 	defer log.Println("[DEBUG] Stopped watching keystore folder")
 
-	w.ac.Mu.Lock()
+	w.ac.mu.Lock()
 	w.running = true
-	w.ac.Mu.Unlock()
+	w.ac.mu.Unlock()
 
 	// Wait for file system events and reload.
 	// When an event occurs, the reload call is delayed a bit so that
