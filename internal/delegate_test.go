@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_manager"
 	"math/big"
@@ -562,8 +563,8 @@ func TestDelegate_NewAccount(t *testing.T) {
 		casValue         = 1
 	)
 
-	newAccountProto := &proto.NewVaultAccount{
-		VaultAddress:     vaultAddress,
+	newVaultAccountConfig := NewAccountHashicorpVaultConfig{
+		VaultAddr:        vaultAddress,
 		AuthID:           authID,
 		SecretEnginePath: secretEnginePath,
 		SecretPath:       secretPath,
@@ -571,9 +572,12 @@ func TestDelegate_NewAccount(t *testing.T) {
 		CasValue:         casValue,
 	}
 
+	confBytes, err := json.Marshal(newVaultAccountConfig)
+	require.NoError(t, err)
+
 	mockBackend.
 		EXPECT().
-		GetAccountCreator(newAccountProto.VaultAddress).
+		GetAccountCreator(vaultAddress).
 		Return(mockAccountCreator, nil)
 
 	wantConfig := config.VaultSecretConfig{
@@ -586,19 +590,19 @@ func TestDelegate_NewAccount(t *testing.T) {
 		CasValue:        casValue,
 	}
 
-	mockSecretUri := "some/secret/uri"
+	mockKeyUri := "some/key/uri"
 	mockAccountCreator.
 		EXPECT().
 		NewAccount(wantConfig).
-		Return(acct1, mockSecretUri, nil)
+		Return(acct1, mockKeyUri, nil)
 
 	req := &proto.NewAccountRequest{
-		NewVaultAccount: newAccountProto,
+		NewAccountConfig: confBytes,
 	}
 	got, err := s.NewAccount(context.Background(), req)
 	want := &proto.NewAccountResponse{
-		Account:   protoAcct1,
-		SecretUri: mockSecretUri,
+		Account: protoAcct1,
+		KeyUri:  mockKeyUri,
 	}
 
 	require.NoError(t, err)
@@ -625,8 +629,8 @@ func TestDelegate_ImportRawKey(t *testing.T) {
 		casValue         = 1
 	)
 
-	newAccountProto := &proto.NewVaultAccount{
-		VaultAddress:     vaultAddress,
+	newVaultAccountConfig := NewAccountHashicorpVaultConfig{
+		VaultAddr:        vaultAddress,
 		AuthID:           authID,
 		SecretEnginePath: secretEnginePath,
 		SecretPath:       secretPath,
@@ -634,9 +638,12 @@ func TestDelegate_ImportRawKey(t *testing.T) {
 		CasValue:         casValue,
 	}
 
+	confBytes, err := json.Marshal(newVaultAccountConfig)
+	require.NoError(t, err)
+
 	mockBackend.
 		EXPECT().
-		GetAccountCreator(newAccountProto.VaultAddress).
+		GetAccountCreator(vaultAddress).
 		Return(mockAccountCreator, nil)
 
 	wantConfig := config.VaultSecretConfig{
@@ -649,20 +656,20 @@ func TestDelegate_ImportRawKey(t *testing.T) {
 		CasValue:        casValue,
 	}
 
-	mockSecretUri := "some/secret/uri"
+	mockKeyUri := "some/key/uri"
 	mockAccountCreator.
 		EXPECT().
 		ImportECDSA(key1, wantConfig).
-		Return(acct1, mockSecretUri, nil)
+		Return(acct1, mockKeyUri, nil)
 
 	req := &proto.ImportRawKeyRequest{
-		RawKey:          hexkey1,
-		NewVaultAccount: newAccountProto,
+		RawKey:           hexkey1,
+		NewAccountConfig: confBytes,
 	}
 	got, err := s.ImportRawKey(context.Background(), req)
 	want := &proto.ImportRawKeyResponse{
-		Account:   protoAcct1,
-		SecretUri: mockSecretUri,
+		Account: protoAcct1,
+		KeyUri:  mockKeyUri,
 	}
 
 	require.NoError(t, err)

@@ -56,17 +56,15 @@ func TestCache_InitialReload_OrderByUrl(t *testing.T) {
 	// create temporary acctconfigdir
 	dir, err := ioutil.TempDir("../test/data", "acctconfig")
 	require.NoError(t, err)
+	defer os.RemoveAll(dir)
 
 	// add 2 acctconfigs to acctconfigdir
 	if _, err := utils.AddTempFile(dir, utils.Acct1JsonConfig); err != nil {
-		os.RemoveAll(dir)
 		t.Fatal(err)
 	}
 	if _, err := utils.AddTempFile(dir, utils.Acct2JsonConfig); err != nil {
-		os.RemoveAll(dir)
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(dir)
 
 	vaulturl := "http://url"
 	cache, _ := NewAccountCache(dir, vaulturl)

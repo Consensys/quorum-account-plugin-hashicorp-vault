@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -297,21 +298,31 @@ func (am *HashicorpVaultAccountManagerDelegate) Lock(_ context.Context, req *pro
 }
 
 func (am *HashicorpVaultAccountManagerDelegate) NewAccount(_ context.Context, req *proto.NewAccountRequest) (*proto.NewAccountResponse, error) {
-	b, err := am.GetAccountCreator(req.NewVaultAccount.VaultAddress)
+	conf, err := asNewAccountConfig(req.NewAccountConfig)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	acct, secretUri, err := b.NewAccount(asVaultAccountConfig(req.NewVaultAccount))
+	b, err := am.GetAccountCreator(conf.VaultAddr)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return &proto.NewAccountResponse{Account: asProtoAccount(acct), SecretUri: secretUri}, nil
+	acct, keyUri, err := b.NewAccount(asVaultAccountConfig(conf))
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &proto.NewAccountResponse{Account: asProtoAccount(acct), KeyUri: keyUri}, nil
 }
 
 func (am *HashicorpVaultAccountManagerDelegate) ImportRawKey(_ context.Context, req *proto.ImportRawKeyRequest) (*proto.ImportRawKeyResponse, error) {
-	b, err := am.GetAccountCreator(req.NewVaultAccount.VaultAddress)
+	conf, err := asNewAccountConfig(req.NewAccountConfig)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	b, err := am.GetAccountCreator(conf.VaultAddr)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -321,12 +332,12 @@ func (am *HashicorpVaultAccountManagerDelegate) ImportRawKey(_ context.Context, 
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	acct, secretUri, err := b.ImportECDSA(key, asVaultAccountConfig(req.NewVaultAccount))
+	acct, keyUri, err := b.ImportECDSA(key, asVaultAccountConfig(conf))
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return &proto.ImportRawKeyResponse{Account: asProtoAccount(acct), SecretUri: secretUri}, nil
+	return &proto.ImportRawKeyResponse{Account: asProtoAccount(acct), KeyUri: keyUri}, nil
 }
 
 // TODO duplicated from quorum plugin/accounts/gateway.go
@@ -377,14 +388,34 @@ func asProtoWalletEvent(event accounts.WalletEvent) *proto.GetEventStreamRespons
 	}
 }
 
-func asVaultAccountConfig(req *proto.NewVaultAccount) config.VaultSecretConfig {
+func asVaultAccountConfig(conf NewAccountHashicorpVaultConfig) config.VaultSecretConfig {
 	return config.VaultSecretConfig{
 		PathParams: config.PathParams{
-			SecretEnginePath: req.SecretEnginePath,
-			SecretPath:       req.SecretPath,
+			SecretEnginePath: conf.SecretEnginePath,
+			SecretPath:       conf.SecretPath,
 		},
-		AuthID:          req.AuthID,
-		InsecureSkipCas: req.InsecureSkipCas,
-		CasValue:        req.CasValue,
+		AuthID:          conf.AuthID,
+		InsecureSkipCas: conf.InsecureSkipCas,
+		CasValue:        conf.CasValue,
 	}
+}
+
+// TODO duplicated in both geth and here
+type NewAccountHashicorpVaultConfig struct {
+	VaultAddr        string
+	AuthID           string
+	SecretEnginePath string
+	SecretPath       string
+	InsecureSkipCas  bool
+	CasValue         uint64
+}
+
+func asNewAccountConfig(raw []byte) (NewAccountHashicorpVaultConfig, error) {
+	conf := new(NewAccountHashicorpVaultConfig)
+
+	if err := json.Unmarshal(raw, conf); err != nil {
+		return NewAccountHashicorpVaultConfig{}, err
+	}
+
+	return *conf, nil
 }

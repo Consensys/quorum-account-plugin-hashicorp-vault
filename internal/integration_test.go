@@ -1078,15 +1078,13 @@ func Test_NewAccount_CorrectCasValue(t *testing.T) {
 	impl, vaultUrl, dir, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := config.VaultSecretConfig{
-		PathParams: config.PathParams{
-			SecretEnginePath: "newengine",
-			SecretPath:       "newpath",
-			SecretVersion:    0, // version is not used when creating new accounts
-		},
-		AuthID:          "FOO",
-		InsecureSkipCas: false,
-		CasValue:        10,
+	newAccountCreationConfig := NewAccountHashicorpVaultConfig{
+		VaultAddr:        vaultUrl,
+		AuthID:           "FOO",
+		SecretEnginePath: "newengine",
+		SecretPath:       "newpath",
+		InsecureSkipCas:  false,
+		CasValue:         10,
 	}
 
 	// make note of the number of files in the acctconfigdir before acct creation
@@ -1096,18 +1094,18 @@ func Test_NewAccount_CorrectCasValue(t *testing.T) {
 	// request the plugin account manager to create a new account
 	createdAddr = ""
 	createdKey = ""
-	resp, err := newAccountDelegate(t, &impl, vaultUrl, newAcctConfig)
+	resp, err := newAccountDelegate(&impl, newAccountCreationConfig)
 	require.NoError(t, err)
 
 	// check that the vault location of the new acct data is correct and valid
 	wantUri := fmt.Sprintf(
 		"%v/v1/%v/data/%v?version=%v",
 		vaultUrl,
-		newAcctConfig.PathParams.SecretEnginePath,
-		newAcctConfig.PathParams.SecretPath,
+		newAccountCreationConfig.SecretEnginePath,
+		newAccountCreationConfig.SecretPath,
 		11, // this is the version number returned by the mock vault handler
 	)
-	require.Equal(t, wantUri, resp.SecretUri)
+	require.Equal(t, wantUri, resp.KeyUri)
 
 	addr := strings.TrimSpace(common.Bytes2Hex(resp.Account.Address))
 	require.True(t, common.IsHexAddress(addr))
@@ -1185,21 +1183,19 @@ func Test_NewAccount_IncorrectCasValue(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := config.VaultSecretConfig{
-		PathParams: config.PathParams{
-			SecretEnginePath: "newengine",
-			SecretPath:       "newpath",
-			SecretVersion:    0, // version is not used when creating new accounts
-		},
-		AuthID:          "FOO",
-		InsecureSkipCas: false,
-		CasValue:        1,
+	newAccountCreationConfig := NewAccountHashicorpVaultConfig{
+		VaultAddr:        vaultUrl,
+		AuthID:           "FOO",
+		SecretEnginePath: "newengine",
+		SecretPath:       "newpath",
+		InsecureSkipCas:  false,
+		CasValue:         1,
 	}
 
 	// request the plugin account manager to create a new account
 	createdAddr = ""
 	createdKey = ""
-	_, err := newAccountDelegate(t, &impl, vaultUrl, newAcctConfig)
+	_, err := newAccountDelegate(&impl, newAccountCreationConfig)
 	require.Error(t, err)
 }
 
@@ -1229,15 +1225,13 @@ func Test_NewAccount_SkipCasCheck(t *testing.T) {
 	impl, vaultUrl, dir, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := config.VaultSecretConfig{
-		PathParams: config.PathParams{
-			SecretEnginePath: "newengine",
-			SecretPath:       "newpath",
-			SecretVersion:    0, // version is not used when creating new accounts
-		},
-		AuthID:          "FOO",
-		InsecureSkipCas: true,
-		CasValue:        1, // this value is invalid but will be ignored because of the InsecureSkipFlag property
+	newAccountCreationConfig := NewAccountHashicorpVaultConfig{
+		VaultAddr:        vaultUrl,
+		AuthID:           "FOO",
+		SecretEnginePath: "newengine",
+		SecretPath:       "newpath",
+		InsecureSkipCas:  true,
+		CasValue:         1,
 	}
 
 	// make note of the number of files in the acctconfigdir before acct creation
@@ -1247,18 +1241,18 @@ func Test_NewAccount_SkipCasCheck(t *testing.T) {
 	// request the plugin account manager to create a new account
 	createdAddr = ""
 	createdKey = ""
-	resp, err := newAccountDelegate(t, &impl, vaultUrl, newAcctConfig)
+	resp, err := newAccountDelegate(&impl, newAccountCreationConfig)
 	require.NoError(t, err)
 
 	// check that the vault location of the new acct data is correct and valid
 	wantUri := fmt.Sprintf(
 		"%v/v1/%v/data/%v?version=%v",
 		vaultUrl,
-		newAcctConfig.PathParams.SecretEnginePath,
-		newAcctConfig.PathParams.SecretPath,
+		newAccountCreationConfig.SecretEnginePath,
+		newAccountCreationConfig.SecretPath,
 		11, // this is the version number returned by the mock vault handler
 	)
-	require.Equal(t, wantUri, resp.SecretUri)
+	require.Equal(t, wantUri, resp.KeyUri)
 
 	addr := strings.TrimSpace(common.Bytes2Hex(resp.Account.Address))
 	require.True(t, common.IsHexAddress(addr))
@@ -1336,15 +1330,13 @@ func Test_ImportRawKey_CorrectCasValue(t *testing.T) {
 	impl, vaultUrl, dir, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := config.VaultSecretConfig{
-		PathParams: config.PathParams{
-			SecretEnginePath: "newengine",
-			SecretPath:       "newpath",
-			SecretVersion:    0, // version is not used when creating new accounts
-		},
-		AuthID:          "FOO",
-		InsecureSkipCas: false,
-		CasValue:        10,
+	newAccountCreationConfig := NewAccountHashicorpVaultConfig{
+		VaultAddr:        vaultUrl,
+		AuthID:           "FOO",
+		SecretEnginePath: "newengine",
+		SecretPath:       "newpath",
+		InsecureSkipCas:  false,
+		CasValue:         10,
 	}
 
 	// make note of the number of files in the acctconfigdir before acct creation
@@ -1355,18 +1347,18 @@ func Test_ImportRawKey_CorrectCasValue(t *testing.T) {
 	createdAddr = ""
 	createdKey = ""
 	rawKey := "fb395a831f64105628206467a9e827ca13767abef9705d782295a62a118bbc41"
-	resp, err := importRawKeyDelegate(t, &impl, vaultUrl, newAcctConfig, rawKey)
+	resp, err := importRawKeyDelegate(&impl, newAccountCreationConfig, rawKey)
 	require.NoError(t, err)
 
 	// check that the vault location of the new acct data is correct and valid
 	wantUri := fmt.Sprintf(
 		"%v/v1/%v/data/%v?version=%v",
 		vaultUrl,
-		newAcctConfig.PathParams.SecretEnginePath,
-		newAcctConfig.PathParams.SecretPath,
+		newAccountCreationConfig.SecretEnginePath,
+		newAccountCreationConfig.SecretPath,
 		11, // this is the version number returned by the mock vault handler
 	)
-	require.Equal(t, wantUri, resp.SecretUri)
+	require.Equal(t, wantUri, resp.KeyUri)
 
 	addr := strings.TrimSpace(common.Bytes2Hex(resp.Account.Address))
 	require.True(t, common.IsHexAddress(addr))
@@ -1444,22 +1436,20 @@ func Test_ImportRawKey_IncorrectCasValue(t *testing.T) {
 	impl, vaultUrl, _, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := config.VaultSecretConfig{
-		PathParams: config.PathParams{
-			SecretEnginePath: "newengine",
-			SecretPath:       "newpath",
-			SecretVersion:    0, // version is not used when creating new accounts
-		},
-		AuthID:          "FOO",
-		InsecureSkipCas: false,
-		CasValue:        1,
+	newAccountCreationConfig := NewAccountHashicorpVaultConfig{
+		VaultAddr:        vaultUrl,
+		AuthID:           "FOO",
+		SecretEnginePath: "newengine",
+		SecretPath:       "newpath",
+		InsecureSkipCas:  false,
+		CasValue:         1,
 	}
 
 	// request the plugin account manager to create a new account
 	createdAddr = ""
 	createdKey = ""
 	rawKey := "fb395a831f64105628206467a9e827ca13767abef9705d782295a62a118bbc41"
-	_, err := importRawKeyDelegate(t, &impl, vaultUrl, newAcctConfig, rawKey)
+	_, err := importRawKeyDelegate(&impl, newAccountCreationConfig, rawKey)
 	require.Error(t, err)
 }
 
@@ -1489,15 +1479,13 @@ func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
 	impl, vaultUrl, dir, toClose := setup(t, pluginConfig)
 	defer toClose()
 
-	newAcctConfig := config.VaultSecretConfig{
-		PathParams: config.PathParams{
-			SecretEnginePath: "newengine",
-			SecretPath:       "newpath",
-			SecretVersion:    0, // version is not used when creating new accounts
-		},
-		AuthID:          "FOO",
-		InsecureSkipCas: true,
-		CasValue:        1, // this value is invalid but will be ignored because of the InsecureSkipFlag property
+	newAccountCreationConfig := NewAccountHashicorpVaultConfig{
+		VaultAddr:        vaultUrl,
+		AuthID:           "FOO",
+		SecretEnginePath: "newengine",
+		SecretPath:       "newpath",
+		InsecureSkipCas:  true,
+		CasValue:         1,
 	}
 
 	// make note of the number of files in the acctconfigdir before acct creation
@@ -1508,18 +1496,18 @@ func Test_ImportRawKey_SkipCasCheck(t *testing.T) {
 	createdAddr = ""
 	createdKey = ""
 	rawKey := "fb395a831f64105628206467a9e827ca13767abef9705d782295a62a118bbc41"
-	resp, err := importRawKeyDelegate(t, &impl, vaultUrl, newAcctConfig, rawKey)
+	resp, err := importRawKeyDelegate(&impl, newAccountCreationConfig, rawKey)
 	require.NoError(t, err)
 
 	// check that the vault location of the new acct data is correct and valid
 	wantUri := fmt.Sprintf(
 		"%v/v1/%v/data/%v?version=%v",
 		vaultUrl,
-		newAcctConfig.PathParams.SecretEnginePath,
-		newAcctConfig.PathParams.SecretPath,
+		newAccountCreationConfig.SecretEnginePath,
+		newAccountCreationConfig.SecretPath,
 		11, // this is the version number returned by the mock vault handler
 	)
-	require.Equal(t, wantUri, resp.SecretUri)
+	require.Equal(t, wantUri, resp.KeyUri)
 
 	addr := strings.TrimSpace(common.Bytes2Hex(resp.Account.Address))
 	require.True(t, common.IsHexAddress(addr))
@@ -1800,29 +1788,25 @@ func lockDelegate(client *InitializerAccountManagerClient, acctJsonConfig []byte
 	return err
 }
 
-func newAccountDelegate(t *testing.T, client *InitializerAccountManagerClient, vaultUrl string, vaultAccountConfig config.VaultSecretConfig) (*proto.NewAccountResponse, error) {
+func newAccountDelegate(client *InitializerAccountManagerClient, newAccountConfig NewAccountHashicorpVaultConfig) (*proto.NewAccountResponse, error) {
+	confBytes, err := json.Marshal(newAccountConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	return client.NewAccount(context.Background(), &proto.NewAccountRequest{
-		NewVaultAccount: &proto.NewVaultAccount{
-			VaultAddress:     vaultUrl,
-			AuthID:           vaultAccountConfig.AuthID,
-			SecretEnginePath: vaultAccountConfig.PathParams.SecretEnginePath,
-			SecretPath:       vaultAccountConfig.PathParams.SecretPath,
-			InsecureSkipCas:  vaultAccountConfig.InsecureSkipCas,
-			CasValue:         vaultAccountConfig.CasValue,
-		},
+		NewAccountConfig: confBytes,
 	})
 }
 
-func importRawKeyDelegate(t *testing.T, client *InitializerAccountManagerClient, vaultUrl string, vaultAccountConfig config.VaultSecretConfig, rawKey string) (*proto.ImportRawKeyResponse, error) {
+func importRawKeyDelegate(client *InitializerAccountManagerClient, newAccountConfig NewAccountHashicorpVaultConfig, rawKey string) (*proto.ImportRawKeyResponse, error) {
+	confBytes, err := json.Marshal(newAccountConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	return client.ImportRawKey(context.Background(), &proto.ImportRawKeyRequest{
-		RawKey: rawKey,
-		NewVaultAccount: &proto.NewVaultAccount{
-			VaultAddress:     vaultUrl,
-			AuthID:           vaultAccountConfig.AuthID,
-			SecretEnginePath: vaultAccountConfig.PathParams.SecretEnginePath,
-			SecretPath:       vaultAccountConfig.PathParams.SecretPath,
-			InsecureSkipCas:  vaultAccountConfig.InsecureSkipCas,
-			CasValue:         vaultAccountConfig.CasValue,
-		},
+		RawKey:           rawKey,
+		NewAccountConfig: confBytes,
 	})
 }
