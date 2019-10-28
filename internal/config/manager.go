@@ -13,29 +13,29 @@ const (
 
 // PluginAccountManagerConfig contains the config for one or more Vault account stores
 type PluginAccountManagerConfig struct {
-	Vaults []VaultConfig `toml:",omitempty"`
+	Vaults []VaultConfig `toml:",omitempty" json:"vaults,omitempty"`
 }
 
 // VaultConfig contains the config to use a Vault server as an account store
 type VaultConfig struct {
-	URL              string      `toml:",omitempty"`
-	TLS              TLS         `toml:",omitempty"`
-	AccountConfigDir string      `toml:",omitempty"`
-	Unlock           string      `toml:",omitempty"`
-	Auth             []VaultAuth `toml:",omitempty"`
+	URL              string      `toml:",omitempty" json:"url,omitempty"`
+	TLS              TLS         `toml:",omitempty" json:"tls,omitempty"`
+	AccountConfigDir string      `toml:",omitempty" json:"accountConfigDir,omitempty"`
+	Unlock           string      `toml:",omitempty" json:"unlock,omitempty"`
+	Auth             []VaultAuth `toml:",omitempty" json:"auth,omitempty"`
 }
 
 // TLS contains the config to use a TLS-enabled Vault server as an account store
 type TLS struct {
-	CaCert     string `toml:",omitempty"`
-	ClientCert string `toml:",omitempty"`
-	ClientKey  string `toml:",omitempty"`
+	CaCert     string `toml:",omitempty" json:"caCert,omitempty"`
+	ClientCert string `toml:",omitempty" json:"clientCert,omitempty"`
+	ClientKey  string `toml:",omitempty" json:"clientKey,omitempty"`
 }
 
 // VaultAuth contains the config to authenticate the account manager with a Vault server using an existing AppRole authentication method.  ApprolePath is the name of the AppRole auth method to use.  The account manager will login to the auth method using credentials provided as environment variables.   AuthID is optional and specifies a prefix to be applied to the environment variables names, thereby allowing multiple VaultAuths to be configured, each using their own set of login credentials.
 type VaultAuth struct {
-	AuthID      string `toml:",omitempty"`
-	ApprolePath string `toml:",omitempty"`
+	AuthID      string `toml:",omitempty" json:"authID,omitempty"`
+	ApprolePath string `toml:",omitempty" json:"approlePath,omitempty"`
 }
 
 // Validate checks the config is valid and has the necessary fields populated
