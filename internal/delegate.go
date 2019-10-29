@@ -15,9 +15,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/goquorum/quorum-plugin-definitions/account_manager/go/proto"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/manager"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/utils"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/manager"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

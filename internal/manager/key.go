@@ -29,7 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/config"
 	"github.com/pborman/uuid"
 )
 

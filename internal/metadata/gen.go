@@ -24,7 +24,7 @@ var (
 
 func main() {
 	meta := make(map[string]interface{})
-	meta["name"] = "quorum-plugin-hashicorp-account-store"
+	meta["name"] = "quorum-plugin-hashicorp-vault-account-manager"
 	meta["version"] = Version
 	meta["os"] = runtime.GOOS
 	meta["arch"] = runtime.GOARCH

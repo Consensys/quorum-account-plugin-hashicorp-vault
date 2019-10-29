@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/utils"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/test/utils"
 	"github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
 )

@@ -28,7 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/config"
 )
 
 // Manager is the top-level account manager for Hashicorp Vault accounts that can communicate with various

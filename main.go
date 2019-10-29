@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal"
 	"github.com/hashicorp/go-plugin"
 )
 

@@ -7,8 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	amproto "github.com/goquorum/quorum-plugin-definitions/account_manager/go/proto"
 	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/utils"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/utils"
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 )

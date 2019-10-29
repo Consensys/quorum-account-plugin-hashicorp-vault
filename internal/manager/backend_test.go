@@ -24,7 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/golang/mock/gomock"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_cache"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/test/mocks/mock_cache"
 	"github.com/stretchr/testify/require"
 )
 

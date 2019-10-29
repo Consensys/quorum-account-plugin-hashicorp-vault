@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_manager"
 	"math/big"
 	"testing"
 	"time"
@@ -17,10 +16,11 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/goquorum/quorum-plugin-definitions/account_manager/go/mock_proto"
 	"github.com/goquorum/quorum-plugin-definitions/account_manager/go/proto"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_accounts"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_event"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/test/mocks/mock_internal"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/test/mocks/mock_accounts"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/test/mocks/mock_event"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/test/mocks/mock_internal"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/test/mocks/mock_manager"
 	"github.com/stretchr/testify/require"
 )
 

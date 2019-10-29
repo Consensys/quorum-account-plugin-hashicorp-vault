@@ -34,8 +34,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/cache"
-	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/cache"
+	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/config"
 )
 
 var (

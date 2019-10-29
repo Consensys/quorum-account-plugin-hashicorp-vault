@@ -10,8 +10,7 @@ TARGET_DIR := target
 
 .PHONY: ${OUTPUT_DIR}
 
-# default: clean test build zip
-default: clean build zip
+default: clean test build zip
 	@echo Done!
 	@ls ${OUTPUT_DIR}/*
 
@@ -30,9 +29,8 @@ dist:
 	@mkdir -p ${PLUGIN_DEST_PATH}
 	@cp ${OUTPUT_DIR}/$(shell go env GOOS)-$(shell go env GOARCH)/${EXECUTABLE}-${VERSION}.zip ${PLUGIN_DEST_PATH}/${EXECUTABLE}-${VERSION}.zip
 
-# TODO enable cgo compatible cross-compilation builds (requires providing C toolchain when using gox)
-# build: checkfmt
-build:
+# TODO enable cgo compatible cross-compilation builds (requires providing C toolchain when using gox).  For now target builds will only be compatible for machines of the same type as the builder.
+build: checkfmt
 	@mkdir -p ${OUTPUT_DIR}/${TARGET_DIR}
 	@echo Output to ${OUTPUT_DIR}
 	@LD_FLAGS=${LD_FLAGS} go generate ./internal/metadata
