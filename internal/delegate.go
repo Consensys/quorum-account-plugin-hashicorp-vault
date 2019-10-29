@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/goquorum/quorum-plugin-definitions/account_manager/go/proto"
 	"github.com/goquorum/quorum-plugin-hashicorp-account-store/internal/config"
@@ -36,8 +35,7 @@ type HashicorpVaultAccountManager interface {
 // conversion on protobuf types
 type HashicorpVaultAccountManagerDelegate struct {
 	HashicorpVaultAccountManager
-	events            chan accounts.WalletEvent
-	eventSubscription event.Subscription
+	events chan accounts.WalletEvent
 }
 
 // init creates the HashicorpVaultAccountManager
@@ -232,15 +230,14 @@ func (am *HashicorpVaultAccountManagerDelegate) SignTxWithPassphrase(_ context.C
 }
 
 func (am *HashicorpVaultAccountManagerDelegate) GetEventStream(req *proto.GetEventStreamRequest, stream proto.AccountManager_GetEventStreamServer) error {
-	defer func() {
-		am.eventSubscription.Unsubscribe()
-		am.eventSubscription = nil
-	}()
-
 	wallets := am.Wallets()
 
 	// now that we have the initial set of wallets, subscribe to the acct manager backend to be notified when changes occur
-	am.eventSubscription = am.HashicorpVaultAccountManager.Subscribe(am.events)
+	eventSubscription := am.HashicorpVaultAccountManager.Subscribe(am.events)
+	defer func() {
+		eventSubscription.Unsubscribe()
+		eventSubscription = nil
+	}()
 
 	// stream the currently held wallets to the caller
 	for _, w := range wallets {

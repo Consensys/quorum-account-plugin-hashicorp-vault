@@ -27,210 +27,6 @@ const (
 	DefaultTokenEnv    = "QRM_HASHIVLT_TOKEN"
 )
 
-type noHashicorpEnvSetErr struct {
-	roleIdEnv, secretIdEnv, tokenEnv string
-}
-
-func (e noHashicorpEnvSetErr) Error() string {
-	return fmt.Sprintf("environment variables are necessary to authenticate with Hashicorp Vault: set %v and %v if using Approle authentication, else set %v", e.roleIdEnv, e.secretIdEnv, e.tokenEnv)
-}
-
-type invalidApproleAuthErr struct {
-	roleIdEnv, secretIdEnv string
-}
-
-func (e invalidApproleAuthErr) Error() string {
-	return fmt.Sprintf("both %v and %v environment variables must be set if using Approle authentication", e.roleIdEnv, e.secretIdEnv)
-}
-
-// authenticatedClient contains a Vault Client and Renewer for the client to perform reauthentication of the  client when
-// necessary.
-type authenticatedClient struct {
-	*api.Client
-	renewer    *api.Renewer
-	authConfig config.VaultAuth
-}
-
-// newAuthenticatedClient creates an authenticated Vault client using the credentials provided as environment variables
-// (either logging in using the AppRole or using a provided token directly).  Providing tls will configure the client
-// to use TLS for Vault communications.  If the AppRole token is renewable the client will be started with a renewer.
-func newAuthenticatedClient(vaultAddr string, authConfig config.VaultAuth, tls config.TLS) (*authenticatedClient, error) {
-	conf := api.DefaultConfig()
-	conf.Address = vaultAddr
-
-	tlsConfig := &api.TLSConfig{
-		CACert:     tls.CaCert,
-		ClientCert: tls.ClientCert,
-		ClientKey:  tls.ClientKey,
-	}
-
-	if err := conf.ConfigureTLS(tlsConfig); err != nil {
-		return nil, fmt.Errorf("error creating Hashicorp client: %v", err)
-	}
-
-	c, err := api.NewClient(conf)
-	if err != nil {
-		return nil, fmt.Errorf("error creating Hashicorp client: %v", err)
-	}
-
-	creds, err := getAuthCredentials(authConfig.AuthID)
-	if err != nil {
-		return nil, err
-	}
-
-	if !creds.usingApproleAuth() {
-		// authenticate the client with the token provided
-		c.SetToken(creds.token)
-		return &authenticatedClient{Client: c}, nil
-	}
-
-	// authenticate the client using approle
-	resp, err := approleLogin(c, creds, authConfig.ApprolePath)
-	if err != nil {
-		return nil, err
-	}
-
-	t, err := resp.TokenID()
-	if err != nil {
-		return nil, err
-	}
-	c.SetToken(t)
-
-	r, err := c.NewRenewer(&api.RenewerInput{Secret: resp})
-	if err != nil {
-		return nil, err
-	}
-
-	ac := &authenticatedClient{Client: c, renewer: r, authConfig: authConfig}
-
-	if renewable, _ := resp.TokenIsRenewable(); renewable {
-		go ac.renew()
-	}
-
-	return ac, nil
-}
-
-// approleLogin returns the result of a login request to the Vault using the client and the authCredentials.  If approlePath
-// is not provided the default value of approle will be used.
-func approleLogin(c *api.Client, creds authCredentials, approlePath string) (*api.Secret, error) {
-	body := map[string]interface{}{"role_id": creds.roleID, "secret_id": creds.secretID}
-
-	approle := approlePath
-	if approle == "" {
-		approle = "approle"
-	}
-
-	return c.Logical().Write(fmt.Sprintf("auth/%s/login", approle), body)
-}
-
-type authCredentials struct {
-	roleID, secretID, token string
-}
-
-func (a authCredentials) usingApproleAuth() bool {
-	return a.roleID != "" && a.secretID != ""
-}
-
-// getAuthCredentials retrieves the authCredentials set on the environment, returning an error if an invalid combination
-// has been set.  If authID is provided, getAuthCredentials will expect each environment variable name to be prefixed with
-// "{authID}_".
-func getAuthCredentials(authID string) (authCredentials, error) {
-	roleIDEnv := applyPrefix(authID, DefaultRoleIDEnv)
-	secretIDEnv := applyPrefix(authID, DefaultSecretIDEnv)
-	tokenEnv := applyPrefix(authID, DefaultTokenEnv)
-
-	roleID := os.Getenv(roleIDEnv)
-	secretID := os.Getenv(secretIDEnv)
-	token := os.Getenv(tokenEnv)
-
-	if roleID == "" && secretID == "" && token == "" {
-		return authCredentials{}, noHashicorpEnvSetErr{roleIdEnv: roleIDEnv, secretIdEnv: secretIDEnv, tokenEnv: tokenEnv}
-	}
-
-	if roleID == "" && secretID != "" || roleID != "" && secretID == "" {
-		return authCredentials{}, invalidApproleAuthErr{roleIdEnv: roleIDEnv, secretIdEnv: secretIDEnv}
-	}
-
-	return authCredentials{
-		roleID:   roleID,
-		secretID: secretID,
-		token:    token,
-	}, nil
-}
-
-const reauthRetryInterval time.Duration = 5000
-
-// renew starts the client's background process for renewing the its auth token.  If the renewal fails, renew will attempt
-// reauthentication indefinitely.
-func (ac *authenticatedClient) renew() {
-	go ac.renewer.Renew()
-
-	for {
-		select {
-		case err := <-ac.renewer.DoneCh():
-			// Renewal has stopped either due to an unexpected reason (i.e. some error) or an expected reason
-			// (e.g. token TTL exceeded).  Either way we must re-authenticate and get a new token.
-			switch err {
-			case nil:
-				log.Printf("[DEBUG] renewal of Vault auth token failed, attempting re-authentication: auth = %v", ac.authConfig)
-			default:
-				log.Printf("[DEBUG] renewal of Vault auth token failed, attempting re-authentication: auth = %v, err = %v", ac.authConfig, err)
-			}
-
-			for i := 1; ; i++ {
-				err := ac.reauthenticate()
-				if err == nil {
-					log.Printf("[DEBUG] successfully re-authenticated with Vault: auth = %v", ac.authConfig)
-					break
-				}
-				log.Printf("[ERROR] unable to reauthenticate with Vault (attempt %v): auth = %v, err = %v", i, ac.authConfig, err)
-				time.Sleep(reauthRetryInterval * time.Millisecond)
-			}
-			go ac.renewer.Renew()
-
-		case _ = <-ac.renewer.RenewCh():
-			log.Printf("[DEBUG] successfully renewed Vault auth token: auth = %v", ac.authConfig)
-		}
-	}
-}
-
-// reauthenticate re-reads the authentication credentials from the environments, makes the approle login request to the
-// Vault, updates the client and resets the renewal process.
-func (ac *authenticatedClient) reauthenticate() error {
-	creds, err := getAuthCredentials(ac.authConfig.AuthID)
-	if err != nil {
-		return err
-	}
-
-	// authenticate the client using approle
-	resp, err := approleLogin(ac.Client, creds, ac.authConfig.ApprolePath)
-	if err != nil {
-		return err
-	}
-
-	t, err := resp.TokenID()
-	if err != nil {
-		return err
-	}
-	ac.Client.SetToken(t)
-
-	r, err := ac.Client.NewRenewer(&api.RenewerInput{Secret: resp})
-	if err != nil {
-		return err
-	}
-	ac.renewer = r
-
-	return nil
-}
-
-func applyPrefix(pre, val string) string {
-	if pre == "" {
-		return val
-	}
-
-	return fmt.Sprintf("%v_%v", pre, val)
-}
-
 // vaultClientManager manages all the authenticated clients configured for a particular Vault
 // server.  It contains all the clients configured for use, each authenticated using individual auth config.
 // vaultClientManager is used for Vault read and write operations.
@@ -440,4 +236,208 @@ func (m vaultClientManager) JoinPath(filename string) string {
 		return filename
 	}
 	return filepath.Join(m.acctConfigDir, filename)
+}
+
+// authenticatedClient contains a Vault Client and Renewer for the client to perform reauthentication of the  client when
+// necessary.
+type authenticatedClient struct {
+	*api.Client
+	renewer    *api.Renewer
+	authConfig config.VaultAuth
+}
+
+// newAuthenticatedClient creates an authenticated Vault client using the credentials provided as environment variables
+// (either logging in using the AppRole or using a provided token directly).  Providing tls will configure the client
+// to use TLS for Vault communications.  If the AppRole token is renewable the client will be started with a renewer.
+func newAuthenticatedClient(vaultAddr string, authConfig config.VaultAuth, tls config.TLS) (*authenticatedClient, error) {
+	conf := api.DefaultConfig()
+	conf.Address = vaultAddr
+
+	tlsConfig := &api.TLSConfig{
+		CACert:     tls.CaCert,
+		ClientCert: tls.ClientCert,
+		ClientKey:  tls.ClientKey,
+	}
+
+	if err := conf.ConfigureTLS(tlsConfig); err != nil {
+		return nil, fmt.Errorf("error creating Hashicorp client: %v", err)
+	}
+
+	c, err := api.NewClient(conf)
+	if err != nil {
+		return nil, fmt.Errorf("error creating Hashicorp client: %v", err)
+	}
+
+	creds, err := getAuthCredentials(authConfig.AuthID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !creds.usingApproleAuth() {
+		// authenticate the client with the token provided
+		c.SetToken(creds.token)
+		return &authenticatedClient{Client: c}, nil
+	}
+
+	// authenticate the client using approle
+	resp, err := approleLogin(c, creds, authConfig.ApprolePath)
+	if err != nil {
+		return nil, err
+	}
+
+	t, err := resp.TokenID()
+	if err != nil {
+		return nil, err
+	}
+	c.SetToken(t)
+
+	r, err := c.NewRenewer(&api.RenewerInput{Secret: resp})
+	if err != nil {
+		return nil, err
+	}
+
+	ac := &authenticatedClient{Client: c, renewer: r, authConfig: authConfig}
+
+	if renewable, _ := resp.TokenIsRenewable(); renewable {
+		go ac.renew()
+	}
+
+	return ac, nil
+}
+
+// approleLogin returns the result of a login request to the Vault using the client and the authCredentials.  If approlePath
+// is not provided the default value of approle will be used.
+func approleLogin(c *api.Client, creds authCredentials, approlePath string) (*api.Secret, error) {
+	body := map[string]interface{}{"role_id": creds.roleID, "secret_id": creds.secretID}
+
+	approle := approlePath
+	if approle == "" {
+		approle = "approle"
+	}
+
+	return c.Logical().Write(fmt.Sprintf("auth/%s/login", approle), body)
+}
+
+// getAuthCredentials retrieves the authCredentials set on the environment, returning an error if an invalid combination
+// has been set.  If authID is provided, getAuthCredentials will expect each environment variable name to be prefixed with
+// "{authID}_".
+func getAuthCredentials(authID string) (authCredentials, error) {
+	roleIDEnv := applyPrefix(authID, DefaultRoleIDEnv)
+	secretIDEnv := applyPrefix(authID, DefaultSecretIDEnv)
+	tokenEnv := applyPrefix(authID, DefaultTokenEnv)
+
+	roleID := os.Getenv(roleIDEnv)
+	secretID := os.Getenv(secretIDEnv)
+	token := os.Getenv(tokenEnv)
+
+	if roleID == "" && secretID == "" && token == "" {
+		return authCredentials{}, noHashicorpEnvSetErr{roleIdEnv: roleIDEnv, secretIdEnv: secretIDEnv, tokenEnv: tokenEnv}
+	}
+
+	if roleID == "" && secretID != "" || roleID != "" && secretID == "" {
+		return authCredentials{}, invalidApproleAuthErr{roleIdEnv: roleIDEnv, secretIdEnv: secretIDEnv}
+	}
+
+	return authCredentials{
+		roleID:   roleID,
+		secretID: secretID,
+		token:    token,
+	}, nil
+}
+
+const reauthRetryInterval = 5000 * time.Millisecond
+
+// renew starts the client's background process for renewing the its auth token.  If the renewal fails, renew will attempt
+// reauthentication indefinitely.
+func (ac *authenticatedClient) renew() {
+	go ac.renewer.Renew()
+
+	for {
+		select {
+		case err := <-ac.renewer.DoneCh():
+			// Renewal has stopped either due to an unexpected reason (i.e. some error) or an expected reason
+			// (e.g. token TTL exceeded).  Either way we must re-authenticate and get a new token.
+			switch err {
+			case nil:
+				log.Printf("[DEBUG] renewal of Vault auth token failed, attempting re-authentication: auth = %v", ac.authConfig)
+			default:
+				log.Printf("[DEBUG] renewal of Vault auth token failed, attempting re-authentication: auth = %v, err = %v", ac.authConfig, err)
+			}
+
+			for i := 1; ; i++ {
+				err := ac.reauthenticate()
+				if err == nil {
+					log.Printf("[DEBUG] successfully re-authenticated with Vault: auth = %v", ac.authConfig)
+					break
+				}
+				log.Printf("[ERROR] unable to reauthenticate with Vault (attempt %v): auth = %v, err = %v", i, ac.authConfig, err)
+				time.Sleep(reauthRetryInterval)
+			}
+			go ac.renewer.Renew()
+
+		case _ = <-ac.renewer.RenewCh():
+			log.Printf("[DEBUG] successfully renewed Vault auth token: auth = %v", ac.authConfig)
+		}
+	}
+}
+
+// reauthenticate re-reads the authentication credentials from the environments, makes the approle login request to the
+// Vault, updates the client and resets the renewal process.
+func (ac *authenticatedClient) reauthenticate() error {
+	creds, err := getAuthCredentials(ac.authConfig.AuthID)
+	if err != nil {
+		return err
+	}
+
+	// authenticate the client using approle
+	resp, err := approleLogin(ac.Client, creds, ac.authConfig.ApprolePath)
+	if err != nil {
+		return err
+	}
+
+	t, err := resp.TokenID()
+	if err != nil {
+		return err
+	}
+	ac.Client.SetToken(t)
+
+	r, err := ac.Client.NewRenewer(&api.RenewerInput{Secret: resp})
+	if err != nil {
+		return err
+	}
+	ac.renewer = r
+
+	return nil
+}
+
+type authCredentials struct {
+	roleID, secretID, token string
+}
+
+func (a authCredentials) usingApproleAuth() bool {
+	return a.roleID != "" && a.secretID != ""
+}
+
+type noHashicorpEnvSetErr struct {
+	roleIdEnv, secretIdEnv, tokenEnv string
+}
+
+func (e noHashicorpEnvSetErr) Error() string {
+	return fmt.Sprintf("environment variables are necessary to authenticate with Hashicorp Vault: set %v and %v if using Approle authentication, else set %v", e.roleIdEnv, e.secretIdEnv, e.tokenEnv)
+}
+
+type invalidApproleAuthErr struct {
+	roleIdEnv, secretIdEnv string
+}
+
+func (e invalidApproleAuthErr) Error() string {
+	return fmt.Sprintf("both %v and %v environment variables must be set if using Approle authentication", e.roleIdEnv, e.secretIdEnv)
+}
+
+func applyPrefix(pre, val string) string {
+	if pre == "" {
+		return val
+	}
+
+	return fmt.Sprintf("%v_%v", pre, val)
 }
