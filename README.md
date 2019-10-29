@@ -1,5 +1,7 @@
 # Hashicorp Vault account manager plugin for Quorum
-This is to provide OAuth2-compliant resource server plugin to Quorum Client. It also implements TLSConfigurationSource service interface to enable TLS for RPC server
+This is to allow Quorum to use accounts stored in Hashicorp Vaults.  New accounts can be created, and existing accounts used for signing.  The implementation is functionally similar to the existing `keystore` account management in `geth` and Quorum and so should be familiar for users of those accounts.
+
+See the [Quorum docs](https://docs.goquorum.com/en/latest/Security/Accounts/Overview/) for more details
 
 ## Prerequisites
 
@@ -12,10 +14,7 @@ $ make
 $ PLUGIN_DEST_PATH=<path to store plugin distribution zip file> make dist
 ```
 
-## Configuration
-
-Below is the referenced configuration for the plugin. See the [Quorum docs](https://docs.goquorum.com/en/latest/Security/Accounts/Overview/) for more details
-
+## Example configuration
 ```json
 {
     "vaults": [
