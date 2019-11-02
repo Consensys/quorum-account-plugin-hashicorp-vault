@@ -39,18 +39,28 @@ type vaultClientManager struct {
 
 // newVaultClientManager creates a authenticated clients for each auth config provided in the VaultConfig and returns them
 // wrapped in a vaultClientManager
-func newVaultClientManager(config config.VaultConfig) (*vaultClientManager, error) {
-	clients := make(map[string]*authenticatedClient, len(config.Auth))
-	for _, auth := range config.Auth {
-		client, err := newAuthenticatedClient(config.URL, auth, config.TLS)
+func newVaultClientManager(conf config.VaultConfig) (*vaultClientManager, error) {
+	clients := make(map[string]*authenticatedClient, len(conf.Auth))
+	if len(conf.Auth) == 0 {
+		// no Auth config provided so use defaults
+		auth := config.VaultAuth{}
+		client, err := newAuthenticatedClient(conf.URL, auth, conf.TLS)
 		if err != nil {
-			return nil, fmt.Errorf("unable to create client for Vault %v using auth %v: err: %v", config.URL, auth.AuthID, err)
+			return nil, fmt.Errorf("unable to create client for Vault %v using default auth, err: %v", conf.URL, err)
 		}
 		clients[auth.AuthID] = client
+	} else {
+		for _, auth := range conf.Auth {
+			client, err := newAuthenticatedClient(conf.URL, auth, conf.TLS)
+			if err != nil {
+				return nil, fmt.Errorf("unable to create client for Vault %v using auth %v: err: %v", conf.URL, auth.AuthID, err)
+			}
+			clients[auth.AuthID] = client
+		}
 	}
 	return &vaultClientManager{
-		vaultAddr:     config.URL,
-		acctConfigDir: config.AccountConfigDir,
+		vaultAddr:     conf.URL,
+		acctConfigDir: conf.AccountConfigDir,
 		clients:       clients,
 	}, nil
 }

@@ -3,6 +3,7 @@ package manager
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -600,4 +601,46 @@ func TestNewAuthenticatedClient_ReauthsWhenTokenExpires(t *testing.T) {
 
 	unsetFn()
 	vault.Close()
+}
+
+func TestNewVaultClientManager_NoAuthConfigUsesDefaultAuthIDAndApprolePath(t *testing.T) {
+	authVaultHandler := utils.PathHandler{
+		Path: "/v1/auth/approle/login", // default approle path
+		Handler: func(w http.ResponseWriter, r *http.Request) {
+			// check that the correct credentials are included in the login request
+			var body map[string]interface{}
+			err := json.NewDecoder(r.Body).Decode(&body)
+			if assert.NoError(t, err) {
+				if assert.Contains(t, body, "role_id") {
+					assert.Equal(t, body["role_id"].(string), DefaultRoleIDEnv)
+				}
+				if assert.Contains(t, body, "secret_id") {
+					assert.Equal(t, body["secret_id"].(string), DefaultSecretIDEnv)
+				}
+			}
+
+			// respond to the login request
+			vaultResponse := &api.Secret{Auth: &api.SecretAuth{ClientToken: clientToken}}
+			b, _ := json.Marshal(vaultResponse)
+			_, _ = w.Write(b)
+		},
+	}
+
+	vault, err := utils.SetupMockVaultServer(authVaultHandler)
+	require.NoError(t, err)
+
+	conf := config.VaultConfig{
+		URL: vault.URL,
+		// no value provided for the Auth field
+	}
+
+	unsetFn := utils.SetEnvironmentVariables(DefaultRoleIDEnv, DefaultSecretIDEnv)
+
+	got, err := newVaultClientManager(conf)
+
+	unsetFn()
+	vault.Close()
+
+	require.NoError(t, err)
+	require.Len(t, got.clients, 1)
 }
