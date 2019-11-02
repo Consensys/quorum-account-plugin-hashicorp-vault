@@ -9,6 +9,7 @@ const (
 	noVaultConfigMsg           = "No Hashicorp Vault config provided"
 	invalidVaultUrlMsg         = "URL must be provided"
 	invalidAccountConfigDirMsg = "AccountConfigDir must be provided"
+	invalidAuthIDMsg           = "the same AuthID cannot be used multiple times"
 )
 
 // PluginAccountManagerConfig contains the config for one or more Vault account stores
@@ -52,6 +53,16 @@ func (c PluginAccountManagerConfig) Validate() error {
 		}
 		if v.AccountConfigDir == "" {
 			errs = append(errs, fmt.Sprintf("Vaults[%v]: %v", i, invalidAccountConfigDirMsg))
+		}
+		// validate that no AuthID has been configured more than once
+		usedAuthIDs := make(map[string]struct{})
+		for j, a := range v.Auth {
+			if _, ok := usedAuthIDs[a.AuthID]; ok {
+				// the authID has already been used
+				errs = append(errs, fmt.Sprintf("Vaults[%v]: Auth[%v]: %v", i, j, invalidAuthIDMsg))
+			} else {
+				usedAuthIDs[a.AuthID] = struct{}{}
+			}
 		}
 	}
 
