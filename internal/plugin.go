@@ -8,8 +8,7 @@ import (
 	"log"
 	"time"
 
-	amproto "github.com/goquorum/quorum-plugin-definitions/account_manager/go/proto"
-	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
+	"github.com/goquorum/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/config"
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
@@ -24,7 +23,7 @@ type HashicorpVaultAccountManagerPlugin struct {
 }
 
 // Init implements PluginInitializerServer.  It parses and validates the config in req, and initializes the HashicorpVaultAccountManager.
-func (p *HashicorpVaultAccountManagerPlugin) Init(ctx context.Context, req *iproto.PluginInitialization_Request) (*iproto.PluginInitialization_Response, error) {
+func (p *HashicorpVaultAccountManagerPlugin) Init(ctx context.Context, req *proto.PluginInitialization_Request) (*proto.PluginInitialization_Response, error) {
 	// read config and start HashicorpVaultAccountManagerDelegate
 	startTime := time.Now()
 	defer func() {
@@ -39,7 +38,7 @@ func (p *HashicorpVaultAccountManagerPlugin) Init(ctx context.Context, req *ipro
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
-	return &iproto.PluginInitialization_Response{}, nil
+	return &proto.PluginInitialization_Response{}, nil
 }
 
 func newPluginAccountManagerConfiguration(rawJSON []byte) (config.PluginAccountManagerConfig, error) {
@@ -54,8 +53,8 @@ func newPluginAccountManagerConfiguration(rawJSON []byte) (config.PluginAccountM
 }
 
 func (p *HashicorpVaultAccountManagerPlugin) GRPCServer(b *plugin.GRPCBroker, s *grpc.Server) error {
-	iproto.RegisterPluginInitializerServer(s, p)
-	amproto.RegisterAccountManagerServer(s, p)
+	proto.RegisterPluginInitializerServer(s, p)
+	proto.RegisterAccountManagerServer(s, p)
 	return nil
 }
 

@@ -17,8 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/goquorum/quorum-plugin-definitions/account_manager/go/proto"
-	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
+	"github.com/goquorum/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/cache"
 	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/config"
 	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/manager"
@@ -201,7 +200,7 @@ func setup(t *testing.T, pluginConfig config.PluginAccountManagerConfig) (Initia
 		t.Fatal(err)
 	}
 
-	_, err = impl.Init(context.Background(), &iproto.PluginInitialization_Request{
+	_, err = impl.Init(context.Background(), &proto.PluginInitialization_Request{
 		RawConfiguration: rawPluginConfig,
 	})
 	if err != nil {

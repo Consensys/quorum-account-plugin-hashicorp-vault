@@ -5,8 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts"
-	amproto "github.com/goquorum/quorum-plugin-definitions/account_manager/go/proto"
-	iproto "github.com/goquorum/quorum-plugin-definitions/initializer/go/proto"
+	"github.com/goquorum/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/config"
 	"github.com/goquorum/quorum-plugin-hashicorp-vault-account-manager/internal/utils"
 	"github.com/hashicorp/go-plugin"
@@ -23,13 +22,13 @@ func (testableAccountManagerPluginImpl) GRPCClient(ctx context.Context, b *plugi
 }
 
 type InitializerAccountManagerClient struct {
-	iproto.PluginInitializerClient
-	amproto.AccountManagerClient
+	proto.PluginInitializerClient
+	proto.AccountManagerClient
 }
 
 func newInitializerAccountManagerClient(cc *grpc.ClientConn) (interface{}, error) {
-	initializerClient := iproto.NewPluginInitializerClient(cc)
-	accountManagerClient := amproto.NewAccountManagerClient(cc)
+	initializerClient := proto.NewPluginInitializerClient(cc)
+	accountManagerClient := proto.NewAccountManagerClient(cc)
 
 	return InitializerAccountManagerClient{
 		PluginInitializerClient: initializerClient,
