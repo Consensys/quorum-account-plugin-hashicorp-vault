@@ -1,10 +1,8 @@
-package internal
+package server
 
 import (
 	"context"
 	"encoding/json"
-	"github.com/hashicorp/go-plugin"
-	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto_common"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/hashicorp"
@@ -13,11 +11,6 @@ import (
 	"log"
 	"time"
 )
-
-type HashicorpPlugin struct {
-	plugin.Plugin
-	acctManager proto.AccountManagerServer
-}
 
 func (p HashicorpPlugin) Init(_ context.Context, req *proto_common.PluginInitialization_Request) (*proto_common.PluginInitialization_Response, error) {
 	startTime := time.Now()

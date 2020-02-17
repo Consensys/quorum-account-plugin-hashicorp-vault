@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/hashicorp/go-plugin"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal"
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/server"
 	"log"
 	"os"
 )
@@ -24,7 +24,7 @@ func main() {
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: defaultHandshakeConfig,
 		Plugins: map[string]plugin.Plugin{
-			"impl": &internal.HashicorpPlugin{},
+			"impl": &server.HashicorpPlugin{},
 		},
 
 		GRPCServer: plugin.DefaultGRPCServer,
