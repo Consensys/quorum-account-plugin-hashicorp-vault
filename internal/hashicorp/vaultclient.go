@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/hashicorp/vault/api"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
-	"log"
 	"time"
 )
 
@@ -57,14 +56,14 @@ func (c *vaultClient) authenticate(conf config.VaultClientAuthentication) error 
 }
 
 func (c *vaultClient) renewableApproleAuthentication(conf config.VaultClientAuthentication) error {
-	resp, err := c.authenticateWithApprole(conf)
+	renewable, err := c.authenticateWithApprole(conf)
 	if err != nil {
 		return err
 	}
-	return c.startAuthenticationRenewal(resp, conf)
+	return renewable.startAuthenticationRenewal(c, conf)
 }
 
-func (c *vaultClient) authenticateWithApprole(conf config.VaultClientAuthentication) (*api.Secret, error) {
+func (c *vaultClient) authenticateWithApprole(conf config.VaultClientAuthentication) (*renewable, error) {
 	body := map[string]interface{}{"role_id": conf.RoleId.Get(), "secret_id": conf.SecretId.Get()}
 
 	resp, err := c.Logical().Write(fmt.Sprintf("auth/%s/login", conf.ApprolePath), body)
@@ -78,57 +77,5 @@ func (c *vaultClient) authenticateWithApprole(conf config.VaultClientAuthenticat
 	}
 	c.SetToken(t)
 
-	return resp, nil
-}
-
-func (c *vaultClient) startAuthenticationRenewal(resp *api.Secret, conf config.VaultClientAuthentication) error {
-	if isRenewable, _ := resp.TokenIsRenewable(); !isRenewable {
-		return nil
-	}
-
-	r, err := c.NewRenewer(&api.RenewerInput{Secret: resp})
-	if err != nil {
-		return err
-	}
-
-	go c.renew(r, conf)
-	return nil
-}
-
-// renew starts the client's background process for renewing its auth token.  If the renewal fails, renew will attempt
-// reauthentication indefinitely.
-func (c *vaultClient) renew(renewer *api.Renewer, conf config.VaultClientAuthentication) {
-	go renewer.Renew()
-
-	for {
-		select {
-		case _ = <-renewer.RenewCh():
-			log.Printf("[DEBUG] successfully renewed Vault auth token: approle = %v", conf.ApprolePath)
-
-		case err := <-renewer.DoneCh():
-			// Renewal has stopped either due to an unexpected reason (i.e. some error) or an expected reason
-			// (e.g. token TTL exceeded).  Either way we must re-authenticate and get a new token.
-			switch err {
-			case nil:
-				log.Printf("[DEBUG] renewal of Vault auth token failed, attempting re-authentication: approle = %v", conf.ApprolePath)
-			default:
-				log.Printf("[DEBUG] renewal of Vault auth token failed, attempting re-authentication: approle = %v, err = %v", conf.ApprolePath, err)
-			}
-
-			for i := 1; ; i++ {
-				resp, err := c.authenticateWithApprole(conf)
-				if err != nil {
-					log.Printf("[ERROR] unable to reauthenticate with Vault (attempt %v): approle = %v, err = %v", i, conf.ApprolePath, err)
-					time.Sleep(reauthRetryInterval)
-					continue
-				}
-				log.Printf("[DEBUG] successfully re-authenticated with Vault: approle = %v", conf.ApprolePath)
-
-				if err := c.startAuthenticationRenewal(resp, conf); err != nil {
-					log.Printf("[ERROR] unable to start renewal of authentication with Vault: approle = %v, err = %v", conf.ApprolePath, err)
-				}
-				return
-			}
-		}
-	}
+	return &renewable{Secret: resp}, nil
 }
