@@ -9,7 +9,7 @@ import (
 const (
 	invalidVaultUrl         = "vault must be a valid HTTP/HTTPS url"
 	invalidAccountDirectory = "accountDirectory must be a valid file url"
-	invalidAuthorization    = "authorization must contain roleId, secretId and approlePath OR token"
+	invalidAuthentication   = "authentication must contain roleId, secretId and approlePath OR only token"
 	invalidCaCert           = "caCert must be a valid file url"
 	invalidClientCert       = "clientCert must be a valid file url"
 	invalidClientKey        = "clientKey must be a valid file url"
@@ -31,7 +31,7 @@ func (c VaultClient) Validate() error {
 	if c.AccountDirectory == (url.URL{}) || c.AccountDirectory.Scheme != "file" || c.AccountDirectory.Path == "" {
 		return errors.New(invalidAccountDirectory)
 	}
-	if err := c.Authorization.Validate(); err != nil {
+	if err := c.Authentication.Validate(); err != nil {
 		return err
 	}
 	if err := c.TLS.Validate(); err != nil {
@@ -40,20 +40,20 @@ func (c VaultClient) Validate() error {
 	return nil
 }
 
-func (c vaultClientAuthorization) Validate() error {
+func (c VaultClientAuthentication) Validate() error {
 	var (
-		tokenIsSet       = c.Token.isSet()
-		roleIdIsSet      = c.RoleId.isSet()
-		secretIdIsSet    = c.SecretId.isSet()
+		tokenIsSet       = c.Token.IsSet()
+		roleIdIsSet      = c.RoleId.IsSet()
+		secretIdIsSet    = c.SecretId.IsSet()
 		approlePathIsSet = !(c.ApprolePath == "")
 	)
 	if roleIdIsSet && secretIdIsSet && approlePathIsSet {
 		return nil
 	}
-	if tokenIsSet && !roleIdIsSet && !!secretIdIsSet && !approlePathIsSet {
+	if tokenIsSet && !roleIdIsSet && !secretIdIsSet && !approlePathIsSet {
 		return nil
 	}
-	return errors.New(invalidAuthorization)
+	return errors.New(invalidAuthentication)
 }
 
 func (c vaultClientTLS) Validate() error {

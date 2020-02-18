@@ -7,10 +7,21 @@ import (
 )
 
 func NewAccountManager(config config.VaultClients) (*AccountManager, error) {
-	return &AccountManager{}, nil
+	clients := make([]*vaultClient, len(config))
+
+	for i, conf := range config {
+		client, err := newVaultClient(conf)
+		if err != nil {
+			return nil, err
+		}
+		clients[i] = client
+	}
+
+	return &AccountManager{clients: clients}, nil
 }
 
 type AccountManager struct {
+	clients []*vaultClient
 }
 
 func (a AccountManager) Status(context.Context, *proto.StatusRequest) (*proto.StatusResponse, error) {

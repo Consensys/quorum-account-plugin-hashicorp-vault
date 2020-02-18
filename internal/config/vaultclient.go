@@ -12,18 +12,18 @@ type VaultClient struct {
 	Vault            url.URL
 	AccountDirectory url.URL
 	Unlock           []string
-	Authorization    vaultClientAuthorization
+	Authentication   VaultClientAuthentication
 	TLS              vaultClientTLS
 }
 
 type environmentVariable url.URL
 
-func (e environmentVariable) get() string {
+func (e environmentVariable) Get() string {
 	u := url.URL(e)
 	return os.Getenv(u.Path)
 }
 
-func (e environmentVariable) isSet() bool {
+func (e environmentVariable) IsSet() bool {
 	u := url.URL(e)
 	if u.Path == "" {
 		return false
@@ -32,7 +32,7 @@ func (e environmentVariable) isSet() bool {
 	return b
 }
 
-type vaultClientAuthorization struct {
+type VaultClientAuthentication struct {
 	Token       environmentVariable
 	RoleId      environmentVariable
 	SecretId    environmentVariable
@@ -49,11 +49,11 @@ type vaultClientJSON struct {
 	Vault            string
 	AccountDirectory string
 	Unlock           []string
-	Authorization    vaultClientAuthorizationJSON
+	Authentication   vaultClientAuthenticationJSON
 	Tls              vaultClientTLSJSON
 }
 
-type vaultClientAuthorizationJSON struct {
+type vaultClientAuthenticationJSON struct {
 	Token       string
 	RoleId      string
 	SecretId    string
@@ -90,7 +90,7 @@ func (c vaultClientJSON) vaultClient() (VaultClient, error) {
 		return VaultClient{}, err
 	}
 
-	authorization, err := c.Authorization.vaultClientAuthorization()
+	authentication, err := c.Authentication.vaultClientAuthentication()
 	if err != nil {
 		return VaultClient{}, err
 	}
@@ -104,28 +104,28 @@ func (c vaultClientJSON) vaultClient() (VaultClient, error) {
 		Vault:            *vault,
 		AccountDirectory: *accountDirectory,
 		Unlock:           c.Unlock,
-		Authorization:    authorization,
+		Authentication:   authentication,
 		TLS:              tls,
 	}, nil
 }
 
-func (c vaultClientAuthorizationJSON) vaultClientAuthorization() (vaultClientAuthorization, error) {
+func (c vaultClientAuthenticationJSON) vaultClientAuthentication() (VaultClientAuthentication, error) {
 	token, err := url.Parse(c.Token)
 	if err != nil {
-		return vaultClientAuthorization{}, err
+		return VaultClientAuthentication{}, err
 	}
 
 	roleId, err := url.Parse(c.RoleId)
 	if err != nil {
-		return vaultClientAuthorization{}, err
+		return VaultClientAuthentication{}, err
 	}
 
 	secretId, err := url.Parse(c.SecretId)
 	if err != nil {
-		return vaultClientAuthorization{}, err
+		return VaultClientAuthentication{}, err
 	}
 
-	return vaultClientAuthorization{
+	return VaultClientAuthentication{
 		Token:       environmentVariable(*token),
 		RoleId:      environmentVariable(*roleId),
 		SecretId:    environmentVariable(*secretId),

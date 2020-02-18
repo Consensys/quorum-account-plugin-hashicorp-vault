@@ -16,7 +16,7 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 			"0x4d6d744b6da435b5bbdde2526dc20e9a41cb72e5",
 			"0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526"
 		],
-		"authorization": {
+		"authentication": {
 			"roleId": "env://MY_ROLE_ID",
 			"secretId": "env://MY_SECRET_ID",
 			"approlePath": "my-role"
@@ -41,7 +41,7 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 			"0x4d6d744b6da435b5bbdde2526dc20e9a41cb72e5",
 			"0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526",
 		},
-		Authorization: vaultClientAuthorization{
+		Authentication: VaultClientAuthentication{
 			RoleId: environmentVariable{
 				Scheme: "env",
 				Host:   "MY_ROLE_ID",
