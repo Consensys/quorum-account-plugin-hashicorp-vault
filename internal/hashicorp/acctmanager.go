@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
+	"math/big"
+	"time"
 )
 
 func NewAccountManager(config config.VaultClients) (*AccountManager, error) {
@@ -24,39 +26,38 @@ type AccountManager struct {
 	clients []*vaultClient
 }
 
-func (a AccountManager) Status(context.Context, *proto.StatusRequest) (*proto.StatusResponse, error) {
+type Account struct {
+	Address []byte
+	Url     string
+}
+
+type Transaction struct{}
+
+func (a AccountManager) Status(walletUrl string) (string, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) Open(context.Context, *proto.OpenRequest) (*proto.OpenResponse, error) {
+func (a AccountManager) Accounts(walletUrl string) []Account {
 	panic("implement me")
 }
 
-func (a AccountManager) Close(context.Context, *proto.CloseRequest) (*proto.CloseResponse, error) {
+func (a AccountManager) Contains(walletUrl string, account Account) (bool, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) Accounts(context.Context, *proto.AccountsRequest) (*proto.AccountsResponse, error) {
+func (a AccountManager) SignHash(walletUrl string, account Account, hash []byte) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) Contains(context.Context, *proto.ContainsRequest) (*proto.ContainsResponse, error) {
+func (a AccountManager) SignTx(walletUrl string, account Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) SignHash(context.Context, *proto.SignHashRequest) (*proto.SignHashResponse, error) {
+func (a AccountManager) UnlockAndSignHash(walletUrl string, account Account, hash []byte) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) SignTx(context.Context, *proto.SignTxRequest) (*proto.SignTxResponse, error) {
-	panic("implement me")
-}
-
-func (a AccountManager) SignHashWithPassphrase(context.Context, *proto.SignHashWithPassphraseRequest) (*proto.SignHashResponse, error) {
-	panic("implement me")
-}
-
-func (a AccountManager) SignTxWithPassphrase(context.Context, *proto.SignTxWithPassphraseRequest) (*proto.SignTxResponse, error) {
+func (a AccountManager) UnlockAndSignTx(walletUrl string, account Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
 	panic("implement me")
 }
 
@@ -64,11 +65,11 @@ func (a AccountManager) GetEventStream(*proto.GetEventStreamRequest, proto.Accou
 	panic("implement me")
 }
 
-func (a AccountManager) TimedUnlock(context.Context, *proto.TimedUnlockRequest) (*proto.TimedUnlockResponse, error) {
+func (a AccountManager) TimedUnlock(account Account, duration time.Duration) error {
 	panic("implement me")
 }
 
-func (a AccountManager) Lock(context.Context, *proto.LockRequest) (*proto.LockResponse, error) {
+func (a AccountManager) Lock(account Account) error {
 	panic("implement me")
 }
 

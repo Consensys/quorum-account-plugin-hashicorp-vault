@@ -26,7 +26,6 @@ func main() {
 		Plugins: map[string]plugin.Plugin{
 			"impl": &server.HashicorpPlugin{},
 		},
-
 		GRPCServer: plugin.DefaultGRPCServer,
 	})
 }

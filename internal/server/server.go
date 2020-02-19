@@ -2,10 +2,10 @@ package server
 
 import (
 	"github.com/hashicorp/go-plugin"
-	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/hashicorp"
 )
 
 type HashicorpPlugin struct {
 	plugin.Plugin
-	acctManager proto.AccountManagerServer
+	acctManager *hashicorp.AccountManager
 }
