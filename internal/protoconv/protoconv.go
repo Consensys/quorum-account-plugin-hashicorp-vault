@@ -8,12 +8,12 @@ import (
 func AcctsToProto(accts []hashicorp.Account) []*proto.Account {
 	result := make([]*proto.Account, 0, len(accts))
 	for i, acct := range accts {
-		result[i] = acctToProto(acct)
+		result[i] = AcctToProto(acct)
 	}
 	return result
 }
 
-func acctToProto(acct hashicorp.Account) *proto.Account {
+func AcctToProto(acct hashicorp.Account) *proto.Account {
 	return &proto.Account{
 		Address: acct.Address,
 		Url:     acct.Url,

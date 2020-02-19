@@ -13,6 +13,8 @@ const (
 	invalidCaCert           = "caCert must be a valid file url"
 	invalidClientCert       = "clientCert must be a valid file url"
 	invalidClientKey        = "clientKey must be a valid file url"
+	invalidSecretLocation   = "secretEnginePath and secretPath must be set"
+	invalidCAS              = "insecureSkipCAS and casValue cannot be set at the same time"
 )
 
 func (c VaultClients) Validate() error {
@@ -65,6 +67,19 @@ func (c vaultClientTLS) Validate() error {
 	}
 	if c.ClientKey != (url.URL{}) && (c.ClientKey.Scheme != "file" || c.ClientKey.Path == "") {
 		return errors.New(invalidClientKey)
+	}
+	return nil
+}
+
+func (c NewAccount) Validate() error {
+	if c.Vault == (url.URL{}) || c.Vault.Scheme == "" {
+		return errors.New(invalidVaultUrl)
+	}
+	if c.SecretEnginePath == "" || c.SecretPath == "" {
+		return errors.New(invalidSecretLocation)
+	}
+	if c.InsecureSkipCAS && c.CASValue != 0 {
+		return errors.New(invalidCAS)
 	}
 	return nil
 }

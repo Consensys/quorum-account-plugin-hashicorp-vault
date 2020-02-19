@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/protoconv"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -195,14 +197,40 @@ func (p HashicorpPlugin) NewAccount(_ context.Context, req *proto.NewAccountRequ
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	//return p.acctManager.NewAccount(ctx, req)
-	return nil, status.Error(codes.Unimplemented, "implement me")
+	var conf config.NewAccount
+	if err := json.Unmarshal(req.NewAccountConfig, conf); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	if err := conf.Validate(); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	acct, err := p.acctManager.NewAccount(conf)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	return &proto.NewAccountResponse{
+		Account: protoconv.AcctToProto(acct),
+		KeyUri:  "", // TODO(cjh) get rid of this field from protobuf def if we're just showing vault secret url
+	}, nil
 }
 
-func (p HashicorpPlugin) ImportRawKey(_ context.Context, req *proto.ImportRawKeyRequest) (*proto.ImportRawKeyResponse, error) {
+func (p HashicorpPlugin) ImportRawKey(_ context.Context, req *proto.ImportAccountRequest) (*proto.ImportRawKeyResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	//return p.acctManager.ImportRawKey(ctx, req)
-	return nil, status.Error(codes.Unimplemented, "implement me")
+	var conf config.NewAccount
+	if err := json.Unmarshal(req.NewAccountConfig, conf); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	if err := conf.Validate(); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	acct, err := p.acctManager.ImportAccount(req.PublicKeyHex, req.PrivateKeyHex, conf)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	return &proto.ImportRawKeyResponse{
+		Account: protoconv.AcctToProto(acct),
+		KeyUri:  "", // TODO(cjh) get rid of this field from protobuf def if we're just showing vault secret url
+	}, nil
 }

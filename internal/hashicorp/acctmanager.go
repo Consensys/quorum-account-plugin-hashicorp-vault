@@ -1,7 +1,6 @@
 package hashicorp
 
 import (
-	"context"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"math/big"
@@ -73,10 +72,10 @@ func (a AccountManager) Lock(account Account) error {
 	panic("implement me")
 }
 
-func (a AccountManager) NewAccount(context.Context, *proto.NewAccountRequest) (*proto.NewAccountResponse, error) {
+func (a AccountManager) NewAccount(conf config.NewAccount) (Account, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) ImportRawKey(context.Context, *proto.ImportRawKeyRequest) (*proto.ImportRawKeyResponse, error) {
+func (a AccountManager) ImportAccount(publicKeyHex string, privateKeyHex string, conf config.NewAccount) (Account, error) {
 	panic("implement me")
 }
