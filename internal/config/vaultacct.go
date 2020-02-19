@@ -5,6 +5,19 @@ import (
 	"net/url"
 )
 
+type AccountFileJSON struct {
+	Address      string
+	VaultAccount vaultAccountJSON
+	ID           string
+	Version      int
+}
+
+type vaultAccountJSON struct {
+	SecretEnginePath string
+	SecretPath       string
+	SecretVersion    int64
+}
+
 type NewAccount struct {
 	Vault            url.URL
 	SecretEnginePath string

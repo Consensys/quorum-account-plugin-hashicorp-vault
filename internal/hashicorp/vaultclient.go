@@ -1,18 +1,24 @@
 package hashicorp
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/vault/api"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
+	"io/ioutil"
+	"net/url"
+	"os"
+	"path/filepath"
 	"time"
 )
 
 const reauthRetryInterval = 5 * time.Second
 
+type path string
+
 type vaultClient struct {
 	*api.Client
-	//renewer    *api.Renewer
-	//authConfig config.VaultAuth
+	accounts map[path]config.AccountFileJSON
 }
 
 // newVaultClient creates an authenticated Vault client using the credentials provided as environment variables
@@ -41,6 +47,12 @@ func newVaultClient(conf config.VaultClient) (*vaultClient, error) {
 	if err := vaultClient.authenticate(conf.Authentication); err != nil {
 		return nil, err
 	}
+
+	result, err := vaultClient.loadAccountDirectory(conf.AccountDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("error loading account directory: %v", err)
+	}
+	vaultClient.accounts = result
 
 	return vaultClient, nil
 }
@@ -78,4 +90,35 @@ func (c *vaultClient) authenticateWithApprole(conf config.VaultClientAuthenticat
 	c.SetToken(t)
 
 	return &renewable{Secret: resp}, nil
+}
+
+func (c *vaultClient) loadAccountDirectory(dir url.URL) (map[path]config.AccountFileJSON, error) {
+	result := make(map[path]config.AccountFileJSON)
+
+	walkFn := filepath.WalkFunc(func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			// do nothing with directories
+			return nil
+		}
+		b, err := ioutil.ReadFile(dir.Path)
+
+		var conf config.AccountFileJSON
+
+		if err := json.Unmarshal(b, conf); err != nil {
+			return fmt.Errorf("unable to unmarshal contents of %v, err: %v", p, err)
+		}
+
+		result[path(p)] = conf
+
+		return nil
+	})
+
+	if err := filepath.Walk(dir.Path, walkFn); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
