@@ -3,13 +3,12 @@ package config
 import (
 	"errors"
 	"fmt"
-	"net/url"
 )
 
 const (
 	invalidVaultUrl         = "vault must be a valid HTTP/HTTPS url"
 	invalidAccountDirectory = "accountDirectory must be a valid file url"
-	invalidAuthentication   = "authentication must contain roleId, secretId and approlePath OR only token"
+	invalidAuthentication   = "authentication must contain roleId, secretId and approlePath OR only token, and the given environment variables must be set"
 	invalidCaCert           = "caCert must be a valid file url"
 	invalidClientCert       = "clientCert must be a valid file url"
 	invalidClientKey        = "clientKey must be a valid file url"
@@ -19,37 +18,37 @@ const (
 
 func (c VaultClients) Validate() error {
 	for i, vc := range c {
-		if err := vc.Validate(); err != nil {
+		if err := vc.validate(); err != nil {
 			return fmt.Errorf("invalid config: array index %v: %v", i, err.Error())
 		}
 	}
 	return nil
 }
 
-func (c VaultClient) Validate() error {
-	if c.Vault == (url.URL{}) || c.Vault.Scheme == "" {
+func (c VaultClient) validate() error {
+	if c.Vault == nil || c.Vault.Scheme == "" {
 		return errors.New(invalidVaultUrl)
 	}
-	if c.AccountDirectory == (url.URL{}) || c.AccountDirectory.Scheme != "file" || c.AccountDirectory.Path == "" {
+	if c.AccountDirectory == nil || c.AccountDirectory.Scheme != "file" || (c.AccountDirectory.Host == "" && c.AccountDirectory.Path == "") {
 		return errors.New(invalidAccountDirectory)
 	}
-	if err := c.Authentication.Validate(); err != nil {
+	if err := c.Authentication.validate(); err != nil {
 		return err
 	}
-	if err := c.TLS.Validate(); err != nil {
+	if err := c.TLS.validate(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c VaultClientAuthentication) Validate() error {
+func (c VaultClientAuthentication) validate() error {
 	var (
 		tokenIsSet       = c.Token.IsSet()
 		roleIdIsSet      = c.RoleId.IsSet()
 		secretIdIsSet    = c.SecretId.IsSet()
 		approlePathIsSet = !(c.ApprolePath == "")
 	)
-	if roleIdIsSet && secretIdIsSet && approlePathIsSet {
+	if !tokenIsSet && roleIdIsSet && secretIdIsSet && approlePathIsSet {
 		return nil
 	}
 	if tokenIsSet && !roleIdIsSet && !secretIdIsSet && !approlePathIsSet {
@@ -58,21 +57,21 @@ func (c VaultClientAuthentication) Validate() error {
 	return errors.New(invalidAuthentication)
 }
 
-func (c vaultClientTLS) Validate() error {
-	if c.CaCert != (url.URL{}) && (c.CaCert.Scheme != "file" || c.CaCert.Path == "") {
+func (c vaultClientTLS) validate() error {
+	if c.CaCert != nil && (c.CaCert.Scheme != "file" || (c.CaCert.Host == "" && c.CaCert.Path == "")) {
 		return errors.New(invalidCaCert)
 	}
-	if c.ClientCert != (url.URL{}) && (c.ClientCert.Scheme != "file" || c.ClientCert.Path == "") {
+	if c.ClientCert != nil && (c.ClientCert.Scheme != "file" || (c.ClientCert.Host == "" && c.ClientCert.Path == "")) {
 		return errors.New(invalidClientCert)
 	}
-	if c.ClientKey != (url.URL{}) && (c.ClientKey.Scheme != "file" || c.ClientKey.Path == "") {
+	if c.ClientKey != nil && (c.ClientKey.Scheme != "file" || (c.ClientKey.Host == "" && c.ClientKey.Path == "")) {
 		return errors.New(invalidClientKey)
 	}
 	return nil
 }
 
 func (c NewAccount) Validate() error {
-	if c.Vault == (url.URL{}) || c.Vault.Scheme == "" {
+	if c.Vault == nil || c.Vault.Scheme == "" {
 		return errors.New(invalidVaultUrl)
 	}
 	if c.SecretEnginePath == "" || c.SecretPath == "" {

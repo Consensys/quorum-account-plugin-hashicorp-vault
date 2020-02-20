@@ -37,10 +37,9 @@ func (c *AccountFileJSON) AccountURL(vaultURL string) (*url.URL, error) {
 }
 
 type NewAccount struct {
-	Vault            url.URL
+	Vault            *url.URL
 	SecretEnginePath string
 	SecretPath       string
-	SecretVersion    int64
 	InsecureSkipCAS  bool
 	CASValue         uint64
 }
@@ -49,7 +48,6 @@ type newAccountJSON struct {
 	Vault            string
 	SecretEnginePath string
 	SecretPath       string
-	SecretVersion    int64
 	InsecureSkipCAS  bool
 	CASValue         uint64
 }
@@ -74,10 +72,9 @@ func (c newAccountJSON) newAccount() (NewAccount, error) {
 	}
 
 	return NewAccount{
-		Vault:            *vault,
+		Vault:            vault,
 		SecretEnginePath: c.SecretEnginePath,
 		SecretPath:       c.SecretPath,
-		SecretVersion:    c.SecretVersion,
 		InsecureSkipCAS:  c.InsecureSkipCAS,
 		CASValue:         c.CASValue,
 	}, nil

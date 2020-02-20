@@ -9,7 +9,6 @@ import (
 )
 
 func TestVaultClient_UnmarshalJSON(t *testing.T) {
-
 	b := []byte(`{
 		"vault": "http://vault:1111",
 		"accountDirectory": "file:///path/to/dir",
@@ -30,11 +29,11 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 	}`)
 
 	want := VaultClient{
-		Vault: url.URL{
+		Vault: &url.URL{
 			Scheme: "http",
 			Host:   "vault:1111",
 		},
-		AccountDirectory: url.URL{
+		AccountDirectory: &url.URL{
 			Scheme: "file",
 			Path:   "/path/to/dir",
 		},
@@ -43,26 +42,26 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 			"0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526",
 		},
 		Authentication: VaultClientAuthentication{
-			RoleId: environmentVariable{
+			RoleId: &environmentVariable{
 				Scheme: "env",
 				Host:   "MY_ROLE_ID",
 			},
-			SecretId: environmentVariable{
+			SecretId: &environmentVariable{
 				Scheme: "env",
 				Host:   "MY_SECRET_ID",
 			},
 			ApprolePath: "my-role",
 		},
 		TLS: vaultClientTLS{
-			CaCert: url.URL{
+			CaCert: &url.URL{
 				Scheme: "file",
 				Path:   "/path/to/ca.pem",
 			},
-			ClientCert: url.URL{
+			ClientCert: &url.URL{
 				Scheme: "file",
 				Path:   "/path/to/client.pem",
 			},
-			ClientKey: url.URL{
+			ClientKey: &url.URL{
 				Scheme: "file",
 				Path:   "/path/to/client.key",
 			},
@@ -74,7 +73,6 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 	err := json.Unmarshal(b, &got)
 
 	require.NoError(t, err)
-	require.IsType(t, VaultClient{}, got)
 	require.Equal(t, want, got)
 }
 

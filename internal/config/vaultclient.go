@@ -9,8 +9,8 @@ import (
 type VaultClients []VaultClient
 
 type VaultClient struct {
-	Vault            url.URL
-	AccountDirectory url.URL
+	Vault            *url.URL
+	AccountDirectory *url.URL
 	Unlock           []string
 	Authentication   VaultClientAuthentication
 	TLS              vaultClientTLS
@@ -33,16 +33,16 @@ func (e environmentVariable) IsSet() bool {
 }
 
 type VaultClientAuthentication struct {
-	Token       environmentVariable
-	RoleId      environmentVariable
-	SecretId    environmentVariable
+	Token       *environmentVariable
+	RoleId      *environmentVariable
+	SecretId    *environmentVariable
 	ApprolePath string
 }
 
 type vaultClientTLS struct {
-	CaCert     url.URL
-	ClientCert url.URL
-	ClientKey  url.URL
+	CaCert     *url.URL
+	ClientCert *url.URL
+	ClientKey  *url.URL
 }
 
 type vaultClientJSON struct {
@@ -101,8 +101,8 @@ func (c vaultClientJSON) vaultClient() (VaultClient, error) {
 	}
 
 	return VaultClient{
-		Vault:            *vault,
-		AccountDirectory: *accountDirectory,
+		Vault:            vault,
+		AccountDirectory: accountDirectory,
 		Unlock:           c.Unlock,
 		Authentication:   authentication,
 		TLS:              tls,
@@ -125,10 +125,16 @@ func (c vaultClientAuthenticationJSON) vaultClientAuthentication() (VaultClientA
 		return VaultClientAuthentication{}, err
 	}
 
+	var (
+		tEnv = environmentVariable(*token)
+		rEnv = environmentVariable(*roleId)
+		sEnv = environmentVariable(*secretId)
+	)
+
 	return VaultClientAuthentication{
-		Token:       environmentVariable(*token),
-		RoleId:      environmentVariable(*roleId),
-		SecretId:    environmentVariable(*secretId),
+		Token:       &tEnv,
+		RoleId:      &rEnv,
+		SecretId:    &sEnv,
 		ApprolePath: c.ApprolePath,
 	}, nil
 }
@@ -150,8 +156,8 @@ func (c vaultClientTLSJSON) vaultClientTls() (vaultClientTLS, error) {
 	}
 
 	return vaultClientTLS{
-		CaCert:     *caCert,
-		ClientCert: *clientCert,
-		ClientKey:  *clientKey,
+		CaCert:     caCert,
+		ClientCert: clientCert,
+		ClientKey:  clientKey,
 	}, nil
 }

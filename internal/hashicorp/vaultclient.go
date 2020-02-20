@@ -92,7 +92,7 @@ func (c *vaultClient) authenticateWithApprole(conf config.VaultClientAuthenticat
 	return &renewable{Secret: resp}, nil
 }
 
-func (c *vaultClient) loadWallets(accountDirectory url.URL) (map[*url.URL]config.AccountFile, error) {
+func (c *vaultClient) loadWallets(accountDirectory *url.URL) (map[*url.URL]config.AccountFile, error) {
 	result := make(map[*url.URL]config.AccountFile)
 
 	walkFn := filepath.WalkFunc(func(path string, info os.FileInfo, err error) error {
