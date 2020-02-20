@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/require"
 	"net/url"
+	"os"
 	"testing"
 )
 
@@ -75,4 +76,38 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.IsType(t, VaultClient{}, got)
 	require.Equal(t, want, got)
+}
+
+func TestEnvironmentVariable_IsSet(t *testing.T) {
+	u, err := url.Parse("env://TEST_ENV")
+	require.NoError(t, err)
+
+	env := environmentVariable(*u)
+	require.False(t, env.IsSet())
+
+	os.Setenv("TEST_ENV", "val")
+	defer os.Unsetenv("TEST_ENV")
+
+	require.True(t, env.IsSet())
+}
+
+func TestEnvironmentVariable_IsSet_Empty(t *testing.T) {
+	u, err := url.Parse("env://")
+	require.NoError(t, err)
+
+	env := environmentVariable(*u)
+	require.False(t, env.IsSet())
+}
+
+func TestEnvironmentVariable_Get(t *testing.T) {
+	u, err := url.Parse("env://TEST_ENV")
+	require.NoError(t, err)
+
+	env := environmentVariable(*u)
+	require.Empty(t, env.Get())
+
+	os.Setenv("TEST_ENV", "val")
+	defer os.Unsetenv("TEST_ENV")
+
+	require.Equal(t, "val", env.Get())
 }

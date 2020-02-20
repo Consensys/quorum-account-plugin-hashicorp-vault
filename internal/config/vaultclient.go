@@ -20,15 +20,15 @@ type environmentVariable url.URL
 
 func (e environmentVariable) Get() string {
 	u := url.URL(e)
-	return os.Getenv(u.Path)
+	return os.Getenv(u.Host)
 }
 
 func (e environmentVariable) IsSet() bool {
 	u := url.URL(e)
-	if u.Path == "" {
+	if u.Host == "" {
 		return false
 	}
-	_, b := os.LookupEnv(u.Path)
+	_, b := os.LookupEnv(u.Host)
 	return b
 }
 
