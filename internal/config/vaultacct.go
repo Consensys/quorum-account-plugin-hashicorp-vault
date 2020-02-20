@@ -2,11 +2,17 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 )
 
+type AccountFile struct {
+	Path     string
+	Contents AccountFileJSON
+}
+
 type AccountFileJSON struct {
-	Address      string
+	Address      string // TODO(cjh) use hex encoded bytes instead of string (to account for 0x[...] or just [...])
 	VaultAccount vaultAccountJSON
 	ID           string
 	Version      int
@@ -16,6 +22,18 @@ type vaultAccountJSON struct {
 	SecretEnginePath string
 	SecretPath       string
 	SecretVersion    int64
+}
+
+func (c *AccountFileJSON) AccountURL(vaultURL string) (*url.URL, error) {
+	u, err := url.Parse(vaultURL)
+	if err != nil {
+		return nil, err
+	}
+	result, err := u.Parse(fmt.Sprintf("%v/%v?version=%v", c.VaultAccount.SecretEnginePath, c.VaultAccount.SecretPath, c.VaultAccount.SecretVersion))
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 type NewAccount struct {

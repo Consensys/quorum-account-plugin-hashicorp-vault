@@ -21,10 +21,11 @@ func (p HashicorpPlugin) Status(_ context.Context, req *proto.StatusRequest) (*p
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	if _, err := url.Parse(req.WalletUrl); err != nil {
+	wallet, err := url.Parse(req.WalletUrl)
+	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	s, err := p.acctManager.Status(req.WalletUrl)
+	s, err := p.acctManager.Status(wallet)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

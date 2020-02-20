@@ -1,9 +1,11 @@
 package hashicorp
 
 import (
+	"errors"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"math/big"
+	"net/url"
 	"time"
 )
 
@@ -22,7 +24,13 @@ func NewAccountManager(config config.VaultClients) (*AccountManager, error) {
 }
 
 type AccountManager struct {
-	clients []*vaultClient
+	clients  []*vaultClient
+	unlocked map[string]*lockableKey
+}
+
+type lockableKey struct {
+	key  string
+	lock chan struct{}
 }
 
 type Account struct {
@@ -32,8 +40,17 @@ type Account struct {
 
 type Transaction struct{}
 
-func (a AccountManager) Status(walletUrl string) (string, error) {
-	panic("implement me")
+func (a AccountManager) Status(wallet *url.URL) (string, error) {
+	for _, client := range a.clients {
+		if client.hasWallet(wallet) {
+			pub := client.getPublicKey(wallet)
+			if _, isUnlocked := a.unlocked[pub]; isUnlocked {
+				return "unlocked", nil
+			}
+			return "locked", nil
+		}
+	}
+	return "", errors.New("unknown wallet")
 }
 
 func (a AccountManager) Accounts(walletUrl string) []Account {
