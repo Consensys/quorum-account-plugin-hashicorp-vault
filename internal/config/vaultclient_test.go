@@ -42,6 +42,10 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 			"0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526",
 		},
 		Authentication: VaultClientAuthentication{
+			Token: &environmentVariable{
+				Scheme: "",
+				Host:   "",
+			},
 			RoleId: &environmentVariable{
 				Scheme: "env",
 				Host:   "MY_ROLE_ID",
@@ -73,7 +77,11 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 	err := json.Unmarshal(b, &got)
 
 	require.NoError(t, err)
-	require.Equal(t, want, got)
+	require.Equal(t, want.Vault, got.Vault)
+	require.Equal(t, want.AccountDirectory, got.AccountDirectory)
+	require.Equal(t, want.Unlock, got.Unlock)
+	require.EqualValues(t, want.Authentication, got.Authentication)
+	require.Equal(t, want.TLS, got.TLS)
 }
 
 func TestEnvironmentVariable_IsSet(t *testing.T) {
