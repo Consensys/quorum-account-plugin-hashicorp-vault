@@ -3,17 +3,8 @@ package config
 import (
 	"github.com/stretchr/testify/assert"
 	"net/url"
-	"os"
 	"testing"
 )
-
-const (
-	MY_TOKEN     = "MY_TOKEN"
-	MY_ROLE_ID   = "MY_ROLE_ID"
-	MY_SECRET_ID = "MY_SECRET_ID"
-)
-
-type environmentHelper struct{}
 
 type vaultClientsBuilder struct {
 	clients []VaultClient
@@ -30,24 +21,6 @@ type vaultClientBuilder struct {
 	caCertUrl     string
 	clientCertUrl string
 	clientKeyUrl  string
-}
-
-func (environmentHelper) setToken() {
-	os.Setenv(MY_TOKEN, "tokenval")
-}
-
-func (environmentHelper) setRoleID() {
-	os.Setenv(MY_ROLE_ID, "roleidval")
-}
-
-func (environmentHelper) setSecretID() {
-	os.Setenv(MY_SECRET_ID, "secretidval")
-}
-
-func (environmentHelper) unsetAll() {
-	os.Unsetenv(MY_TOKEN)
-	os.Unsetenv(MY_ROLE_ID)
-	os.Unsetenv(MY_SECRET_ID)
 }
 
 func (b *vaultClientsBuilder) vaultClient(client VaultClient) *vaultClientsBuilder {
