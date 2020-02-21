@@ -1,20 +1,22 @@
-package config
+package validation
 
 import (
 	"fmt"
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/builders"
 	env "github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/environment"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
-func minimumValidClientConfig() *vaultClientBuilder {
-	var vaultClientBuilder vaultClientBuilder
+func minimumValidClientConfig() *builders.VaultClientBuilder {
+	var vaultClientBuilder builders.VaultClientBuilder
 	return vaultClientBuilder.
-		withVaultUrl("http://vault:1111").
-		withAccountDirectory("file:///path/to/dir").
-		withRoleIdUrl("env://" + env.MY_ROLE_ID).
-		withSecretIdUrl("env://" + env.MY_SECRET_ID).
-		withApprolePath("myapprole")
+		WithVaultUrl("http://vault:1111").
+		WithAccountDirectory("file:///path/to/dir").
+		WithRoleIdUrl("env://" + env.MY_ROLE_ID).
+		WithSecretIdUrl("env://" + env.MY_SECRET_ID).
+		WithApprolePath("myapprole")
 }
 
 func TestVaultClients_Validate_MinimumValidConfig(t *testing.T) {
@@ -22,11 +24,11 @@ func TestVaultClients_Validate_MinimumValidConfig(t *testing.T) {
 	env.SetRoleID()
 	env.SetSecretID()
 
-	var vaultClientsBuilder vaultClientsBuilder
+	var vaultClientsBuilder builders.VaultClientsBuilder
 
 	var vaultClients = vaultClientsBuilder.
-		withVaultClient(minimumValidClientConfig().build(t)).
-		build()
+		WithVaultClient(minimumValidClientConfig().Build(t)).
+		Build()
 
 	err := vaultClients.Validate()
 	require.NoError(t, err)
@@ -45,11 +47,11 @@ func TestVaultClients_Validate_VaultUrl_Valid(t *testing.T) {
 	for _, u := range vaultUrls {
 		t.Run(u, func(t *testing.T) {
 			vc := minimumValidClientConfig().
-				withVaultUrl(u).
-				build(t)
+				WithVaultUrl(u).
+				Build(t)
 
-			var vaultClientsBuilder vaultClientsBuilder
-			vaultClients := vaultClientsBuilder.withVaultClient(vc).build()
+			var vaultClientsBuilder builders.VaultClientsBuilder
+			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
 
 			gotErr := vaultClients.Validate()
 			require.NoError(t, gotErr)
@@ -58,7 +60,7 @@ func TestVaultClients_Validate_VaultUrl_Valid(t *testing.T) {
 }
 
 func TestVaultClients_Validate_VaultUrl_Invalid(t *testing.T) {
-	wantErrMsg := fmt.Sprintf("invalid config: array index 0: %v", invalidVaultUrl)
+	wantErrMsg := fmt.Sprintf("invalid config: array index 0: %v", config.InvalidVaultUrl)
 
 	vaultUrls := []string{
 		"",
@@ -67,11 +69,11 @@ func TestVaultClients_Validate_VaultUrl_Invalid(t *testing.T) {
 	for _, u := range vaultUrls {
 		t.Run(u, func(t *testing.T) {
 			vc := minimumValidClientConfig().
-				withVaultUrl(u).
-				build(t)
+				WithVaultUrl(u).
+				Build(t)
 
-			var vaultClientsBuilder vaultClientsBuilder
-			vaultClients := vaultClientsBuilder.withVaultClient(vc).build()
+			var vaultClientsBuilder builders.VaultClientsBuilder
+			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
 
 			gotErr := vaultClients.Validate()
 			require.EqualError(t, gotErr, wantErrMsg)
@@ -87,17 +89,17 @@ func TestVaultClients_Validate_AccountDirectory_Valid(t *testing.T) {
 	acctDirUrls := []string{
 		"file:///absolute/path/to/dir",
 		"file://../relative/path/to/dir",
-		"file://withhost/path",
+		"file://Withhost/path",
 		"file://nopath",
 	}
 	for _, u := range acctDirUrls {
 		t.Run(u, func(t *testing.T) {
 			vc := minimumValidClientConfig().
-				withAccountDirectory(u).
-				build(t)
+				WithAccountDirectory(u).
+				Build(t)
 
-			var vaultClientsBuilder vaultClientsBuilder
-			vaultClients := vaultClientsBuilder.withVaultClient(vc).build()
+			var vaultClientsBuilder builders.VaultClientsBuilder
+			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
 
 			gotErr := vaultClients.Validate()
 			require.NoError(t, gotErr)
@@ -106,7 +108,7 @@ func TestVaultClients_Validate_AccountDirectory_Valid(t *testing.T) {
 }
 
 func TestVaultClients_Validate_AccountDirectory_Invalid(t *testing.T) {
-	wantErrMsg := fmt.Sprintf("invalid config: array index 0: %v", invalidAccountDirectory)
+	wantErrMsg := fmt.Sprintf("invalid config: array index 0: %v", config.InvalidAccountDirectory)
 
 	acctDirUrls := []string{
 		"",
@@ -117,11 +119,11 @@ func TestVaultClients_Validate_AccountDirectory_Invalid(t *testing.T) {
 	for _, u := range acctDirUrls {
 		t.Run(u, func(t *testing.T) {
 			vc := minimumValidClientConfig().
-				withAccountDirectory(u).
-				build(t)
+				WithAccountDirectory(u).
+				Build(t)
 
-			var vaultClientsBuilder vaultClientsBuilder
-			vaultClients := vaultClientsBuilder.withVaultClient(vc).build()
+			var vaultClientsBuilder builders.VaultClientsBuilder
+			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
 
 			gotErr := vaultClients.Validate()
 			require.EqualError(t, gotErr, wantErrMsg)
@@ -174,14 +176,14 @@ func TestVaultClients_Validate_Authentication_Valid(t *testing.T) {
 			}
 
 			vc := minimumValidClientConfig().
-				withTokenUrl(tt.tokenUrl).
-				withRoleIdUrl(tt.roleIdUrl).
-				withSecretIdUrl(tt.secretIdUrl).
-				withApprolePath(tt.approlePath).
-				build(t)
+				WithTokenUrl(tt.tokenUrl).
+				WithRoleIdUrl(tt.roleIdUrl).
+				WithSecretIdUrl(tt.secretIdUrl).
+				WithApprolePath(tt.approlePath).
+				Build(t)
 
-			var vaultClientsBuilder vaultClientsBuilder
-			vaultClients := vaultClientsBuilder.withVaultClient(vc).build()
+			var vaultClientsBuilder builders.VaultClientsBuilder
+			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
 
 			gotErr := vaultClients.Validate()
 
@@ -193,7 +195,7 @@ func TestVaultClients_Validate_Authentication_Valid(t *testing.T) {
 }
 
 func TestVaultClients_Validate_Authentication_Invalid(t *testing.T) {
-	wantErrMsg := fmt.Sprintf("invalid config: array index 0: %v", invalidAuthentication)
+	wantErrMsg := fmt.Sprintf("invalid config: array index 0: %v", config.InvalidAuthentication)
 
 	var auths = map[string]struct {
 		tokenUrl    string
@@ -281,14 +283,14 @@ func TestVaultClients_Validate_Authentication_Invalid(t *testing.T) {
 			}
 
 			vc := minimumValidClientConfig().
-				withTokenUrl(tt.tokenUrl).
-				withRoleIdUrl(tt.roleIdUrl).
-				withSecretIdUrl(tt.secretIdUrl).
-				withApprolePath(tt.approlePath).
-				build(t)
+				WithTokenUrl(tt.tokenUrl).
+				WithRoleIdUrl(tt.roleIdUrl).
+				WithSecretIdUrl(tt.secretIdUrl).
+				WithApprolePath(tt.approlePath).
+				Build(t)
 
-			var vaultClientsBuilder vaultClientsBuilder
-			vaultClients := vaultClientsBuilder.withVaultClient(vc).build()
+			var vaultClientsBuilder builders.VaultClientsBuilder
+			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
 
 			gotErr := vaultClients.Validate()
 
@@ -344,13 +346,13 @@ func TestVaultClients_Validate_TLS_Valid(t *testing.T) {
 	for name, tt := range tls {
 		t.Run(name, func(t *testing.T) {
 			vc := minimumValidClientConfig().
-				withCaCertUrl(tt.caCert).
-				withClientCertUrl(tt.clientCert).
-				withClientKeyUrl(tt.clientKey).
-				build(t)
+				WithCaCertUrl(tt.caCert).
+				WithClientCertUrl(tt.clientCert).
+				WithClientKeyUrl(tt.clientKey).
+				Build(t)
 
-			var vaultClientsBuilder vaultClientsBuilder
-			vaultClients := vaultClientsBuilder.withVaultClient(vc).build()
+			var vaultClientsBuilder builders.VaultClientsBuilder
+			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
 
 			gotErr := vaultClients.Validate()
 			require.NoError(t, gotErr)
@@ -373,50 +375,50 @@ func TestVaultClients_Validate_TLS_Invalid(t *testing.T) {
 			caCert:     "path/to/ca.cert",
 			clientCert: "file:///path/to/client.cert",
 			clientKey:  "file:///path/to/client.key",
-			wantErr:    invalidCaCert,
+			wantErr:    config.InvalidCaCert,
 		},
 		"caCert_empty": {
 			caCert:     "file://",
 			clientCert: "file:///path/to/client.cert",
 			clientKey:  "file:///path/to/client.key",
-			wantErr:    invalidCaCert,
+			wantErr:    config.InvalidCaCert,
 		},
 		"clientCert_scheme": {
 			caCert:     "file:///path/to/ca.cert",
 			clientCert: "path/to/client.cert",
 			clientKey:  "file:///path/to/client.key",
-			wantErr:    invalidClientCert,
+			wantErr:    config.InvalidClientCert,
 		},
 		"clientCert_empty": {
 			caCert:     "file:///path/to/ca.cert",
 			clientCert: "file://",
 			clientKey:  "file:///path/to/client.key",
-			wantErr:    invalidClientCert,
+			wantErr:    config.InvalidClientCert,
 		},
 		"clientKey_scheme": {
 			caCert:     "file:///path/to/ca.cert",
 			clientCert: "file:///path/to/client.cert",
 			clientKey:  "path/to/client.key",
-			wantErr:    invalidClientKey,
+			wantErr:    config.InvalidClientKey,
 		},
 		"clientKey_empty": {
 			caCert:     "file:///path/to/ca.cert",
 			clientCert: "file:///path/to/client.cert",
 			clientKey:  "file://",
-			wantErr:    invalidClientKey,
+			wantErr:    config.InvalidClientKey,
 		},
 	}
 
 	for name, tt := range tls {
 		t.Run(name, func(t *testing.T) {
 			vc := minimumValidClientConfig().
-				withCaCertUrl(tt.caCert).
-				withClientCertUrl(tt.clientCert).
-				withClientKeyUrl(tt.clientKey).
-				build(t)
+				WithCaCertUrl(tt.caCert).
+				WithClientCertUrl(tt.clientCert).
+				WithClientKeyUrl(tt.clientKey).
+				Build(t)
 
-			var vaultClientsBuilder vaultClientsBuilder
-			vaultClients := vaultClientsBuilder.withVaultClient(vc).build()
+			var vaultClientsBuilder builders.VaultClientsBuilder
+			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
 
 			gotErr := vaultClients.Validate()
 

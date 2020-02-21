@@ -1,16 +1,17 @@
-package config
+package builders
 
 import (
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"github.com/stretchr/testify/assert"
 	"net/url"
 	"testing"
 )
 
-type vaultClientsBuilder struct {
-	clients []VaultClient
+type VaultClientsBuilder struct {
+	clients []config.VaultClient
 }
 
-type vaultClientBuilder struct {
+type VaultClientBuilder struct {
 	vaultUrl      string
 	acctDir       string
 	unlock        []string
@@ -23,66 +24,66 @@ type vaultClientBuilder struct {
 	clientKeyUrl  string
 }
 
-func (b *vaultClientsBuilder) withVaultClient(client VaultClient) *vaultClientsBuilder {
+func (b *VaultClientsBuilder) WithVaultClient(client config.VaultClient) *VaultClientsBuilder {
 	b.clients = append(b.clients, client)
 	return b
 }
 
-func (b *vaultClientsBuilder) build() VaultClients {
+func (b *VaultClientsBuilder) Build() config.VaultClients {
 	return b.clients
 }
 
-func (b *vaultClientBuilder) withVaultUrl(s string) *vaultClientBuilder {
+func (b *VaultClientBuilder) WithVaultUrl(s string) *VaultClientBuilder {
 	b.vaultUrl = s
 	return b
 }
 
-func (b *vaultClientBuilder) withAccountDirectory(s string) *vaultClientBuilder {
+func (b *VaultClientBuilder) WithAccountDirectory(s string) *VaultClientBuilder {
 	b.acctDir = s
 	return b
 }
 
-func (b *vaultClientBuilder) withUnlock(s []string) *vaultClientBuilder {
+func (b *VaultClientBuilder) WithUnlock(s []string) *VaultClientBuilder {
 	b.unlock = s
 	return b
 }
 
-func (b *vaultClientBuilder) withTokenUrl(s string) *vaultClientBuilder {
+func (b *VaultClientBuilder) WithTokenUrl(s string) *VaultClientBuilder {
 	b.tokenUrl = s
 	return b
 }
 
-func (b *vaultClientBuilder) withRoleIdUrl(s string) *vaultClientBuilder {
+func (b *VaultClientBuilder) WithRoleIdUrl(s string) *VaultClientBuilder {
 	b.roleIdUrl = s
 	return b
 }
 
-func (b *vaultClientBuilder) withSecretIdUrl(s string) *vaultClientBuilder {
+func (b *VaultClientBuilder) WithSecretIdUrl(s string) *VaultClientBuilder {
 	b.secretIdUrl = s
 	return b
 }
 
-func (b *vaultClientBuilder) withApprolePath(s string) *vaultClientBuilder {
+func (b *VaultClientBuilder) WithApprolePath(s string) *VaultClientBuilder {
 	b.approlePath = s
 	return b
 }
 
-func (b *vaultClientBuilder) withCaCertUrl(s string) *vaultClientBuilder {
+func (b *VaultClientBuilder) WithCaCertUrl(s string) *VaultClientBuilder {
 	b.caCertUrl = s
 	return b
 }
 
-func (b *vaultClientBuilder) withClientCertUrl(s string) *vaultClientBuilder {
+func (b *VaultClientBuilder) WithClientCertUrl(s string) *VaultClientBuilder {
 	b.clientCertUrl = s
 	return b
 }
 
-func (b *vaultClientBuilder) withClientKeyUrl(s string) *vaultClientBuilder {
+func (b *VaultClientBuilder) WithClientKeyUrl(s string) *VaultClientBuilder {
 	b.clientKeyUrl = s
 	return b
 }
 
-func (b *vaultClientBuilder) build(t *testing.T) VaultClient {
+func (b *VaultClientBuilder) Build(t *testing.T) config.VaultClient {
 	var err error
 
 	var vault *url.URL
@@ -97,25 +98,25 @@ func (b *vaultClientBuilder) build(t *testing.T) VaultClient {
 		assert.NoError(t, err)
 	}
 
-	var tokenEnv EnvironmentVariable
+	var tokenEnv config.EnvironmentVariable
 	if b.tokenUrl != "" {
 		token, err := url.Parse(b.tokenUrl)
 		assert.NoError(t, err)
-		tokenEnv = EnvironmentVariable(*token)
+		tokenEnv = config.EnvironmentVariable(*token)
 	}
 
-	var roleIdEnv EnvironmentVariable
+	var roleIdEnv config.EnvironmentVariable
 	if b.roleIdUrl != "" {
 		roleId, err := url.Parse(b.roleIdUrl)
 		assert.NoError(t, err)
-		roleIdEnv = EnvironmentVariable(*roleId)
+		roleIdEnv = config.EnvironmentVariable(*roleId)
 	}
 
-	var secretIdEnv EnvironmentVariable
+	var secretIdEnv config.EnvironmentVariable
 	if b.secretIdUrl != "" {
 		secretId, err := url.Parse(b.secretIdUrl)
 		assert.NoError(t, err)
-		secretIdEnv = EnvironmentVariable(*secretId)
+		secretIdEnv = config.EnvironmentVariable(*secretId)
 	}
 
 	var caCert *url.URL
@@ -136,17 +137,17 @@ func (b *vaultClientBuilder) build(t *testing.T) VaultClient {
 		assert.NoError(t, err)
 	}
 
-	return VaultClient{
+	return config.VaultClient{
 		Vault:            vault,
 		AccountDirectory: acctDir,
 		Unlock:           b.unlock,
-		Authentication: VaultClientAuthentication{
+		Authentication: config.VaultClientAuthentication{
 			Token:       &tokenEnv,
 			RoleId:      &roleIdEnv,
 			SecretId:    &secretIdEnv,
 			ApprolePath: b.approlePath,
 		},
-		TLS: VaultClientTLS{
+		TLS: config.VaultClientTLS{
 			CaCert:     caCert,
 			ClientCert: clientCert,
 			ClientKey:  clientKey,

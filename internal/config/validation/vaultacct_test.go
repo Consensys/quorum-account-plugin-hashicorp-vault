@@ -1,6 +1,7 @@
-package config
+package validation
 
 import (
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"github.com/stretchr/testify/require"
 	"net/url"
 	"testing"
@@ -12,8 +13,8 @@ func toUrl(t *testing.T, raw string) *url.URL {
 	return u
 }
 
-func minimumValidNewAccountConfig(t *testing.T) NewAccount {
-	return NewAccount{
+func minimumValidNewAccountConfig(t *testing.T) config.NewAccount {
+	return config.NewAccount{
 		Vault:            toUrl(t, "http://vault:1111"),
 		SecretEnginePath: "engine",
 		SecretPath:       "secret",
@@ -29,9 +30,9 @@ func TestNewAccount_Validate_MinimumValidConfig(t *testing.T) {
 
 func TestNewAccount_Validate_Vault_Invalid(t *testing.T) {
 	var (
-		conf    NewAccount
+		conf    config.NewAccount
 		err     error
-		wantErr = invalidVaultUrl
+		wantErr = config.InvalidVaultUrl
 	)
 
 	conf = minimumValidNewAccountConfig(t)
@@ -47,9 +48,9 @@ func TestNewAccount_Validate_Vault_Invalid(t *testing.T) {
 
 func TestNewAccount_Validate_SecretLocation_Invalid(t *testing.T) {
 	var (
-		conf    NewAccount
+		conf    config.NewAccount
 		err     error
-		wantErr = invalidSecretLocation
+		wantErr = config.InvalidSecretLocation
 	)
 
 	conf = minimumValidNewAccountConfig(t)
@@ -71,7 +72,7 @@ func TestNewAccount_Validate_SecretLocation_Invalid(t *testing.T) {
 
 func TestNewAccount_Validate_CAS_Valid(t *testing.T) {
 	var (
-		conf NewAccount
+		conf config.NewAccount
 		err  error
 	)
 
@@ -96,9 +97,9 @@ func TestNewAccount_Validate_CAS_Valid(t *testing.T) {
 
 func TestNewAccount_Validate_CAS_Invalid(t *testing.T) {
 	var (
-		conf    NewAccount
+		conf    config.NewAccount
 		err     error
-		wantErr = invalidCAS
+		wantErr = config.InvalidCAS
 	)
 
 	conf = minimumValidNewAccountConfig(t)
