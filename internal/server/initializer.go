@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func (p HashicorpPlugin) Init(_ context.Context, req *proto_common.PluginInitialization_Request) (*proto_common.PluginInitialization_Response, error) {
+func (p *HashicorpPlugin) Init(_ context.Context, req *proto_common.PluginInitialization_Request) (*proto_common.PluginInitialization_Response, error) {
 	startTime := time.Now()
 	defer func() {
 		log.Println("[INFO] plugin initialization took", time.Now().Sub(startTime).Round(time.Microsecond))

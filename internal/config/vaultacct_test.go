@@ -49,7 +49,7 @@ func TestAccountFileJSON_AccountURL(t *testing.T) {
 
 	vaultUrl := "http://vault:1111"
 
-	want, err := url.Parse("http://vault:1111/engine/path?version=10")
+	want, err := url.Parse("http://vault:1111/v1/engine/path?version=10")
 	require.NoError(t, err)
 
 	got, err := conf.AccountURL(vaultUrl)

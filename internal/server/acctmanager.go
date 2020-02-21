@@ -13,11 +13,11 @@ import (
 	"time"
 )
 
-func (p HashicorpPlugin) isInitialized() bool {
+func (p *HashicorpPlugin) isInitialized() bool {
 	return p.acctManager != nil
 }
 
-func (p HashicorpPlugin) Status(_ context.Context, req *proto.StatusRequest) (*proto.StatusResponse, error) {
+func (p *HashicorpPlugin) Status(_ context.Context, req *proto.StatusRequest) (*proto.StatusResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
@@ -33,16 +33,16 @@ func (p HashicorpPlugin) Status(_ context.Context, req *proto.StatusRequest) (*p
 }
 
 // Open is a no-op for Vault-stored accounts
-func (p HashicorpPlugin) Open(_ context.Context, _ *proto.OpenRequest) (*proto.OpenResponse, error) {
+func (p *HashicorpPlugin) Open(_ context.Context, _ *proto.OpenRequest) (*proto.OpenResponse, error) {
 	return &proto.OpenResponse{}, status.Error(codes.Unimplemented, "open not supported")
 }
 
 // Close is a no-op for Vault-stored accounts
-func (p HashicorpPlugin) Close(_ context.Context, _ *proto.CloseRequest) (*proto.CloseResponse, error) {
+func (p *HashicorpPlugin) Close(_ context.Context, _ *proto.CloseRequest) (*proto.CloseResponse, error) {
 	return &proto.CloseResponse{}, status.Error(codes.Unimplemented, "close not supported")
 }
 
-func (p HashicorpPlugin) Accounts(ctx context.Context, req *proto.AccountsRequest) (*proto.AccountsResponse, error) {
+func (p *HashicorpPlugin) Accounts(ctx context.Context, req *proto.AccountsRequest) (*proto.AccountsResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
@@ -54,7 +54,7 @@ func (p HashicorpPlugin) Accounts(ctx context.Context, req *proto.AccountsReques
 	return &proto.AccountsResponse{Accounts: protoconv.AcctsToProto(accts)}, nil
 }
 
-func (p HashicorpPlugin) Contains(_ context.Context, req *proto.ContainsRequest) (*proto.ContainsResponse, error) {
+func (p *HashicorpPlugin) Contains(_ context.Context, req *proto.ContainsRequest) (*proto.ContainsResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
@@ -68,7 +68,7 @@ func (p HashicorpPlugin) Contains(_ context.Context, req *proto.ContainsRequest)
 	return &proto.ContainsResponse{IsContained: isContained}, nil
 }
 
-func (p HashicorpPlugin) SignHash(_ context.Context, req *proto.SignHashRequest) (*proto.SignHashResponse, error) {
+func (p *HashicorpPlugin) SignHash(_ context.Context, req *proto.SignHashRequest) (*proto.SignHashResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
@@ -79,7 +79,7 @@ func (p HashicorpPlugin) SignHash(_ context.Context, req *proto.SignHashRequest)
 	return &proto.SignHashResponse{Result: result}, nil
 }
 
-func (p HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*proto.SignTxResponse, error) {
+func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*proto.SignTxResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
@@ -98,7 +98,7 @@ func (p HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*p
 	return &proto.SignTxResponse{RlpTx: result}, nil
 }
 
-func (p HashicorpPlugin) SignHashWithPassphrase(_ context.Context, req *proto.SignHashWithPassphraseRequest) (*proto.SignHashResponse, error) {
+func (p *HashicorpPlugin) SignHashWithPassphrase(_ context.Context, req *proto.SignHashWithPassphraseRequest) (*proto.SignHashResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
@@ -109,7 +109,7 @@ func (p HashicorpPlugin) SignHashWithPassphrase(_ context.Context, req *proto.Si
 	return &proto.SignHashResponse{Result: result}, nil
 }
 
-func (p HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPassphraseRequest) (*proto.SignTxResponse, error) {
+func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPassphraseRequest) (*proto.SignTxResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
@@ -129,7 +129,7 @@ func (p HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sign
 }
 
 // TODO(cjh) read about the GRPCBroker arg to the GRPCServer method as a potential alternative to this
-func (p HashicorpPlugin) GetEventStream(_ *proto.GetEventStreamRequest, stream proto.AccountManager_GetEventStreamServer) error {
+func (p *HashicorpPlugin) GetEventStream(_ *proto.GetEventStreamRequest, stream proto.AccountManager_GetEventStreamServer) error {
 	if !p.isInitialized() {
 		return status.Error(codes.Unavailable, "not configured")
 	}
@@ -171,7 +171,7 @@ func (p HashicorpPlugin) GetEventStream(_ *proto.GetEventStreamRequest, stream p
 	return status.Error(codes.Unimplemented, "implement me")
 }
 
-func (p HashicorpPlugin) TimedUnlock(_ context.Context, req *proto.TimedUnlockRequest) (*proto.TimedUnlockResponse, error) {
+func (p *HashicorpPlugin) TimedUnlock(_ context.Context, req *proto.TimedUnlockRequest) (*proto.TimedUnlockResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
@@ -183,7 +183,7 @@ func (p HashicorpPlugin) TimedUnlock(_ context.Context, req *proto.TimedUnlockRe
 	return &proto.TimedUnlockResponse{}, nil
 }
 
-func (p HashicorpPlugin) Lock(_ context.Context, req *proto.LockRequest) (*proto.LockResponse, error) {
+func (p *HashicorpPlugin) Lock(_ context.Context, req *proto.LockRequest) (*proto.LockResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
@@ -194,7 +194,7 @@ func (p HashicorpPlugin) Lock(_ context.Context, req *proto.LockRequest) (*proto
 	return &proto.LockResponse{}, nil
 }
 
-func (p HashicorpPlugin) NewAccount(_ context.Context, req *proto.NewAccountRequest) (*proto.NewAccountResponse, error) {
+func (p *HashicorpPlugin) NewAccount(_ context.Context, req *proto.NewAccountRequest) (*proto.NewAccountResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
@@ -215,7 +215,7 @@ func (p HashicorpPlugin) NewAccount(_ context.Context, req *proto.NewAccountRequ
 	}, nil
 }
 
-func (p HashicorpPlugin) ImportRawKey(_ context.Context, req *proto.ImportAccountRequest) (*proto.ImportRawKeyResponse, error) {
+func (p *HashicorpPlugin) ImportRawKey(_ context.Context, req *proto.ImportAccountRequest) (*proto.ImportRawKeyResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}

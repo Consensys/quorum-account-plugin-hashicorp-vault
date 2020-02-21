@@ -18,7 +18,7 @@ type path string
 
 type vaultClient struct {
 	*api.Client
-	wallets map[*url.URL]config.AccountFile
+	wallets map[url.URL]config.AccountFile
 }
 
 // newVaultClient creates an authenticated Vault client using the credentials provided as environment variables
@@ -29,9 +29,9 @@ func newVaultClient(conf config.VaultClient) (*vaultClient, error) {
 	clientConf.Address = conf.Vault.String()
 
 	tlsConfig := &api.TLSConfig{
-		CACert:     conf.TLS.CaCert.Path,
-		ClientCert: conf.TLS.ClientCert.Path,
-		ClientKey:  conf.TLS.ClientKey.Path,
+		CACert:     conf.TLS.CaCert.Host + "/" + conf.TLS.CaCert.Path,
+		ClientCert: conf.TLS.ClientCert.Host + "/" + conf.TLS.ClientCert.Path,
+		ClientKey:  conf.TLS.ClientKey.Host + "/" + conf.TLS.ClientKey.Path,
 	}
 
 	if err := clientConf.ConfigureTLS(tlsConfig); err != nil {
@@ -92,8 +92,8 @@ func (c *vaultClient) authenticateWithApprole(conf config.VaultClientAuthenticat
 	return &renewable{Secret: resp}, nil
 }
 
-func (c *vaultClient) loadWallets(accountDirectory *url.URL) (map[*url.URL]config.AccountFile, error) {
-	result := make(map[*url.URL]config.AccountFile)
+func (c *vaultClient) loadWallets(accountDirectory *url.URL) (map[url.URL]config.AccountFile, error) {
+	result := make(map[url.URL]config.AccountFile)
 
 	walkFn := filepath.WalkFunc(func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -103,9 +103,9 @@ func (c *vaultClient) loadWallets(accountDirectory *url.URL) (map[*url.URL]confi
 			// do nothing with directories
 			return nil
 		}
-		b, err := ioutil.ReadFile(accountDirectory.Path)
+		b, err := ioutil.ReadFile(path)
 
-		var conf config.AccountFileJSON
+		conf := new(config.AccountFileJSON)
 
 		if err := json.Unmarshal(b, conf); err != nil {
 			return fmt.Errorf("unable to unmarshal contents of %v, err: %v", path, err)
@@ -116,11 +116,11 @@ func (c *vaultClient) loadWallets(accountDirectory *url.URL) (map[*url.URL]confi
 			return fmt.Errorf("unable to parse account URL for %v, err %v", path, err)
 		}
 
-		result[acctURL] = config.AccountFile{Path: path, Contents: conf}
+		result[*acctURL] = config.AccountFile{Path: path, Contents: *conf}
 		return nil
 	})
 
-	if err := filepath.Walk(accountDirectory.Path, walkFn); err != nil {
+	if err := filepath.Walk(accountDirectory.Host+"/"+accountDirectory.Path, walkFn); err != nil {
 		return nil, err
 	}
 
@@ -128,11 +128,11 @@ func (c *vaultClient) loadWallets(accountDirectory *url.URL) (map[*url.URL]confi
 }
 
 func (c *vaultClient) hasWallet(wallet *url.URL) bool {
-	_, hasWallet := c.wallets[wallet]
+	_, hasWallet := c.wallets[*wallet]
 	return hasWallet
 }
 
-func (c *vaultClient) getPublicKey(wallet *url.URL) string {
-	w, _ := c.wallets[wallet]
+func (c *vaultClient) getAccountAddress(wallet *url.URL) string {
+	w, _ := c.wallets[*wallet]
 	return w.Contents.Address
 }

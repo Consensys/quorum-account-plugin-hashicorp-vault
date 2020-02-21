@@ -43,8 +43,9 @@ type Transaction struct{}
 func (a AccountManager) Status(wallet *url.URL) (string, error) {
 	for _, client := range a.clients {
 		if client.hasWallet(wallet) {
-			pub := client.getPublicKey(wallet)
-			if _, isUnlocked := a.unlocked[pub]; isUnlocked {
+			addr := client.getAccountAddress(wallet)
+			_, isUnlocked := a.unlocked[addr]
+			if isUnlocked {
 				return "unlocked", nil
 			}
 			return "locked", nil

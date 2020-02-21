@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/builders"
-	env "github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/environment"
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/env"
 	"github.com/stretchr/testify/require"
 	"testing"
 )

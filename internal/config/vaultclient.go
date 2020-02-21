@@ -32,6 +32,11 @@ func (e EnvironmentVariable) IsSet() bool {
 	return b
 }
 
+func (e EnvironmentVariable) String() string {
+	u := url.URL(e)
+	return u.String()
+}
+
 type VaultClientAuthentication struct {
 	Token       *EnvironmentVariable
 	RoleId      *EnvironmentVariable
@@ -77,6 +82,13 @@ func (c *VaultClient) UnmarshalJSON(b []byte) error {
 	}
 	*c = vc
 	return nil
+}
+func (c *VaultClient) MarshalJSON() ([]byte, error) {
+	j, err := c.vaultClientJSON()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(j)
 }
 
 func (c vaultClientJSON) vaultClient() (VaultClient, error) {
@@ -160,4 +172,31 @@ func (c vaultClientTLSJSON) vaultClientTls() (VaultClientTLS, error) {
 		ClientCert: clientCert,
 		ClientKey:  clientKey,
 	}, nil
+}
+
+func (c VaultClient) vaultClientJSON() (vaultClientJSON, error) {
+	return vaultClientJSON{
+		Vault:            c.Vault.String(),
+		AccountDirectory: c.AccountDirectory.String(),
+		Unlock:           c.Unlock,
+		Authentication:   c.Authentication.vaultClientAuthenticationJSON(),
+		Tls:              c.TLS.vaultClientTLSJSON(),
+	}, nil
+}
+
+func (c VaultClientAuthentication) vaultClientAuthenticationJSON() vaultClientAuthenticationJSON {
+	return vaultClientAuthenticationJSON{
+		Token:       c.Token.String(),
+		RoleId:      c.RoleId.String(),
+		SecretId:    c.SecretId.String(),
+		ApprolePath: c.ApprolePath,
+	}
+}
+
+func (c VaultClientTLS) vaultClientTLSJSON() vaultClientTLSJSON {
+	return vaultClientTLSJSON{
+		CaCert:     c.CaCert.String(),
+		ClientCert: c.ClientCert.String(),
+		ClientKey:  c.ClientKey.String(),
+	}
 }

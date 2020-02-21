@@ -7,6 +7,7 @@ replace github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go => /Users/
 require (
 	github.com/hashicorp/go-plugin v1.0.1
 	github.com/hashicorp/vault/api v1.0.4
+	github.com/hashicorp/vault/sdk v0.1.13
 	github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go v0.0.0
 	github.com/stretchr/testify v1.3.0
 	google.golang.org/genproto v0.0.0-20190404172233-64821d5d2107

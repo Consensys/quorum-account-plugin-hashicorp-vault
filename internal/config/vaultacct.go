@@ -29,7 +29,7 @@ func (c *AccountFileJSON) AccountURL(vaultURL string) (*url.URL, error) {
 	if err != nil {
 		return nil, err
 	}
-	result, err := u.Parse(fmt.Sprintf("%v/%v?version=%v", c.VaultAccount.SecretEnginePath, c.VaultAccount.SecretPath, c.VaultAccount.SecretVersion))
+	result, err := u.Parse(fmt.Sprintf("v1/%v/%v?version=%v", c.VaultAccount.SecretEnginePath, c.VaultAccount.SecretPath, c.VaultAccount.SecretVersion))
 	if err != nil {
 		return nil, err
 	}
