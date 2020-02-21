@@ -8,21 +8,19 @@ const (
 	MY_SECRET_ID = "MY_SECRET_ID"
 )
 
-type EnvironmentHelper struct{}
-
-func (EnvironmentHelper) SetToken() {
+func SetToken() {
 	os.Setenv(MY_TOKEN, "tokenval")
 }
 
-func (EnvironmentHelper) SetRoleID() {
+func SetRoleID() {
 	os.Setenv(MY_ROLE_ID, "roleidval")
 }
 
-func (EnvironmentHelper) SetSecretID() {
+func SetSecretID() {
 	os.Setenv(MY_SECRET_ID, "secretidval")
 }
 
-func (EnvironmentHelper) UnsetAll() {
+func UnsetAll() {
 	os.Unsetenv(MY_TOKEN)
 	os.Unsetenv(MY_ROLE_ID)
 	os.Unsetenv(MY_SECRET_ID)
