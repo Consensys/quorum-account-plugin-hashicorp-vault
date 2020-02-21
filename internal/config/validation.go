@@ -57,7 +57,7 @@ func (c VaultClientAuthentication) validate() error {
 	return errors.New(invalidAuthentication)
 }
 
-func (c vaultClientTLS) validate() error {
+func (c VaultClientTLS) validate() error {
 	if c.CaCert != nil && (c.CaCert.Scheme != "file" || (c.CaCert.Host == "" && c.CaCert.Path == "")) {
 		return errors.New(invalidCaCert)
 	}

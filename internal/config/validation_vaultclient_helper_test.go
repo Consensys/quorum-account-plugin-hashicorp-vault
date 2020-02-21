@@ -23,7 +23,7 @@ type vaultClientBuilder struct {
 	clientKeyUrl  string
 }
 
-func (b *vaultClientsBuilder) vaultClient(client VaultClient) *vaultClientsBuilder {
+func (b *vaultClientsBuilder) withVaultClient(client VaultClient) *vaultClientsBuilder {
 	b.clients = append(b.clients, client)
 	return b
 }
@@ -97,25 +97,25 @@ func (b *vaultClientBuilder) build(t *testing.T) VaultClient {
 		assert.NoError(t, err)
 	}
 
-	var tokenEnv environmentVariable
+	var tokenEnv EnvironmentVariable
 	if b.tokenUrl != "" {
 		token, err := url.Parse(b.tokenUrl)
 		assert.NoError(t, err)
-		tokenEnv = environmentVariable(*token)
+		tokenEnv = EnvironmentVariable(*token)
 	}
 
-	var roleIdEnv environmentVariable
+	var roleIdEnv EnvironmentVariable
 	if b.roleIdUrl != "" {
 		roleId, err := url.Parse(b.roleIdUrl)
 		assert.NoError(t, err)
-		roleIdEnv = environmentVariable(*roleId)
+		roleIdEnv = EnvironmentVariable(*roleId)
 	}
 
-	var secretIdEnv environmentVariable
+	var secretIdEnv EnvironmentVariable
 	if b.secretIdUrl != "" {
 		secretId, err := url.Parse(b.secretIdUrl)
 		assert.NoError(t, err)
-		secretIdEnv = environmentVariable(*secretId)
+		secretIdEnv = EnvironmentVariable(*secretId)
 	}
 
 	var caCert *url.URL
@@ -146,7 +146,7 @@ func (b *vaultClientBuilder) build(t *testing.T) VaultClient {
 			SecretId:    &secretIdEnv,
 			ApprolePath: b.approlePath,
 		},
-		TLS: vaultClientTLS{
+		TLS: VaultClientTLS{
 			CaCert:     caCert,
 			ClientCert: clientCert,
 			ClientKey:  clientKey,

@@ -42,21 +42,21 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 			"0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526",
 		},
 		Authentication: VaultClientAuthentication{
-			Token: &environmentVariable{
+			Token: &EnvironmentVariable{
 				Scheme: "",
 				Host:   "",
 			},
-			RoleId: &environmentVariable{
+			RoleId: &EnvironmentVariable{
 				Scheme: "env",
 				Host:   "MY_ROLE_ID",
 			},
-			SecretId: &environmentVariable{
+			SecretId: &EnvironmentVariable{
 				Scheme: "env",
 				Host:   "MY_SECRET_ID",
 			},
 			ApprolePath: "my-role",
 		},
-		TLS: vaultClientTLS{
+		TLS: VaultClientTLS{
 			CaCert: &url.URL{
 				Scheme: "file",
 				Path:   "/path/to/ca.pem",
@@ -88,7 +88,7 @@ func TestEnvironmentVariable_IsSet(t *testing.T) {
 	u, err := url.Parse("env://TEST_ENV")
 	require.NoError(t, err)
 
-	env := environmentVariable(*u)
+	env := EnvironmentVariable(*u)
 	require.False(t, env.IsSet())
 
 	os.Setenv("TEST_ENV", "val")
@@ -101,7 +101,7 @@ func TestEnvironmentVariable_IsSet_Empty(t *testing.T) {
 	u, err := url.Parse("env://")
 	require.NoError(t, err)
 
-	env := environmentVariable(*u)
+	env := EnvironmentVariable(*u)
 	require.False(t, env.IsSet())
 }
 
@@ -109,7 +109,7 @@ func TestEnvironmentVariable_Get(t *testing.T) {
 	u, err := url.Parse("env://TEST_ENV")
 	require.NoError(t, err)
 
-	env := environmentVariable(*u)
+	env := EnvironmentVariable(*u)
 	require.Empty(t, env.Get())
 
 	os.Setenv("TEST_ENV", "val")

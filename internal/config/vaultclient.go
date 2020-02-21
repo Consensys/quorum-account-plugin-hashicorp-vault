@@ -13,17 +13,17 @@ type VaultClient struct {
 	AccountDirectory *url.URL
 	Unlock           []string
 	Authentication   VaultClientAuthentication
-	TLS              vaultClientTLS
+	TLS              VaultClientTLS
 }
 
-type environmentVariable url.URL
+type EnvironmentVariable url.URL
 
-func (e environmentVariable) Get() string {
+func (e EnvironmentVariable) Get() string {
 	u := url.URL(e)
 	return os.Getenv(u.Host)
 }
 
-func (e environmentVariable) IsSet() bool {
+func (e EnvironmentVariable) IsSet() bool {
 	u := url.URL(e)
 	if u.Host == "" {
 		return false
@@ -33,13 +33,13 @@ func (e environmentVariable) IsSet() bool {
 }
 
 type VaultClientAuthentication struct {
-	Token       *environmentVariable
-	RoleId      *environmentVariable
-	SecretId    *environmentVariable
+	Token       *EnvironmentVariable
+	RoleId      *EnvironmentVariable
+	SecretId    *EnvironmentVariable
 	ApprolePath string
 }
 
-type vaultClientTLS struct {
+type VaultClientTLS struct {
 	CaCert     *url.URL
 	ClientCert *url.URL
 	ClientKey  *url.URL
@@ -126,9 +126,9 @@ func (c vaultClientAuthenticationJSON) vaultClientAuthentication() (VaultClientA
 	}
 
 	var (
-		tEnv = environmentVariable(*token)
-		rEnv = environmentVariable(*roleId)
-		sEnv = environmentVariable(*secretId)
+		tEnv = EnvironmentVariable(*token)
+		rEnv = EnvironmentVariable(*roleId)
+		sEnv = EnvironmentVariable(*secretId)
 	)
 
 	return VaultClientAuthentication{
@@ -139,23 +139,23 @@ func (c vaultClientAuthenticationJSON) vaultClientAuthentication() (VaultClientA
 	}, nil
 }
 
-func (c vaultClientTLSJSON) vaultClientTls() (vaultClientTLS, error) {
+func (c vaultClientTLSJSON) vaultClientTls() (VaultClientTLS, error) {
 	caCert, err := url.Parse(c.CaCert)
 	if err != nil {
-		return vaultClientTLS{}, err
+		return VaultClientTLS{}, err
 	}
 
 	clientCert, err := url.Parse(c.ClientCert)
 	if err != nil {
-		return vaultClientTLS{}, err
+		return VaultClientTLS{}, err
 	}
 
 	clientKey, err := url.Parse(c.ClientKey)
 	if err != nil {
-		return vaultClientTLS{}, err
+		return VaultClientTLS{}, err
 	}
 
-	return vaultClientTLS{
+	return VaultClientTLS{
 		CaCert:     caCert,
 		ClientCert: clientCert,
 		ClientKey:  clientKey,
