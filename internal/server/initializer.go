@@ -18,7 +18,7 @@ func (p HashicorpPlugin) Init(_ context.Context, req *proto_common.PluginInitial
 		log.Println("[INFO] plugin initialization took", time.Now().Sub(startTime).Round(time.Microsecond))
 	}()
 
-	var conf config.VaultClients
+	conf := new(config.VaultClients)
 
 	if err := json.Unmarshal(req.GetRawConfiguration(), conf); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
@@ -28,7 +28,7 @@ func (p HashicorpPlugin) Init(_ context.Context, req *proto_common.PluginInitial
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	am, err := hashicorp.NewAccountManager(conf)
+	am, err := hashicorp.NewAccountManager(*conf)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
