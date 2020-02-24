@@ -49,8 +49,9 @@ func (p *HashicorpPlugin) Accounts(ctx context.Context, req *proto.AccountsReque
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
+	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
 	wallet := new(accounts.URL)
-	if err := json.Unmarshal([]byte(req.WalletUrl), wallet); err != nil {
+	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	acct, err := p.acctManager.Account(*wallet)

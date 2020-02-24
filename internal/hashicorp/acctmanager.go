@@ -3,6 +3,7 @@ package hashicorp
 import (
 	"errors"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"math/big"
@@ -54,9 +55,18 @@ func (a AccountManager) Status(wallet accounts.URL) (string, error) {
 	return "", errors.New("unknown wallet")
 }
 
-func (a AccountManager) Accounts(walletUrl string) []accounts.Account {
-	panic("implement me")
+func (a AccountManager) Account(wallet accounts.URL) (accounts.Account, error) {
+	for _, client := range a.clients {
+		if client.hasWallet(wallet) {
+			hexAddr := client.getAccountAddress(wallet)
+			byteAddr := common.HexToAddress(hexAddr)
+
+			return accounts.Account{Address: byteAddr, URL: wallet}, nil
+		}
+	}
+	return accounts.Account{}, errors.New("unknown wallet")
 }
+
 func (a AccountManager) Contains(walletUrl string, account accounts.Account) (bool, error) {
 	panic("implement me")
 }
