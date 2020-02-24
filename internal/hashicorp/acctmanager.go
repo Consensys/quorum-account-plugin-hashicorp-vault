@@ -1,7 +1,9 @@
 package hashicorp
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
@@ -67,23 +69,35 @@ func (a AccountManager) Account(wallet accounts.URL) (accounts.Account, error) {
 	return accounts.Account{}, errors.New("unknown wallet")
 }
 
-func (a AccountManager) Contains(walletUrl string, account accounts.Account) (bool, error) {
+func (a AccountManager) Contains(wallet accounts.URL, account accounts.Account) (bool, error) {
+	if account.URL != (accounts.URL{}) && wallet != account.URL {
+		return false, fmt.Errorf("wallet %v cannot contain account with URL %v", wallet.String(), account.URL.String())
+	}
+	for _, client := range a.clients {
+		if client.hasWallet(wallet) {
+			acctFile := client.wallets[wallet]
+			if bytes.Compare(common.Hex2Bytes(acctFile.Contents.Address), account.Address.Bytes()) != 0 {
+				return false, nil
+			}
+			return true, nil
+		}
+	}
+	return false, errors.New("unknown wallet")
+}
+
+func (a AccountManager) SignHash(wallet accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) SignHash(walletUrl string, account accounts.Account, hash []byte) ([]byte, error) {
+func (a AccountManager) SignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) SignTx(walletUrl string, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
+func (a AccountManager) UnlockAndSignHash(wallet accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) UnlockAndSignHash(walletUrl string, account accounts.Account, hash []byte) ([]byte, error) {
-	panic("implement me")
-}
-
-func (a AccountManager) UnlockAndSignTx(walletUrl string, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
+func (a AccountManager) UnlockAndSignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
 	panic("implement me")
 }
 

@@ -11,7 +11,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"math/big"
-	"net/url"
 	"time"
 )
 
@@ -67,14 +66,16 @@ func (p *HashicorpPlugin) Contains(_ context.Context, req *proto.ContainsRequest
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	if _, err := url.Parse(req.WalletUrl); err != nil {
+	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
+	wallet := new(accounts.URL)
+	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	acct, err := protoconv.ProtoToAcct(req.Account)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	isContained, err := p.acctManager.Contains(req.WalletUrl, acct)
+	isContained, err := p.acctManager.Contains(*wallet, acct)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -89,7 +90,12 @@ func (p *HashicorpPlugin) SignHash(_ context.Context, req *proto.SignHashRequest
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	result, err := p.acctManager.SignHash(req.WalletUrl, acct, req.Hash)
+	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
+	wallet := new(accounts.URL)
+	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	result, err := p.acctManager.SignHash(*wallet, acct, req.Hash)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -104,6 +110,11 @@ func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
+	wallet := new(accounts.URL)
+	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	chainID := new(big.Int)
 	if len(req.ChainID) == 0 {
@@ -112,7 +123,7 @@ func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*
 		chainID.SetBytes(req.ChainID)
 	}
 
-	result, err := p.acctManager.SignTx(req.WalletUrl, acct, req.RlpTx, chainID)
+	result, err := p.acctManager.SignTx(*wallet, acct, req.RlpTx, chainID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -127,7 +138,12 @@ func (p *HashicorpPlugin) SignHashWithPassphrase(_ context.Context, req *proto.S
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	result, err := p.acctManager.UnlockAndSignHash(req.WalletUrl, acct, req.Hash)
+	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
+	wallet := new(accounts.URL)
+	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	result, err := p.acctManager.UnlockAndSignHash(*wallet, acct, req.Hash)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -142,6 +158,11 @@ func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sig
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
+	wallet := new(accounts.URL)
+	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	chainID := new(big.Int)
 	if len(req.ChainID) == 0 {
@@ -150,7 +171,7 @@ func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sig
 		chainID.SetBytes(req.ChainID)
 	}
 
-	result, err := p.acctManager.UnlockAndSignTx(req.WalletUrl, acct, req.RlpTx, chainID)
+	result, err := p.acctManager.UnlockAndSignTx(*wallet, acct, req.RlpTx, chainID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

@@ -24,8 +24,12 @@ func ProtoToAcct(acct *proto.Account) (accounts.Account, error) {
 	}
 
 	url := new(accounts.URL)
-	if err := json.Unmarshal([]byte(acct.Url), url); err != nil {
-		return accounts.Account{}, err
+
+	if acct.Url != "" {
+		jsonUrl := fmt.Sprintf("\"%v\"", acct.Url)
+		if err := json.Unmarshal([]byte(jsonUrl), url); err != nil {
+			return accounts.Account{}, err
+		}
 	}
 
 	return accounts.Account{
