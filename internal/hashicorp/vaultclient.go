@@ -3,6 +3,7 @@ package hashicorp
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/hashicorp/vault/api"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"io/ioutil"
@@ -18,7 +19,7 @@ type path string
 
 type vaultClient struct {
 	*api.Client
-	wallets map[url.URL]config.AccountFile
+	wallets map[accounts.URL]config.AccountFile
 }
 
 // newVaultClient creates an authenticated Vault client using the credentials provided as environment variables
@@ -92,8 +93,8 @@ func (c *vaultClient) authenticateWithApprole(conf config.VaultClientAuthenticat
 	return &renewable{Secret: resp}, nil
 }
 
-func (c *vaultClient) loadWallets(accountDirectory *url.URL) (map[url.URL]config.AccountFile, error) {
-	result := make(map[url.URL]config.AccountFile)
+func (c *vaultClient) loadWallets(accountDirectory *url.URL) (map[accounts.URL]config.AccountFile, error) {
+	result := make(map[accounts.URL]config.AccountFile)
 
 	walkFn := filepath.WalkFunc(func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -116,7 +117,7 @@ func (c *vaultClient) loadWallets(accountDirectory *url.URL) (map[url.URL]config
 			return fmt.Errorf("unable to parse account URL for %v, err %v", path, err)
 		}
 
-		result[*acctURL] = config.AccountFile{Path: path, Contents: *conf}
+		result[acctURL] = config.AccountFile{Path: path, Contents: *conf}
 		return nil
 	})
 
@@ -127,12 +128,12 @@ func (c *vaultClient) loadWallets(accountDirectory *url.URL) (map[url.URL]config
 	return result, nil
 }
 
-func (c *vaultClient) hasWallet(wallet *url.URL) bool {
-	_, hasWallet := c.wallets[*wallet]
+func (c *vaultClient) hasWallet(wallet accounts.URL) bool {
+	_, hasWallet := c.wallets[wallet]
 	return hasWallet
 }
 
-func (c *vaultClient) getAccountAddress(wallet *url.URL) string {
-	w, _ := c.wallets[*wallet]
+func (c *vaultClient) getAccountAddress(wallet accounts.URL) string {
+	w, _ := c.wallets[wallet]
 	return w.Contents.Address
 }

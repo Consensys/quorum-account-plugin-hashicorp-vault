@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/protoconv"
@@ -21,11 +23,12 @@ func (p *HashicorpPlugin) Status(_ context.Context, req *proto.StatusRequest) (*
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	wallet, err := url.Parse(req.WalletUrl)
-	if err != nil {
+	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
+	wallet := new(accounts.URL)
+	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	s, err := p.acctManager.Status(wallet)
+	s, err := p.acctManager.Status(*wallet)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -46,12 +49,17 @@ func (p *HashicorpPlugin) Accounts(ctx context.Context, req *proto.AccountsReque
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	if _, err := url.Parse(req.WalletUrl); err != nil {
+	wallet := new(accounts.URL)
+	if err := json.Unmarshal([]byte(req.WalletUrl), wallet); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	accts := p.acctManager.Accounts(req.WalletUrl)
+	acct, err := p.acctManager.Account(*wallet)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	protoAcct := protoconv.AcctToProto(acct)
 
-	return &proto.AccountsResponse{Accounts: protoconv.AcctsToProto(accts)}, nil
+	return &proto.AccountsResponse{Accounts: []*proto.Account{protoAcct}}, nil
 }
 
 func (p *HashicorpPlugin) Contains(_ context.Context, req *proto.ContainsRequest) (*proto.ContainsResponse, error) {
@@ -61,7 +69,11 @@ func (p *HashicorpPlugin) Contains(_ context.Context, req *proto.ContainsRequest
 	if _, err := url.Parse(req.WalletUrl); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	isContained, err := p.acctManager.Contains(req.WalletUrl, protoconv.AcctFromProto(req.Account))
+	acct, err := protoconv.ProtoToAcct(req.Account)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	isContained, err := p.acctManager.Contains(req.WalletUrl, acct)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -72,7 +84,11 @@ func (p *HashicorpPlugin) SignHash(_ context.Context, req *proto.SignHashRequest
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	result, err := p.acctManager.SignHash(req.WalletUrl, protoconv.AcctFromProto(req.Account), req.Hash)
+	acct, err := protoconv.ProtoToAcct(req.Account)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	result, err := p.acctManager.SignHash(req.WalletUrl, acct, req.Hash)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -83,6 +99,10 @@ func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
+	acct, err := protoconv.ProtoToAcct(req.Account)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	chainID := new(big.Int)
 	if len(req.ChainID) == 0 {
@@ -91,7 +111,7 @@ func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*
 		chainID.SetBytes(req.ChainID)
 	}
 
-	result, err := p.acctManager.SignTx(req.WalletUrl, protoconv.AcctFromProto(req.Account), req.RlpTx, chainID)
+	result, err := p.acctManager.SignTx(req.WalletUrl, acct, req.RlpTx, chainID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -102,7 +122,11 @@ func (p *HashicorpPlugin) SignHashWithPassphrase(_ context.Context, req *proto.S
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	result, err := p.acctManager.UnlockAndSignHash(req.WalletUrl, protoconv.AcctFromProto(req.Account), req.Hash)
+	acct, err := protoconv.ProtoToAcct(req.Account)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	result, err := p.acctManager.UnlockAndSignHash(req.WalletUrl, acct, req.Hash)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -113,6 +137,10 @@ func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sig
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
+	acct, err := protoconv.ProtoToAcct(req.Account)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	chainID := new(big.Int)
 	if len(req.ChainID) == 0 {
@@ -121,7 +149,7 @@ func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sig
 		chainID.SetBytes(req.ChainID)
 	}
 
-	result, err := p.acctManager.UnlockAndSignTx(req.WalletUrl, protoconv.AcctFromProto(req.Account), req.RlpTx, chainID)
+	result, err := p.acctManager.UnlockAndSignTx(req.WalletUrl, acct, req.RlpTx, chainID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -175,9 +203,11 @@ func (p *HashicorpPlugin) TimedUnlock(_ context.Context, req *proto.TimedUnlockR
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-
-	err := p.acctManager.TimedUnlock(protoconv.AcctFromProto(req.Account), time.Duration(req.Duration))
+	acct, err := protoconv.ProtoToAcct(req.Account)
 	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if err := p.acctManager.TimedUnlock(acct, time.Duration(req.Duration)); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &proto.TimedUnlockResponse{}, nil
@@ -187,8 +217,11 @@ func (p *HashicorpPlugin) Lock(_ context.Context, req *proto.LockRequest) (*prot
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	err := p.acctManager.Lock(protoconv.AcctFromProto(req.Account))
+	acct, err := protoconv.ProtoToAcct(req.Account)
 	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if err := p.acctManager.Lock(acct); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &proto.LockResponse{}, nil

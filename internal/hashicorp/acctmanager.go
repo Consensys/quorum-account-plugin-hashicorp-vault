@@ -2,10 +2,10 @@ package hashicorp
 
 import (
 	"errors"
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"math/big"
-	"net/url"
 	"time"
 )
 
@@ -40,7 +40,7 @@ type Account struct {
 
 type Transaction struct{}
 
-func (a AccountManager) Status(wallet *url.URL) (string, error) {
+func (a AccountManager) Status(wallet accounts.URL) (string, error) {
 	for _, client := range a.clients {
 		if client.hasWallet(wallet) {
 			addr := client.getAccountAddress(wallet)
@@ -54,27 +54,26 @@ func (a AccountManager) Status(wallet *url.URL) (string, error) {
 	return "", errors.New("unknown wallet")
 }
 
-func (a AccountManager) Accounts(walletUrl string) []Account {
+func (a AccountManager) Accounts(walletUrl string) []accounts.Account {
+	panic("implement me")
+}
+func (a AccountManager) Contains(walletUrl string, account accounts.Account) (bool, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) Contains(walletUrl string, account Account) (bool, error) {
+func (a AccountManager) SignHash(walletUrl string, account accounts.Account, hash []byte) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) SignHash(walletUrl string, account Account, hash []byte) ([]byte, error) {
+func (a AccountManager) SignTx(walletUrl string, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) SignTx(walletUrl string, account Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
+func (a AccountManager) UnlockAndSignHash(walletUrl string, account accounts.Account, hash []byte) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) UnlockAndSignHash(walletUrl string, account Account, hash []byte) ([]byte, error) {
-	panic("implement me")
-}
-
-func (a AccountManager) UnlockAndSignTx(walletUrl string, account Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
+func (a AccountManager) UnlockAndSignTx(walletUrl string, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
 	panic("implement me")
 }
 
@@ -82,18 +81,18 @@ func (a AccountManager) GetEventStream(*proto.GetEventStreamRequest, proto.Accou
 	panic("implement me")
 }
 
-func (a AccountManager) TimedUnlock(account Account, duration time.Duration) error {
+func (a AccountManager) TimedUnlock(account accounts.Account, duration time.Duration) error {
 	panic("implement me")
 }
 
-func (a AccountManager) Lock(account Account) error {
+func (a AccountManager) Lock(account accounts.Account) error {
 	panic("implement me")
 }
 
-func (a AccountManager) NewAccount(conf config.NewAccount) (Account, error) {
+func (a AccountManager) NewAccount(conf config.NewAccount) (accounts.Account, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) ImportAccount(publicKeyHex string, privateKeyHex string, conf config.NewAccount) (Account, error) {
+func (a AccountManager) ImportAccount(publicKeyHex string, privateKeyHex string, conf config.NewAccount) (accounts.Account, error) {
 	panic("implement me")
 }

@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts"
 	"net/url"
 )
 
@@ -24,16 +25,24 @@ type vaultAccountJSON struct {
 	SecretVersion    int64
 }
 
-func (c *AccountFileJSON) AccountURL(vaultURL string) (*url.URL, error) {
+func (c *AccountFileJSON) AccountURL(vaultURL string) (accounts.URL, error) {
 	u, err := url.Parse(vaultURL)
 	if err != nil {
-		return nil, err
+		return accounts.URL{}, err
 	}
-	result, err := u.Parse(fmt.Sprintf("v1/%v/%v?version=%v", c.VaultAccount.SecretEnginePath, c.VaultAccount.SecretPath, c.VaultAccount.SecretVersion))
+	acctUrl, err := u.Parse(fmt.Sprintf("v1/%v/%v?version=%v", c.VaultAccount.SecretEnginePath, c.VaultAccount.SecretPath, c.VaultAccount.SecretVersion))
 	if err != nil {
-		return nil, err
+		return accounts.URL{}, err
 	}
-	return result, nil
+
+	jsonUrl := fmt.Sprintf("\"%v\"", acctUrl.String())
+
+	result := new(accounts.URL)
+	if err := json.Unmarshal([]byte(jsonUrl), result); err != nil {
+		return accounts.URL{}, err
+	}
+
+	return *result, nil
 }
 
 type NewAccount struct {
