@@ -7,10 +7,6 @@ import (
 	"testing"
 )
 
-type VaultClientsBuilder struct {
-	clients []config.VaultClient
-}
-
 type VaultClientBuilder struct {
 	vaultUrl      string
 	acctDir       string
@@ -22,15 +18,6 @@ type VaultClientBuilder struct {
 	caCertUrl     string
 	clientCertUrl string
 	clientKeyUrl  string
-}
-
-func (b *VaultClientsBuilder) WithVaultClient(client config.VaultClient) *VaultClientsBuilder {
-	b.clients = append(b.clients, client)
-	return b
-}
-
-func (b *VaultClientsBuilder) Build() config.VaultClients {
-	return b.clients
 }
 
 func (b *VaultClientBuilder) WithVaultUrl(s string) *VaultClientBuilder {

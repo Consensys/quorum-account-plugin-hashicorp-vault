@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"fmt"
 )
 
 const (
@@ -16,16 +15,7 @@ const (
 	InvalidCAS              = "insecureSkipCAS and casValue cannot be set at the same time"
 )
 
-func (c VaultClients) Validate() error {
-	for i, vc := range c {
-		if err := vc.validate(); err != nil {
-			return fmt.Errorf("invalid config: array index %v: %v", i, err.Error())
-		}
-	}
-	return nil
-}
-
-func (c VaultClient) validate() error {
+func (c VaultClient) Validate() error {
 	if c.Vault == nil || c.Vault.Scheme == "" {
 		return errors.New(InvalidVaultUrl)
 	}

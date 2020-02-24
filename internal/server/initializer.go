@@ -18,7 +18,7 @@ func (p *HashicorpPlugin) Init(_ context.Context, req *proto_common.PluginInitia
 		log.Println("[INFO] plugin initialization took", time.Now().Sub(startTime).Round(time.Microsecond))
 	}()
 
-	conf := new(config.VaultClients)
+	conf := new(config.VaultClient)
 
 	if err := json.Unmarshal(req.GetRawConfiguration(), conf); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())

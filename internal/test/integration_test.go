@@ -47,24 +47,20 @@ func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext) {
 		WithServerKey(builders.SERVER_KEY)
 	ctx.StartTLSVaultServer(t, vaultBuilder)
 
-	var vaultClientsBuilder builders.VaultClientsBuilder
 	var vaultClientBuilder builders.VaultClientBuilder
 
-	conf := vaultClientsBuilder.
-		WithVaultClient(
-			vaultClientBuilder.
-				WithVaultUrl(ctx.Vault.URL).
-				WithAccountDirectory("file://" + ctx.AccountConfigDirectory).
-				WithRoleIdUrl("env://" + env.MY_ROLE_ID).
-				WithSecretIdUrl("env://" + env.MY_SECRET_ID).
-				WithApprolePath("myapprole").
-				WithCaCertUrl("file://" + builders.CA_CERT).
-				WithClientCertUrl("file://" + builders.CLIENT_CERT).
-				WithClientKeyUrl("file://" + builders.CLIENT_KEY).
-				Build(t)).
-		Build()
+	conf := vaultClientBuilder.
+		WithVaultUrl(ctx.Vault.URL).
+		WithAccountDirectory("file://" + ctx.AccountConfigDirectory).
+		WithRoleIdUrl("env://" + env.MY_ROLE_ID).
+		WithSecretIdUrl("env://" + env.MY_SECRET_ID).
+		WithApprolePath("myapprole").
+		WithCaCertUrl("file://" + builders.CA_CERT).
+		WithClientCertUrl("file://" + builders.CLIENT_CERT).
+		WithClientKeyUrl("file://" + builders.CLIENT_KEY).
+		Build(t)
 
-	rawConf, err := json.Marshal(conf)
+	rawConf, err := json.Marshal(&conf)
 	require.NoError(t, err)
 
 	_, err = ctx.AccountManager.Init(context.Background(), &proto_common.PluginInitialization_Request{
@@ -80,20 +76,18 @@ func TestPlugin_Init_InvalidPluginConfig(t *testing.T) {
 	err := ctx.StartPlugin(t)
 	require.NoError(t, err)
 
-	noVaultUrlConf := `[
-		{
-			"accountDirectory": "/path/to/dir",
-			"authentication": {
-				"token": "env://TOKEN"
-			}
-		}
-	]`
+	noVaultUrlConf := `{
+	"accountDirectory": "/path/to/dir",
+	"authentication": {
+		"token": "env://TOKEN"
+	}
+}`
 
 	_, err = ctx.AccountManager.Init(context.Background(), &proto_common.PluginInitialization_Request{
 		RawConfiguration: []byte(noVaultUrlConf),
 	})
 
-	require.EqualError(t, err, "rpc error: code = InvalidArgument desc = invalid config: array index 0: vault must be a valid HTTP/HTTPS url")
+	require.EqualError(t, err, "rpc error: code = InvalidArgument desc = vault must be a valid HTTP/HTTPS url")
 }
 
 func TestPlugin_Status_AccountLockedByDefault(t *testing.T) {

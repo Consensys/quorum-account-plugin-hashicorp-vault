@@ -6,8 +6,6 @@ import (
 	"os"
 )
 
-type VaultClients []VaultClient
-
 type VaultClient struct {
 	Vault            *url.URL
 	AccountDirectory *url.URL
@@ -83,6 +81,7 @@ func (c *VaultClient) UnmarshalJSON(b []byte) error {
 	*c = vc
 	return nil
 }
+
 func (c *VaultClient) MarshalJSON() ([]byte, error) {
 	j, err := c.vaultClientJSON()
 	if err != nil {

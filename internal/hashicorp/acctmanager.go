@@ -12,22 +12,17 @@ import (
 	"time"
 )
 
-func NewAccountManager(config config.VaultClients) (*AccountManager, error) {
-	clients := make([]*vaultClient, len(config))
-
-	for i, conf := range config {
-		client, err := newVaultClient(conf)
-		if err != nil {
-			return nil, err
-		}
-		clients[i] = client
+func NewAccountManager(config config.VaultClient) (*AccountManager, error) {
+	client, err := newVaultClient(config)
+	if err != nil {
+		return nil, err
 	}
 
-	return &AccountManager{clients: clients}, nil
+	return &AccountManager{client: client}, nil
 }
 
 type AccountManager struct {
-	clients  []*vaultClient
+	client   *vaultClient
 	unlocked map[string]*lockableKey
 }
 
@@ -44,45 +39,40 @@ type Account struct {
 type Transaction struct{}
 
 func (a AccountManager) Status(wallet accounts.URL) (string, error) {
-	for _, client := range a.clients {
-		if client.hasWallet(wallet) {
-			addr := client.getAccountAddress(wallet)
-			_, isUnlocked := a.unlocked[addr]
-			if isUnlocked {
-				return "unlocked", nil
-			}
-			return "locked", nil
-		}
+	if !a.client.hasWallet(wallet) {
+		return "", errors.New("unknown wallet")
 	}
-	return "", errors.New("unknown wallet")
+	addr := a.client.getAccountAddress(wallet)
+	_, isUnlocked := a.unlocked[addr]
+	if isUnlocked {
+		return "unlocked", nil
+	}
+	return "locked", nil
+
 }
 
 func (a AccountManager) Account(wallet accounts.URL) (accounts.Account, error) {
-	for _, client := range a.clients {
-		if client.hasWallet(wallet) {
-			hexAddr := client.getAccountAddress(wallet)
-			byteAddr := common.HexToAddress(hexAddr)
-
-			return accounts.Account{Address: byteAddr, URL: wallet}, nil
-		}
+	if !a.client.hasWallet(wallet) {
+		return accounts.Account{}, errors.New("unknown wallet")
 	}
-	return accounts.Account{}, errors.New("unknown wallet")
+	hexAddr := a.client.getAccountAddress(wallet)
+	byteAddr := common.HexToAddress(hexAddr)
+
+	return accounts.Account{Address: byteAddr, URL: wallet}, nil
 }
 
 func (a AccountManager) Contains(wallet accounts.URL, account accounts.Account) (bool, error) {
 	if account.URL != (accounts.URL{}) && wallet != account.URL {
 		return false, fmt.Errorf("wallet %v cannot contain account with URL %v", wallet.String(), account.URL.String())
 	}
-	for _, client := range a.clients {
-		if client.hasWallet(wallet) {
-			acctFile := client.wallets[wallet]
-			if bytes.Compare(common.Hex2Bytes(acctFile.Contents.Address), account.Address.Bytes()) != 0 {
-				return false, nil
-			}
-			return true, nil
-		}
+	if !a.client.hasWallet(wallet) {
+		return false, errors.New("unknown wallet")
 	}
-	return false, errors.New("unknown wallet")
+	acctFile := a.client.wallets[wallet]
+	if bytes.Compare(common.Hex2Bytes(acctFile.Contents.Address), account.Address.Bytes()) != 0 {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (a AccountManager) SignHash(wallet accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {

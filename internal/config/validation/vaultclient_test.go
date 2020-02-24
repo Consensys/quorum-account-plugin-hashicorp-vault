@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"fmt"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/builders"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/env"
@@ -24,13 +23,9 @@ func TestVaultClients_Validate_MinimumValidConfig(t *testing.T) {
 	env.SetRoleID()
 	env.SetSecretID()
 
-	var vaultClientsBuilder builders.VaultClientsBuilder
+	vaultClient := minimumValidClientConfig().Build(t)
 
-	var vaultClients = vaultClientsBuilder.
-		WithVaultClient(minimumValidClientConfig().Build(t)).
-		Build()
-
-	err := vaultClients.Validate()
+	err := vaultClient.Validate()
 	require.NoError(t, err)
 }
 
@@ -46,21 +41,18 @@ func TestVaultClients_Validate_VaultUrl_Valid(t *testing.T) {
 	}
 	for _, u := range vaultUrls {
 		t.Run(u, func(t *testing.T) {
-			vc := minimumValidClientConfig().
+			vaultClient := minimumValidClientConfig().
 				WithVaultUrl(u).
 				Build(t)
 
-			var vaultClientsBuilder builders.VaultClientsBuilder
-			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
-
-			gotErr := vaultClients.Validate()
+			gotErr := vaultClient.Validate()
 			require.NoError(t, gotErr)
 		})
 	}
 }
 
 func TestVaultClients_Validate_VaultUrl_Invalid(t *testing.T) {
-	wantErrMsg := fmt.Sprintf("invalid config: array index 0: %v", config.InvalidVaultUrl)
+	wantErrMsg := config.InvalidVaultUrl
 
 	vaultUrls := []string{
 		"",
@@ -68,14 +60,11 @@ func TestVaultClients_Validate_VaultUrl_Invalid(t *testing.T) {
 	}
 	for _, u := range vaultUrls {
 		t.Run(u, func(t *testing.T) {
-			vc := minimumValidClientConfig().
+			vaultClient := minimumValidClientConfig().
 				WithVaultUrl(u).
 				Build(t)
 
-			var vaultClientsBuilder builders.VaultClientsBuilder
-			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
-
-			gotErr := vaultClients.Validate()
+			gotErr := vaultClient.Validate()
 			require.EqualError(t, gotErr, wantErrMsg)
 		})
 	}
@@ -94,21 +83,18 @@ func TestVaultClients_Validate_AccountDirectory_Valid(t *testing.T) {
 	}
 	for _, u := range acctDirUrls {
 		t.Run(u, func(t *testing.T) {
-			vc := minimumValidClientConfig().
+			vaultClient := minimumValidClientConfig().
 				WithAccountDirectory(u).
 				Build(t)
 
-			var vaultClientsBuilder builders.VaultClientsBuilder
-			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
-
-			gotErr := vaultClients.Validate()
+			gotErr := vaultClient.Validate()
 			require.NoError(t, gotErr)
 		})
 	}
 }
 
 func TestVaultClients_Validate_AccountDirectory_Invalid(t *testing.T) {
-	wantErrMsg := fmt.Sprintf("invalid config: array index 0: %v", config.InvalidAccountDirectory)
+	wantErrMsg := config.InvalidAccountDirectory
 
 	acctDirUrls := []string{
 		"",
@@ -118,14 +104,11 @@ func TestVaultClients_Validate_AccountDirectory_Invalid(t *testing.T) {
 	}
 	for _, u := range acctDirUrls {
 		t.Run(u, func(t *testing.T) {
-			vc := minimumValidClientConfig().
+			vaultClient := minimumValidClientConfig().
 				WithAccountDirectory(u).
 				Build(t)
 
-			var vaultClientsBuilder builders.VaultClientsBuilder
-			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
-
-			gotErr := vaultClients.Validate()
+			gotErr := vaultClient.Validate()
 			require.EqualError(t, gotErr, wantErrMsg)
 		})
 	}
@@ -175,17 +158,14 @@ func TestVaultClients_Validate_Authentication_Valid(t *testing.T) {
 				setEnvFunc()
 			}
 
-			vc := minimumValidClientConfig().
+			vaultClient := minimumValidClientConfig().
 				WithTokenUrl(tt.tokenUrl).
 				WithRoleIdUrl(tt.roleIdUrl).
 				WithSecretIdUrl(tt.secretIdUrl).
 				WithApprolePath(tt.approlePath).
 				Build(t)
 
-			var vaultClientsBuilder builders.VaultClientsBuilder
-			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
-
-			gotErr := vaultClients.Validate()
+			gotErr := vaultClient.Validate()
 
 			env.UnsetAll()
 
@@ -195,7 +175,7 @@ func TestVaultClients_Validate_Authentication_Valid(t *testing.T) {
 }
 
 func TestVaultClients_Validate_Authentication_Invalid(t *testing.T) {
-	wantErrMsg := fmt.Sprintf("invalid config: array index 0: %v", config.InvalidAuthentication)
+	wantErrMsg := config.InvalidAuthentication
 
 	var auths = map[string]struct {
 		tokenUrl    string
@@ -282,17 +262,14 @@ func TestVaultClients_Validate_Authentication_Invalid(t *testing.T) {
 				setEnvFunc()
 			}
 
-			vc := minimumValidClientConfig().
+			vaultClient := minimumValidClientConfig().
 				WithTokenUrl(tt.tokenUrl).
 				WithRoleIdUrl(tt.roleIdUrl).
 				WithSecretIdUrl(tt.secretIdUrl).
 				WithApprolePath(tt.approlePath).
 				Build(t)
 
-			var vaultClientsBuilder builders.VaultClientsBuilder
-			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
-
-			gotErr := vaultClients.Validate()
+			gotErr := vaultClient.Validate()
 
 			env.UnsetAll()
 
@@ -345,16 +322,13 @@ func TestVaultClients_Validate_TLS_Valid(t *testing.T) {
 
 	for name, tt := range tls {
 		t.Run(name, func(t *testing.T) {
-			vc := minimumValidClientConfig().
+			vaultClient := minimumValidClientConfig().
 				WithCaCertUrl(tt.caCert).
 				WithClientCertUrl(tt.clientCert).
 				WithClientKeyUrl(tt.clientKey).
 				Build(t)
 
-			var vaultClientsBuilder builders.VaultClientsBuilder
-			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
-
-			gotErr := vaultClients.Validate()
+			gotErr := vaultClient.Validate()
 			require.NoError(t, gotErr)
 		})
 	}
@@ -411,19 +385,15 @@ func TestVaultClients_Validate_TLS_Invalid(t *testing.T) {
 
 	for name, tt := range tls {
 		t.Run(name, func(t *testing.T) {
-			vc := minimumValidClientConfig().
+			vaultClient := minimumValidClientConfig().
 				WithCaCertUrl(tt.caCert).
 				WithClientCertUrl(tt.clientCert).
 				WithClientKeyUrl(tt.clientKey).
 				Build(t)
 
-			var vaultClientsBuilder builders.VaultClientsBuilder
-			vaultClients := vaultClientsBuilder.WithVaultClient(vc).Build()
+			gotErr := vaultClient.Validate()
 
-			gotErr := vaultClients.Validate()
-
-			wantErrMsg := fmt.Sprintf("invalid config: array index 0: %v", tt.wantErr)
-			require.EqualError(t, gotErr, wantErrMsg)
+			require.EqualError(t, gotErr, tt.wantErr)
 		})
 	}
 }
