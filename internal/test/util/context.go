@@ -16,10 +16,11 @@ type ITContext struct {
 	Server                 *plugin.GRPCServer
 	Vault                  *httptest.Server
 	AccountConfigDirectory string
+	AccountManager         *hashicorpPluginGRPCClient
 }
 
 // starts a plugin server and client, returning the client
-func (c *ITContext) StartPlugin(t *testing.T) (*hashicorpPluginGRPCClient, error) {
+func (c *ITContext) StartPlugin(t *testing.T) error {
 	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
 		"impl": new(testableHashicorpPlugin),
 	})
@@ -29,14 +30,15 @@ func (c *ITContext) StartPlugin(t *testing.T) (*hashicorpPluginGRPCClient, error
 
 	raw, err := client.Dispense("impl")
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	acctman, ok := raw.(hashicorpPluginGRPCClient)
 	if !ok {
-		return nil, errors.New("unable to get plugin grpc client")
+		return errors.New("unable to get plugin grpc client")
 	}
-	return &acctman, nil
+	c.AccountManager = &acctman
+	return nil
 }
 
 func (c *ITContext) StartTLSVaultServer(t *testing.T, b builders.VaultBuilder) {
