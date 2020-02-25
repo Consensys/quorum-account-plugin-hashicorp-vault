@@ -22,6 +22,7 @@ const (
 	SERVER_KEY  = "resources/tls/localhost-with-san.key"
 
 	AUTH_TOKEN = "authToken"
+	CAS_VALUE  = 5
 )
 
 // builder for a mock Vault HTTPS server
@@ -72,6 +73,60 @@ func (b *VaultBuilder) WithHandler(t *testing.T, d HandlerData) *VaultBuilder {
 				},
 			},
 		}
+		b, _ := json.Marshal(vaultResponse)
+		_, _ = w.Write(b)
+	}
+
+	b.handlers[path] = handler
+	return b
+}
+
+func (b *VaultBuilder) WithAccountCreationHandler(t *testing.T, d HandlerData) *VaultBuilder {
+	if b.handlers == nil {
+		b.handlers = make(map[string]http.HandlerFunc)
+	}
+	path := fmt.Sprintf("/v1/%v/data/%v", d.SecretEnginePath, d.SecretPath)
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		// check plugin has correctly authenticated the request
+		header := map[string][]string(r.Header)
+		requestTokens := header[consts.AuthHeaderName]
+		require.Equal(t, AUTH_TOKEN, requestTokens[0])
+
+		vaultResponse := new(api.Secret)
+
+		switch r.Method {
+		case http.MethodPut: // account creation
+			b, err := ioutil.ReadAll(r.Body)
+			require.NoError(t, err)
+			body := make(map[string]interface{})
+			require.NoError(t, json.Unmarshal(b, &body))
+
+			// if using CAS then only accept request if correct value has been provided
+			opts := body["options"].(map[string]interface{})
+			cas := opts["cas"]
+			if cas != float64(CAS_VALUE) {
+				http.Error(w, "invalid CAS value", http.StatusBadRequest)
+				return
+			}
+
+			data := body["data"].(map[string]interface{})
+			require.Len(t, data, 1)
+			for k, v := range data {
+				require.Len(t, k, 2*20) // 20-byte address equates to 40 hexadecimal digits
+				require.NotEmpty(t, v)
+			}
+
+			// create response which contains new secret version
+			vaultResponse.Data = map[string]interface{}{
+				"version": CAS_VALUE + 1,
+			}
+
+		case http.MethodGet: // account retrieval
+			http.Error(w, "retrieval of created account not implemented by mock server", http.StatusNotImplemented)
+			return
+		}
+
 		b, _ := json.Marshal(vaultResponse)
 		_, _ = w.Write(b)
 	}

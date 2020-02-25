@@ -253,14 +253,14 @@ func (p *HashicorpPlugin) NewAccount(_ context.Context, req *proto.NewAccountReq
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	var conf config.NewAccount
+	conf := new(config.NewAccount)
 	if err := json.Unmarshal(req.NewAccountConfig, conf); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	if err := conf.Validate(); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	acct, err := p.acctManager.NewAccount(conf)
+	acct, err := p.acctManager.NewAccount(*conf)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}

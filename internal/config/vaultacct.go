@@ -15,7 +15,6 @@ type AccountFile struct {
 type AccountFileJSON struct {
 	Address      string // TODO(cjh) use hex encoded bytes instead of string (to account for 0x[...] or just [...])
 	VaultAccount vaultAccountJSON
-	ID           string
 	Version      int
 }
 
@@ -30,7 +29,7 @@ func (c *AccountFileJSON) AccountURL(vaultURL string) (accounts.URL, error) {
 	if err != nil {
 		return accounts.URL{}, err
 	}
-	acctUrl, err := u.Parse(fmt.Sprintf("v1/%v/%v?version=%v", c.VaultAccount.SecretEnginePath, c.VaultAccount.SecretPath, c.VaultAccount.SecretVersion))
+	acctUrl, err := u.Parse(fmt.Sprintf("v1/%v/data/%v?version=%v", c.VaultAccount.SecretEnginePath, c.VaultAccount.SecretPath, c.VaultAccount.SecretVersion))
 	if err != nil {
 		return accounts.URL{}, err
 	}
@@ -59,6 +58,21 @@ type newAccountJSON struct {
 	SecretPath       string
 	InsecureSkipCAS  bool
 	CASValue         uint64
+}
+
+func (c *NewAccount) AccountFile(path string, address string, secretVersion int64) AccountFile {
+	return AccountFile{
+		Path: path,
+		Contents: AccountFileJSON{
+			Address: address,
+			VaultAccount: vaultAccountJSON{
+				SecretEnginePath: c.SecretEnginePath,
+				SecretPath:       c.SecretPath,
+				SecretVersion:    secretVersion,
+			},
+			Version: 1,
+		},
+	}
 }
 
 func (c *NewAccount) UnmarshalJSON(b []byte) error {

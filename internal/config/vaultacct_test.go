@@ -44,7 +44,6 @@ func TestAccountFileJSON_AccountURL(t *testing.T) {
 			SecretPath:       "path",
 			SecretVersion:    10,
 		},
-		ID:      "id",
 		Version: 1,
 	}
 

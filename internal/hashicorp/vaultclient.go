@@ -15,11 +15,10 @@ import (
 
 const reauthRetryInterval = 5 * time.Second
 
-type path string
-
 type vaultClient struct {
 	*api.Client
-	wallets map[accounts.URL]config.AccountFile
+	accountDirectory *url.URL
+	wallets          map[accounts.URL]config.AccountFile
 }
 
 // newVaultClient creates an authenticated Vault client using the credentials provided as environment variables
@@ -44,12 +43,12 @@ func newVaultClient(conf config.VaultClient) (*vaultClient, error) {
 		return nil, fmt.Errorf("error creating Hashicorp Vault client: %v", err)
 	}
 
-	vaultClient := &vaultClient{Client: c}
+	vaultClient := &vaultClient{Client: c, accountDirectory: conf.AccountDirectory}
 	if err := vaultClient.authenticate(conf.Authentication); err != nil {
 		return nil, err
 	}
 
-	result, err := vaultClient.loadWallets(conf.AccountDirectory)
+	result, err := vaultClient.loadWallets()
 	if err != nil {
 		return nil, fmt.Errorf("error loading account directory: %v", err)
 	}
@@ -93,7 +92,7 @@ func (c *vaultClient) authenticateWithApprole(conf config.VaultClientAuthenticat
 	return &renewable{Secret: resp}, nil
 }
 
-func (c *vaultClient) loadWallets(accountDirectory *url.URL) (map[accounts.URL]config.AccountFile, error) {
+func (c *vaultClient) loadWallets() (map[accounts.URL]config.AccountFile, error) {
 	result := make(map[accounts.URL]config.AccountFile)
 
 	walkFn := filepath.WalkFunc(func(path string, info os.FileInfo, err error) error {
@@ -121,7 +120,7 @@ func (c *vaultClient) loadWallets(accountDirectory *url.URL) (map[accounts.URL]c
 		return nil
 	})
 
-	if err := filepath.Walk(accountDirectory.Host+"/"+accountDirectory.Path, walkFn); err != nil {
+	if err := filepath.Walk(c.accountDirectory.Host+"/"+c.accountDirectory.Path, walkFn); err != nil {
 		return nil, err
 	}
 

@@ -7,10 +7,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto_common"
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/builders"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/env"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/util"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -41,6 +45,10 @@ func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext) {
 			SecretVersion:    2,
 			PubKeyResponse:   "dc99ddec13457de6c0f6bb8e6cf3955c86f55526",
 			PrivKeyResponse:  "7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28",
+		}).
+		WithAccountCreationHandler(t, builders.HandlerData{
+			SecretEnginePath: "engine",
+			SecretPath:       "newAcct",
 		}).
 		WithCaCert(builders.CA_CERT).
 		WithServerCert(builders.SERVER_CERT).
@@ -101,7 +109,7 @@ func TestPlugin_Status_AccountLockedByDefault(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// status
-	wltUrl := fmt.Sprintf("%v/v1/%v/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
 
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
 	require.NoError(t, err)
@@ -120,7 +128,7 @@ func TestPlugin_Status_UnknownWallet(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// accounts
-	wltUrl := ctx.Vault.URL + "/v1/unknown/wallet"
+	wltUrl := ctx.Vault.URL + "/v1/unknown/data/wallet"
 
 	_, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
@@ -137,7 +145,7 @@ func TestPlugin_Accounts(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// accounts
-	wltUrl := fmt.Sprintf("%v/v1/%v/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
 
 	resp, err := ctx.AccountManager.Accounts(context.Background(), &proto.AccountsRequest{WalletUrl: wltUrl})
 	require.NoError(t, err)
@@ -162,7 +170,7 @@ func TestPlugin_Accounts_UnknownWallet(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// accounts
-	wltUrl := ctx.Vault.URL + "/v1/unknown/wallet"
+	wltUrl := ctx.Vault.URL + "/v1/unknown/data/wallet"
 
 	_, err := ctx.AccountManager.Accounts(context.Background(), &proto.AccountsRequest{WalletUrl: wltUrl})
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
@@ -179,7 +187,7 @@ func TestPlugin_Contains_IsContained(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// contains
-	wltUrl := fmt.Sprintf("%v/v1/%v/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
 
 	toFind := &proto.Account{
 		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
@@ -212,7 +220,7 @@ func TestPlugin_Contains_IsNotContained(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// contains
-	wltUrl := fmt.Sprintf("%v/v1/%v/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
 
 	toFind := &proto.Account{
 		Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
@@ -253,4 +261,86 @@ func TestPlugin_Contains_Errors(t *testing.T) {
 
 	_, err = ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{WalletUrl: wltUrl, Account: toFind})
 	require.EqualError(t, err, "rpc error: code = Internal desc = wallet http://nottherighturl/doesnt/exist cannot contain account with URL http://different/to/the/wallet/url")
+}
+
+func TestPlugin_NewAccount(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// new account
+	newAcctConfTemplate := `{
+	"vault": "%v",
+	"secretEnginePath": "engine",
+	"secretPath": "newAcct",
+	"casValue": %v
+}`
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
+
+	files, _ := ioutil.ReadDir(ctx.AccountConfigDirectory)
+	require.Len(t, files, 1)
+
+	resp, err := ctx.AccountManager.NewAccount(context.Background(), &proto.NewAccountRequest{NewAccountConfig: []byte(newAcctConf)})
+	require.NoError(t, err)
+
+	wantUrl := fmt.Sprintf(ctx.Vault.URL+"/v1/engine/data/newAcct?version=%v", builders.CAS_VALUE+1)
+
+	require.NotNil(t, resp)
+	require.Equal(t, wantUrl, resp.Account.Url)
+	require.Len(t, resp.Account.Address, 20)
+
+	files, _ = ioutil.ReadDir(ctx.AccountConfigDirectory)
+	require.Len(t, files, 2)
+
+	var newFile os.FileInfo
+
+	for _, f := range files {
+		if strings.Contains(f.Name(), "UTC") { // this is the new account
+			newFile = f
+		}
+	}
+
+	// check file has been renamed from tmp and contents is correct
+	require.False(t, strings.HasPrefix(newFile.Name(), "."))
+	require.False(t, strings.HasSuffix(newFile.Name(), ".tmp"))
+
+	raw, err := ioutil.ReadFile(ctx.AccountConfigDirectory + "/" + newFile.Name())
+	require.NoError(t, err)
+	gotContents := new(config.AccountFileJSON)
+	require.NoError(t, json.Unmarshal(raw, gotContents))
+
+	require.NotEmpty(t, gotContents.Address)
+	require.Equal(t, "engine", gotContents.VaultAccount.SecretEnginePath)
+	require.Equal(t, "newAcct", gotContents.VaultAccount.SecretPath)
+	require.Equal(t, int64(6), gotContents.VaultAccount.SecretVersion)
+}
+
+func TestPlugin_NewAccount_IncorrectCASValue(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// new account
+	newAcctConfTemplate := `{
+	"vault": "%v",
+	"secretEnginePath": "engine",
+	"secretPath": "newAcct",
+	"casValue": %v
+}`
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE+10)
+
+	_, err := ctx.AccountManager.NewAccount(context.Background(), &proto.NewAccountRequest{NewAccountConfig: []byte(newAcctConf)})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unable to write secret to Vault")
+	require.Contains(t, err.Error(), "invalid CAS value") // response from mock Vault server
 }
