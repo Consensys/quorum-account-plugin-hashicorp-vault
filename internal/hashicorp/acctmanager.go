@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/hashicorp/vault/api"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"io/ioutil"
@@ -119,78 +120,40 @@ func (a AccountManager) NewAccount(conf config.NewAccount) (accounts.Account, er
 	if err != nil {
 		return accounts.Account{}, err
 	}
+
+	return a.writeToVaultAndFile(privateKeyECDSA, conf)
+}
+
+func (a AccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
+	if conf.Vault.String() != a.client.Address() {
+		return accounts.Account{}, errors.New("incorrect vault url provided")
+	}
+	return a.writeToVaultAndFile(privateKeyECDSA, conf)
+}
+
+func (a AccountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
 	accountAddress := crypto.PubkeyToAddress(privateKeyECDSA.PublicKey)
 
-	// write to vault
 	log.Println("[DEBUG] Writing new account data to Vault...")
 	addrHex := common.Bytes2Hex(accountAddress.Bytes())
 	keyHex := common.Bytes2Hex(crypto.FromECDSA(privateKeyECDSA))
 
-	data := make(map[string]interface{})
-	data["data"] = map[string]interface{}{
-		addrHex: keyHex,
-	}
-
-	if !conf.InsecureSkipCAS {
-		data["options"] = map[string]interface{}{
-			"cas": conf.CASValue,
-		}
-	}
-
-	vaultLocation := fmt.Sprintf("%v/data/%v", conf.SecretEnginePath, conf.SecretPath)
-
-	resp, err := a.client.Logical().Write(vaultLocation, data)
+	resp, err := a.writeToVault(addrHex, keyHex, conf)
 	if err != nil {
 		return accounts.Account{}, fmt.Errorf("unable to write secret to Vault: %v", err)
 	}
 	log.Println("[INFO] New account data written to Vault")
 
 	log.Println("[DEBUG] Writing new account data to file in account config directory...")
-	v, ok := resp.Data["version"]
-	if !ok {
-		return accounts.Account{}, errors.New("unable to write new account config file, no version information returned from Vault")
-	}
-	vJson, ok := v.(json.Number)
-	if !ok {
-		return accounts.Account{}, errors.New("unable to write new account config file, invalid version information returned from Vault")
-	}
-	secretVersion, err := vJson.Int64()
+	secretVersion, err := a.getVersionFromResponse(resp)
 	if err != nil {
-		return accounts.Account{}, fmt.Errorf("unable to write new account config file, invalid version information returned from Vault")
+		return accounts.Account{}, fmt.Errorf("unable to write new account config file: %v", err)
 	}
 
-	// write to file (write to temporary hidden file first then rename once complete so that write appears atomic - useful when implementing a watcher on the directory
-	now := time.Now().UTC()
-	nowISO8601 := now.Format("2006-01-02T15-04-05.000000000Z")
-	filename := fmt.Sprintf("UTC--%v--%v", nowISO8601, common.Bytes2Hex(accountAddress.Bytes()))
-
-	fullpath, err := a.client.accountDirectory.Parse(filename)
+	fileData, err := a.writeToFile(addrHex, secretVersion, conf)
 	if err != nil {
-		return accounts.Account{}, err
-	}
-
-	fileData := conf.AccountFile(fullpath.String(), addrHex, secretVersion)
-
-	contents, err := json.Marshal(fileData.Contents)
-	if err != nil {
-		return accounts.Account{}, err
-	}
-
-	f, err := ioutil.TempFile(filepath.Dir(fullpath.Host+"/"+fullpath.Path), fmt.Sprintf(".%v*.tmp", filepath.Base(fullpath.String())))
-	if err != nil {
-		return accounts.Account{}, err
-	}
-	if _, err := f.Write(contents); err != nil {
-		f.Close()
-		os.Remove(f.Name())
-		return accounts.Account{}, err
-	}
-	f.Close()
-
-	if err := os.Rename(f.Name(), fullpath.Host+"/"+fullpath.Path); err != nil {
 		return accounts.Account{}, fmt.Errorf("unable to write new account config file, err: %v", err)
 	}
-
 	log.Println("[INFO] New account data written to account config directory")
 
 	// prepare return value
@@ -205,6 +168,69 @@ func (a AccountManager) NewAccount(conf config.NewAccount) (accounts.Account, er
 	}, nil
 }
 
-func (a AccountManager) ImportAccount(publicKeyHex string, privateKeyHex string, conf config.NewAccount) (accounts.Account, error) {
-	panic("implement me")
+func (a AccountManager) writeToVault(addrHex string, keyHex string, conf config.NewAccount) (*api.Secret, error) {
+	data := make(map[string]interface{})
+	data["data"] = map[string]interface{}{
+		addrHex: keyHex,
+	}
+
+	if !conf.InsecureSkipCAS {
+		data["options"] = map[string]interface{}{
+			"cas": conf.CASValue,
+		}
+	}
+	vaultLocation := fmt.Sprintf("%v/data/%v", conf.SecretEnginePath, conf.SecretPath)
+
+	return a.client.Logical().Write(vaultLocation, data)
+}
+
+func (a AccountManager) getVersionFromResponse(resp *api.Secret) (int64, error) {
+	v, ok := resp.Data["version"]
+	if !ok {
+		return 0, errors.New("no version information returned from Vault")
+	}
+	vJson, ok := v.(json.Number)
+	if !ok {
+		return 0, errors.New("invalid version information returned from Vault")
+	}
+	secretVersion, err := vJson.Int64()
+	if err != nil {
+		return 0, fmt.Errorf("invalid version information returned from Vault, %v", err)
+	}
+	return secretVersion, nil
+}
+
+// writeToFile writes to a temporary hidden file first then renames once complete so that the write appears atomic.  This will be useful if implementing a watcher on the directory
+func (a AccountManager) writeToFile(addrHex string, secretVersion int64, conf config.NewAccount) (config.AccountFile, error) {
+	now := time.Now().UTC()
+	nowISO8601 := now.Format("2006-01-02T15-04-05.000000000Z")
+	filename := fmt.Sprintf("UTC--%v--%v", nowISO8601, addrHex)
+
+	fullpath, err := a.client.accountDirectory.Parse(filename)
+	if err != nil {
+		return config.AccountFile{}, err
+	}
+
+	fileData := conf.AccountFile(fullpath.String(), addrHex, secretVersion)
+
+	contents, err := json.Marshal(fileData.Contents)
+	if err != nil {
+		return config.AccountFile{}, err
+	}
+
+	f, err := ioutil.TempFile(filepath.Dir(fullpath.Host+"/"+fullpath.Path), fmt.Sprintf(".%v*.tmp", filepath.Base(fullpath.String())))
+	if err != nil {
+		return config.AccountFile{}, err
+	}
+	if _, err := f.Write(contents); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return config.AccountFile{}, err
+	}
+	f.Close()
+
+	if err := os.Rename(f.Name(), fullpath.Host+"/"+fullpath.Path); err != nil {
+		return config.AccountFile{}, err
+	}
+	return fileData, nil
 }

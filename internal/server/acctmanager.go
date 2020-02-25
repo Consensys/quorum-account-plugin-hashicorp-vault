@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/protoconv"
@@ -270,18 +271,22 @@ func (p *HashicorpPlugin) NewAccount(_ context.Context, req *proto.NewAccountReq
 	}, nil
 }
 
-func (p *HashicorpPlugin) ImportRawKey(_ context.Context, req *proto.ImportAccountRequest) (*proto.ImportRawKeyResponse, error) {
+func (p *HashicorpPlugin) ImportRawKey(_ context.Context, req *proto.ImportRawKeyRequest) (*proto.ImportRawKeyResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	var conf config.NewAccount
+	conf := new(config.NewAccount)
 	if err := json.Unmarshal(req.NewAccountConfig, conf); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	if err := conf.Validate(); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	acct, err := p.acctManager.ImportAccount(req.PublicKeyHex, req.PrivateKeyHex, conf)
+	privateKey, err := crypto.HexToECDSA(req.RawKey)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	acct, err := p.acctManager.ImportPrivateKey(privateKey, *conf)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}

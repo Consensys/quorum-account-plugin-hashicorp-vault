@@ -344,3 +344,95 @@ func TestPlugin_NewAccount_IncorrectCASValue(t *testing.T) {
 	require.Contains(t, err.Error(), "unable to write secret to Vault")
 	require.Contains(t, err.Error(), "invalid CAS value") // response from mock Vault server
 }
+
+func TestPlugin_ImportRawKey(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// new account
+	newAcctConfTemplate := `{
+	"vault": "%v",
+	"secretEnginePath": "engine",
+	"secretPath": "newAcct",
+	"casValue": %v
+}`
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
+
+	files, _ := ioutil.ReadDir(ctx.AccountConfigDirectory)
+	require.Len(t, files, 1)
+
+	resp, err := ctx.AccountManager.ImportRawKey(context.Background(),
+		&proto.ImportRawKeyRequest{
+			RawKey:           "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec",
+			NewAccountConfig: []byte(newAcctConf),
+		},
+	)
+	require.NoError(t, err)
+
+	wantUrl := fmt.Sprintf(ctx.Vault.URL+"/v1/engine/data/newAcct?version=%v", builders.CAS_VALUE+1)
+
+	require.NotNil(t, resp)
+	require.Equal(t, wantUrl, resp.Account.Url)
+	require.Len(t, resp.Account.Address, 20)
+
+	files, _ = ioutil.ReadDir(ctx.AccountConfigDirectory)
+	require.Len(t, files, 2)
+
+	var newFile os.FileInfo
+
+	for _, f := range files {
+		if strings.Contains(f.Name(), "UTC") { // this is the new account
+			newFile = f
+		}
+	}
+
+	// check file has been renamed from tmp and contents is correct
+	require.False(t, strings.HasPrefix(newFile.Name(), "."))
+	require.False(t, strings.HasSuffix(newFile.Name(), ".tmp"))
+
+	raw, err := ioutil.ReadFile(ctx.AccountConfigDirectory + "/" + newFile.Name())
+	require.NoError(t, err)
+	gotContents := new(config.AccountFileJSON)
+	require.NoError(t, json.Unmarshal(raw, gotContents))
+
+	require.Equal(t, "4d6d744b6da435b5bbdde2526dc20e9a41cb72e5", gotContents.Address)
+	require.Equal(t, "engine", gotContents.VaultAccount.SecretEnginePath)
+	require.Equal(t, "newAcct", gotContents.VaultAccount.SecretPath)
+	require.Equal(t, int64(6), gotContents.VaultAccount.SecretVersion)
+}
+
+func TestPlugin_ImportRawKey_IncorrectCASValue(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// new account
+	newAcctConfTemplate := `{
+	"vault": "%v",
+	"secretEnginePath": "engine",
+	"secretPath": "newAcct",
+	"casValue": %v
+}`
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE+10)
+
+	_, err := ctx.AccountManager.ImportRawKey(context.Background(),
+		&proto.ImportRawKeyRequest{
+			RawKey:           "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec",
+			NewAccountConfig: []byte(newAcctConf),
+		},
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unable to write secret to Vault")
+	require.Contains(t, err.Error(), "invalid CAS value") // response from mock Vault server
+}

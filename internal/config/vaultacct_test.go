@@ -51,7 +51,7 @@ func TestAccountFileJSON_AccountURL(t *testing.T) {
 
 	want := accounts.URL{
 		Scheme: "http",
-		Path:   "vault:1111/v1/engine/path?version=10",
+		Path:   "vault:1111/v1/engine/data/path?version=10",
 	}
 
 	got, err := conf.AccountURL(vaultUrl)
