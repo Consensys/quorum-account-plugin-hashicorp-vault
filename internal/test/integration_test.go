@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto_common"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
@@ -262,6 +263,73 @@ func TestPlugin_Contains_Errors(t *testing.T) {
 
 	_, err = ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{WalletUrl: wltUrl, Account: toFind})
 	require.EqualError(t, err, "rpc error: code = Internal desc = wallet http://nottherighturl/doesnt/exist cannot contain account with URL http://different/to/the/wallet/url")
+}
+
+func TestPlugin_SignHash(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// sign hash
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	acct := &proto.Account{
+		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Url:     wltUrl,
+	}
+
+	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  acct,
+		Duration: 0,
+	})
+	require.NoError(t, err)
+
+	toSign := crypto.Keccak256([]byte("to sign"))
+
+	resp, err := ctx.AccountManager.SignHash(context.Background(), &proto.SignHashRequest{
+		WalletUrl: wltUrl,
+		Account:   acct,
+		Hash:      toSign,
+	})
+	require.NoError(t, err)
+
+	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
+	want, _ := crypto.Sign(toSign, prv)
+
+	require.Equal(t, want, resp.Result)
+}
+
+func TestPlugin_SignHash_Locked(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// sign hash
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	acct := &proto.Account{
+		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Url:     wltUrl,
+	}
+
+	toSign := crypto.Keccak256([]byte("to sign"))
+
+	_, err := ctx.AccountManager.SignHash(context.Background(), &proto.SignHashRequest{
+		WalletUrl: wltUrl,
+		Account:   acct,
+		Hash:      toSign,
+	})
+	require.EqualError(t, err, "rpc error: code = Internal desc = account locked")
 }
 
 func TestPlugin_Unlock(t *testing.T) {

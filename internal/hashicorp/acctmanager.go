@@ -73,6 +73,8 @@ func (a *AccountManager) Account(wallet accounts.URL) (accounts.Account, error) 
 	return accounts.Account{Address: byteAddr, URL: wallet}, nil
 }
 
+// TODO(cjh) review the wallet arg and whether all methods need them, e.g. if we are also passing in account
+
 func (a *AccountManager) Contains(wallet accounts.URL, account accounts.Account) (bool, error) {
 	if account.URL != (accounts.URL{}) && wallet != account.URL {
 		return false, fmt.Errorf("wallet %v cannot contain account with URL %v", wallet.String(), account.URL.String())
@@ -87,8 +89,16 @@ func (a *AccountManager) Contains(wallet accounts.URL, account accounts.Account)
 	return true, nil
 }
 
-func (a *AccountManager) SignHash(wallet accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
-	panic("implement me")
+func (a *AccountManager) SignHash(_ accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
+	lockable, ok := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
+	if !ok {
+		return nil, errors.New("account locked")
+	}
+	key, err := crypto.HexToECDSA(lockable.key)
+	if err != nil {
+		return nil, err
+	}
+	return crypto.Sign(hash, key)
 }
 
 func (a *AccountManager) SignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
