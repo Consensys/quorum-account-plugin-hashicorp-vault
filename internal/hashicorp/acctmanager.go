@@ -90,7 +90,9 @@ func (a *AccountManager) Contains(wallet accounts.URL, account accounts.Account)
 }
 
 func (a *AccountManager) SignHash(_ accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
+	a.mu.Lock()
 	lockable, ok := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
+	a.mu.Unlock()
 	if !ok {
 		return nil, errors.New("account locked")
 	}
@@ -106,7 +108,17 @@ func (a *AccountManager) SignTx(wallet accounts.URL, account accounts.Account, r
 }
 
 func (a *AccountManager) UnlockAndSignHash(wallet accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
-	panic("implement me")
+	a.mu.Lock()
+	_, unlocked := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
+	a.mu.Unlock()
+	if !unlocked {
+		if err := a.TimedUnlock(account, 0); err != nil {
+			return nil, err
+		}
+		defer a.Lock(account)
+	}
+
+	return a.SignHash(wallet, account, hash)
 }
 
 func (a *AccountManager) UnlockAndSignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
@@ -202,7 +214,7 @@ func (a *AccountManager) lockAfter(addr string, key *lockableKey, duration time.
 	}
 }
 
-func (a *AccountManager) Lock(account accounts.Account) error {
+func (a *AccountManager) Lock(account accounts.Account) {
 	addrHex := common.Bytes2Hex(account.Address.Bytes())
 	a.mu.Lock()
 	lockable, ok := a.unlocked[addrHex]
@@ -211,7 +223,6 @@ func (a *AccountManager) Lock(account accounts.Account) error {
 	if ok {
 		a.lockAfter(addrHex, lockable, 0)
 	}
-	return nil
 }
 
 func (a *AccountManager) NewAccount(conf config.NewAccount) (accounts.Account, error) {

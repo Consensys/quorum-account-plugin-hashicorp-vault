@@ -332,6 +332,91 @@ func TestPlugin_SignHash_Locked(t *testing.T) {
 	require.EqualError(t, err, "rpc error: code = Internal desc = account locked")
 }
 
+func TestPlugin_SignHashWithPassphrase_Locked(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// sign hash
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	acct := &proto.Account{
+		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Url:     wltUrl,
+	}
+
+	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "locked", statusResp.Status)
+
+	toSign := crypto.Keccak256([]byte("to sign"))
+
+	resp, err := ctx.AccountManager.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
+		WalletUrl: wltUrl,
+		Account:   acct,
+		Hash:      toSign,
+	})
+	require.NoError(t, err)
+
+	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
+	want, _ := crypto.Sign(toSign, prv)
+	require.Equal(t, want, resp.Result)
+
+	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "locked", statusResp.Status)
+}
+
+func TestPlugin_SignHashWithPassphrase_Unlocked(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// sign hash
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	acct := &proto.Account{
+		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Url:     wltUrl,
+	}
+
+	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  acct,
+		Duration: 0,
+	})
+
+	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "unlocked", statusResp.Status)
+
+	toSign := crypto.Keccak256([]byte("to sign"))
+
+	resp, err := ctx.AccountManager.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
+		WalletUrl: wltUrl,
+		Account:   acct,
+		Hash:      toSign,
+	})
+	require.NoError(t, err)
+
+	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
+	want, _ := crypto.Sign(toSign, prv)
+	require.Equal(t, want, resp.Result)
+
+	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "unlocked", statusResp.Status)
+}
+
 func TestPlugin_Unlock(t *testing.T) {
 	ctx := new(util.ITContext)
 	defer ctx.Cleanup()

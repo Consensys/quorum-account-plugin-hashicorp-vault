@@ -244,9 +244,7 @@ func (p *HashicorpPlugin) Lock(_ context.Context, req *proto.LockRequest) (*prot
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if err := p.acctManager.Lock(acct); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	p.acctManager.Lock(acct)
 	return &proto.LockResponse{}, nil
 }
 
