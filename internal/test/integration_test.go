@@ -521,6 +521,114 @@ func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
 	require.Equal(t, "locked", resp.Status)
 }
 
+func TestPlugin_Lock(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// lock
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Duration: 0,
+	})
+	require.NoError(t, err)
+
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "unlocked", resp.Status)
+
+	_, err = ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
+		Account: &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+	})
+	require.NoError(t, err)
+
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "locked", resp.Status)
+}
+
+func TestPlugin_Lock_MultipleTimes(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// lock
+	_, err := ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
+		Account: &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+	})
+	require.NoError(t, err)
+
+	_, err = ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
+		Account: &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+	})
+	require.NoError(t, err)
+}
+
+func TestPlugin_Lock_CancelsTimedUnlock(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// lock
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Duration: time.Second.Nanoseconds(),
+	})
+	require.NoError(t, err)
+
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "unlocked", resp.Status)
+
+	_, err = ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
+		Account: &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+	})
+	require.NoError(t, err)
+
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "locked", resp.Status)
+
+	// sleep for more than the original timed unlock duration to make sure no unexpected behaviour occurs
+	time.Sleep(2 * time.Second)
+}
+
+func TestPlugin_Lock_UnknownAccount(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// lock
+	_, err := ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
+		Account: &proto.Account{Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")},
+	})
+	require.NoError(t, err)
+}
+
 func TestPlugin_NewAccount(t *testing.T) {
 	ctx := new(util.ITContext)
 	defer ctx.Cleanup()

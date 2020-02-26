@@ -184,14 +184,24 @@ func (a *AccountManager) lockAfter(addr string, key *lockableKey, duration time.
 		// cancel the scheduled lock
 	case <-t.C:
 		if a.unlocked[addr] == key {
+			a.mu.Lock()
 			zeroKey(key)
 			delete(a.unlocked, addr)
+			a.mu.Unlock()
 		}
 	}
 }
 
 func (a *AccountManager) Lock(account accounts.Account) error {
-	panic("implement me")
+	addrHex := common.Bytes2Hex(account.Address.Bytes())
+	a.mu.Lock()
+	lockable, ok := a.unlocked[addrHex]
+	a.mu.Unlock()
+
+	if ok {
+		a.lockAfter(addrHex, lockable, 0)
+	}
+	return nil
 }
 
 func (a *AccountManager) NewAccount(conf config.NewAccount) (accounts.Account, error) {
