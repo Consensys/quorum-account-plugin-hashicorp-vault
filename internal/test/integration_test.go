@@ -16,6 +16,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext) {
@@ -43,7 +44,7 @@ func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext) {
 			SecretEnginePath: "engine",
 			SecretPath:       "myAcct",
 			SecretVersion:    2,
-			PubKeyResponse:   "dc99ddec13457de6c0f6bb8e6cf3955c86f55526",
+			AcctAddrResponse: "dc99ddec13457de6c0f6bb8e6cf3955c86f55526",
 			PrivKeyResponse:  "7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28",
 		}).
 		WithAccountCreationHandler(t, builders.HandlerData{
@@ -261,6 +262,263 @@ func TestPlugin_Contains_Errors(t *testing.T) {
 
 	_, err = ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{WalletUrl: wltUrl, Account: toFind})
 	require.EqualError(t, err, "rpc error: code = Internal desc = wallet http://nottherighturl/doesnt/exist cannot contain account with URL http://different/to/the/wallet/url")
+}
+
+func TestPlugin_Unlock(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// timed unlock
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "locked", resp.Status)
+
+	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Duration: 0,
+	})
+	require.NoError(t, err)
+
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "unlocked", resp.Status)
+
+	time.Sleep(1 * time.Second)
+
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "unlocked", resp.Status)
+}
+
+func TestPlugin_Unlock_OptionalWalletUrlInRequest(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// timed unlock
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "locked", resp.Status)
+
+	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"), Url: wltUrl},
+		Duration: 0,
+	})
+	require.NoError(t, err)
+
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "unlocked", resp.Status)
+}
+
+func TestPlugin_Unlock_InvalidOptionalWalletUrlInRequest(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// timed unlock
+	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"), Url: "http://this/is/the/wrong/url/for/this/address"},
+		Duration: 0,
+	})
+	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
+}
+
+func TestPlugin_Unlock_InconsistentAddressAndWalletUrl(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// the account config directory contains a file that resolves to this wlturl.  The address contained in that file is dc99ddec13457de6c0f6bb8e6cf3955c86f55526.  If we provide this url but a different address we should expect the request to fail.
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  &proto.Account{Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"), Url: wltUrl},
+		Duration: 0,
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "rpc error: code = Internal desc = inconsistent account data provided")
+}
+
+func TestPlugin_TimedUnlock(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// timed unlock
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "locked", resp.Status)
+
+	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Duration: (1 * time.Second).Nanoseconds(),
+	})
+	require.NoError(t, err)
+
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "unlocked", resp.Status)
+
+	time.Sleep(1 * time.Second)
+
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "locked", resp.Status)
+}
+
+func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// timed unlock
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "locked", resp.Status)
+
+	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Duration: (1 * time.Second).Nanoseconds(),
+	})
+	require.NoError(t, err)
+
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "unlocked", resp.Status)
+
+	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Duration: 0,
+	})
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "unlocked", resp.Status)
+}
+
+func TestPlugin_TimedUnlock_Extend(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// timed unlock
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "locked", resp.Status)
+
+	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Duration: (1 * time.Second).Nanoseconds(),
+	})
+	require.NoError(t, err)
+
+	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Duration: (2 * time.Second).Nanoseconds(),
+	})
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "unlocked", resp.Status)
+
+	time.Sleep(1 * time.Second)
+
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "locked", resp.Status)
+}
+
+func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// timed unlock
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "locked", resp.Status)
+
+	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Duration: (2 * time.Second).Nanoseconds(),
+	})
+	require.NoError(t, err)
+
+	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Duration: (1 * time.Second).Nanoseconds(),
+	})
+	require.NoError(t, err)
+
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "unlocked", resp.Status)
+
+	time.Sleep(1 * time.Second)
+
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "locked", resp.Status)
 }
 
 func TestPlugin_NewAccount(t *testing.T) {

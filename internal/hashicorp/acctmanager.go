@@ -18,6 +18,8 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strconv"
+	"sync"
 	"time"
 )
 
@@ -27,17 +29,18 @@ func NewAccountManager(config config.VaultClient) (*AccountManager, error) {
 		return nil, err
 	}
 
-	return &AccountManager{client: client}, nil
+	return &AccountManager{client: client, unlocked: make(map[string]*lockableKey)}, nil
 }
 
 type AccountManager struct {
 	client   *vaultClient
 	unlocked map[string]*lockableKey
+	mu       sync.Mutex
 }
 
 type lockableKey struct {
-	key  string
-	lock chan struct{}
+	key    string // TODO(cjh) change to mutable type that can be properly zeroed
+	cancel chan struct{}
 }
 
 type Account struct {
@@ -47,7 +50,7 @@ type Account struct {
 
 type Transaction struct{}
 
-func (a AccountManager) Status(wallet accounts.URL) (string, error) {
+func (a *AccountManager) Status(wallet accounts.URL) (string, error) {
 	if !a.client.hasWallet(wallet) {
 		return "", errors.New("unknown wallet")
 	}
@@ -60,7 +63,7 @@ func (a AccountManager) Status(wallet accounts.URL) (string, error) {
 
 }
 
-func (a AccountManager) Account(wallet accounts.URL) (accounts.Account, error) {
+func (a *AccountManager) Account(wallet accounts.URL) (accounts.Account, error) {
 	if !a.client.hasWallet(wallet) {
 		return accounts.Account{}, errors.New("unknown wallet")
 	}
@@ -70,7 +73,7 @@ func (a AccountManager) Account(wallet accounts.URL) (accounts.Account, error) {
 	return accounts.Account{Address: byteAddr, URL: wallet}, nil
 }
 
-func (a AccountManager) Contains(wallet accounts.URL, account accounts.Account) (bool, error) {
+func (a *AccountManager) Contains(wallet accounts.URL, account accounts.Account) (bool, error) {
 	if account.URL != (accounts.URL{}) && wallet != account.URL {
 		return false, fmt.Errorf("wallet %v cannot contain account with URL %v", wallet.String(), account.URL.String())
 	}
@@ -84,35 +87,114 @@ func (a AccountManager) Contains(wallet accounts.URL, account accounts.Account) 
 	return true, nil
 }
 
-func (a AccountManager) SignHash(wallet accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
+func (a *AccountManager) SignHash(wallet accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) SignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
+func (a *AccountManager) SignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) UnlockAndSignHash(wallet accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
+func (a *AccountManager) UnlockAndSignHash(wallet accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) UnlockAndSignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
+func (a *AccountManager) UnlockAndSignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a AccountManager) GetEventStream(*proto.GetEventStreamRequest, proto.AccountManager_GetEventStreamServer) error {
+func (a *AccountManager) GetEventStream(*proto.GetEventStreamRequest, proto.AccountManager_GetEventStreamServer) error {
 	panic("implement me")
 }
 
-func (a AccountManager) TimedUnlock(account accounts.Account, duration time.Duration) error {
+func (a *AccountManager) TimedUnlock(account accounts.Account, duration time.Duration) error {
+	var acctFile config.AccountFile
+
+	if account.URL != (accounts.URL{}) {
+		if a.client.hasWallet(account.URL) {
+			file := a.client.wallets[account.URL]
+			if file.Contents.Address != common.Bytes2Hex(account.Address.Bytes()) {
+				return fmt.Errorf("inconsistent account data provided: request contained URL %v and account address %v, but this URL refers to account config file containing account address %v", account.URL.String(), common.Bytes2Hex(account.Address.Bytes()), file.Contents.Address)
+			}
+			acctFile = file
+		}
+	} else {
+		for _, file := range a.client.wallets {
+			if file.Contents.Address == common.Bytes2Hex(account.Address.Bytes()) {
+				acctFile = file
+			}
+		}
+	}
+
+	if acctFile == (config.AccountFile{}) {
+		return errors.New("unknown wallet")
+	}
+
+	conf := acctFile.Contents.VaultAccount
+
+	// get from Vault
+	vaultLocation := fmt.Sprintf("%v/data/%v", conf.SecretEnginePath, conf.SecretPath)
+
+	reqData := make(map[string][]string)
+	reqData["version"] = []string{strconv.FormatInt(conf.SecretVersion, 10)}
+
+	resp, err := a.client.Logical().ReadWithData(vaultLocation, reqData)
+	if err != nil {
+		return err
+	}
+	if resp == nil {
+		return errors.New("empty response from Vault")
+	}
+
+	respData, ok := resp.Data["data"].(map[string]interface{})
+	if !ok {
+		return errors.New("no secret information returned from Vault")
+	}
+	if len(respData) != 1 {
+		return errors.New("only one key/value pair is allowed in each Hashicorp Vault secret")
+	}
+
+	// get value regardless of key in map
+	privKey, ok := respData[acctFile.Contents.Address]
+	if !ok {
+		return fmt.Errorf("response does not contain data for account address %v", acctFile.Contents.Address)
+	}
+
+	lockableKey := &lockableKey{
+		key: privKey.(string),
+	}
+
+	if duration > 0 {
+		go a.lockAfter(acctFile.Contents.Address, lockableKey, duration)
+	}
+
+	a.mu.Lock()
+	a.unlocked[acctFile.Contents.Address] = lockableKey
+	a.mu.Unlock()
+
+	return nil
+}
+
+func (a *AccountManager) lockAfter(addr string, key *lockableKey, duration time.Duration) {
+	t := time.NewTimer(duration)
+	defer t.Stop()
+
+	select {
+	case <-key.cancel:
+		// cancel the scheduled lock
+	case <-t.C:
+		if a.unlocked[addr] == key {
+			zeroKey(key)
+			delete(a.unlocked, addr)
+		}
+	}
+}
+
+func (a *AccountManager) Lock(account accounts.Account) error {
 	panic("implement me")
 }
 
-func (a AccountManager) Lock(account accounts.Account) error {
-	panic("implement me")
-}
-
-func (a AccountManager) NewAccount(conf config.NewAccount) (accounts.Account, error) {
+func (a *AccountManager) NewAccount(conf config.NewAccount) (accounts.Account, error) {
 	if conf.Vault.String() != a.client.Address() {
 		return accounts.Account{}, errors.New("incorrect vault url provided")
 	}
@@ -124,14 +206,14 @@ func (a AccountManager) NewAccount(conf config.NewAccount) (accounts.Account, er
 	return a.writeToVaultAndFile(privateKeyECDSA, conf)
 }
 
-func (a AccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
+func (a *AccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
 	if conf.Vault.String() != a.client.Address() {
 		return accounts.Account{}, errors.New("incorrect vault url provided")
 	}
 	return a.writeToVaultAndFile(privateKeyECDSA, conf)
 }
 
-func (a AccountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
+func (a *AccountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
 	accountAddress := crypto.PubkeyToAddress(privateKeyECDSA.PublicKey)
 
 	log.Println("[DEBUG] Writing new account data to Vault...")
@@ -168,7 +250,7 @@ func (a AccountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, c
 	}, nil
 }
 
-func (a AccountManager) writeToVault(addrHex string, keyHex string, conf config.NewAccount) (*api.Secret, error) {
+func (a *AccountManager) writeToVault(addrHex string, keyHex string, conf config.NewAccount) (*api.Secret, error) {
 	data := make(map[string]interface{})
 	data["data"] = map[string]interface{}{
 		addrHex: keyHex,
@@ -184,7 +266,7 @@ func (a AccountManager) writeToVault(addrHex string, keyHex string, conf config.
 	return a.client.Logical().Write(vaultLocation, data)
 }
 
-func (a AccountManager) getVersionFromResponse(resp *api.Secret) (int64, error) {
+func (a *AccountManager) getVersionFromResponse(resp *api.Secret) (int64, error) {
 	v, ok := resp.Data["version"]
 	if !ok {
 		return 0, errors.New("no version information returned from Vault")
@@ -201,7 +283,7 @@ func (a AccountManager) getVersionFromResponse(resp *api.Secret) (int64, error) 
 }
 
 // writeToFile writes to a temporary hidden file first then renames once complete so that the write appears atomic.  This will be useful if implementing a watcher on the directory
-func (a AccountManager) writeToFile(addrHex string, secretVersion int64, conf config.NewAccount) (config.AccountFile, error) {
+func (a *AccountManager) writeToFile(addrHex string, secretVersion int64, conf config.NewAccount) (config.AccountFile, error) {
 	now := time.Now().UTC()
 	nowISO8601 := now.Format("2006-01-02T15-04-05.000000000Z")
 	filename := fmt.Sprintf("UTC--%v--%v", nowISO8601, addrHex)
@@ -233,4 +315,8 @@ func (a AccountManager) writeToFile(addrHex string, secretVersion int64, conf co
 		return config.AccountFile{}, err
 	}
 	return fileData, nil
+}
+
+func zeroKey(key *lockableKey) {
+	key.key = ""
 }

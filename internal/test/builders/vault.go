@@ -48,8 +48,8 @@ func (b *VaultBuilder) WithLoginHandler(approlePath string) *VaultBuilder {
 }
 
 type HandlerData struct {
-	SecretEnginePath, SecretPath, PubKeyResponse, PrivKeyResponse string
-	SecretVersion                                                 int
+	SecretEnginePath, SecretPath, AcctAddrResponse, PrivKeyResponse string
+	SecretVersion                                                   int
 }
 
 func (b *VaultBuilder) WithHandler(t *testing.T, d HandlerData) *VaultBuilder {
@@ -69,7 +69,7 @@ func (b *VaultBuilder) WithHandler(t *testing.T, d HandlerData) *VaultBuilder {
 		vaultResponse := &api.Secret{
 			Data: map[string]interface{}{
 				"data": map[string]interface{}{
-					d.PubKeyResponse: d.PrivKeyResponse,
+					d.AcctAddrResponse: d.PrivKeyResponse,
 				},
 			},
 		}
