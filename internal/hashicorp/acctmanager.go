@@ -90,6 +90,9 @@ func (a *AccountManager) Contains(wallet accounts.URL, account accounts.Account)
 }
 
 func (a *AccountManager) SignHash(_ accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
+	if !a.client.hasWallet(account.URL) {
+		return nil, errors.New("unknown wallet")
+	}
 	a.mu.Lock()
 	lockable, ok := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
 	a.mu.Unlock()

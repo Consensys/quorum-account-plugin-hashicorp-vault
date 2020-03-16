@@ -332,6 +332,34 @@ func TestPlugin_SignHash_Locked(t *testing.T) {
 	require.EqualError(t, err, "rpc error: code = Internal desc = account locked")
 }
 
+func TestPlugin_SignHash_UnknownAccount(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// sign hash
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "unknownAccount", 1)
+
+	acct := &proto.Account{
+		Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
+		Url:     wltUrl,
+	}
+
+	toSign := crypto.Keccak256([]byte("to sign"))
+
+	_, err := ctx.AccountManager.SignHash(context.Background(), &proto.SignHashRequest{
+		WalletUrl: wltUrl,
+		Account:   acct,
+		Hash:      toSign,
+	})
+	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
+}
+
 func TestPlugin_SignHashWithPassphrase_Locked(t *testing.T) {
 	ctx := new(util.ITContext)
 	defer ctx.Cleanup()
@@ -415,6 +443,35 @@ func TestPlugin_SignHashWithPassphrase_Unlocked(t *testing.T) {
 	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
 	require.NoError(t, err)
 	require.Equal(t, "unlocked", statusResp.Status)
+}
+
+func TestPlugin_SignHashWithPassphrase_UnknownAccount(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// sign hash
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "unknownAccount", 1)
+
+	acct := &proto.Account{
+		Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
+		Url:     wltUrl,
+	}
+
+	toSign := crypto.Keccak256([]byte("to sign"))
+
+	_, err := ctx.AccountManager.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
+		WalletUrl:  wltUrl,
+		Account:    acct,
+		Passphrase: "",
+		Hash:       toSign,
+	})
+	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
 }
 
 func TestPlugin_Unlock(t *testing.T) {
