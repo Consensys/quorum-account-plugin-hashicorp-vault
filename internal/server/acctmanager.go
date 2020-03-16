@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/protoconv"
@@ -116,6 +118,10 @@ func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*
 	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	tx := new(types.Transaction)
+	if err := rlp.DecodeBytes(req.RlpTx, tx); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	chainID := new(big.Int)
 	if len(req.ChainID) == 0 {
@@ -124,7 +130,7 @@ func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*
 		chainID.SetBytes(req.ChainID)
 	}
 
-	result, err := p.acctManager.SignTx(*wallet, acct, req.RlpTx, chainID)
+	result, err := p.acctManager.SignTx(*wallet, acct, tx, chainID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

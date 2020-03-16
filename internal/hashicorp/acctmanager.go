@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hashicorp/vault/api"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
@@ -120,8 +122,35 @@ func (a *AccountManager) UnlockAndSignHash(wallet accounts.URL, account accounts
 	return a.SignHash(wallet, account, hash)
 }
 
-func (a *AccountManager) SignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
-	panic("implement me")
+func (a *AccountManager) SignTx(_ accounts.URL, account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
+	if !a.client.hasWallet(account.URL) {
+		return nil, errors.New("unknown wallet")
+	}
+	a.mu.Lock()
+	lockable, ok := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
+	a.mu.Unlock()
+	if !ok {
+		return nil, errors.New("account locked")
+	}
+	key, err := crypto.HexToECDSA(lockable.key)
+	if err != nil {
+		return nil, err
+	}
+	signedTx, err := a.signTx(tx, key, chainID)
+	if err != nil {
+		return nil, err
+	}
+	return rlp.EncodeToBytes(signedTx)
+}
+
+func (a *AccountManager) signTx(tx *types.Transaction, key *ecdsa.PrivateKey, chainID *big.Int) (*types.Transaction, error) {
+	if tx.IsPrivate() {
+		return types.SignTx(tx, types.QuorumPrivateTxSigner{}, key)
+	}
+	if chainID == nil {
+		return types.SignTx(tx, types.HomesteadSigner{}, key)
+	}
+	return types.SignTx(tx, types.NewEIP155Signer(chainID), key)
 }
 
 func (a *AccountManager) UnlockAndSignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {

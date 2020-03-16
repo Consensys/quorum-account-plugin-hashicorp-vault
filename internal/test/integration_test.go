@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto_common"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
@@ -14,6 +16,7 @@ import (
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/util"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"strings"
 	"testing"
@@ -400,7 +403,7 @@ func TestPlugin_SignHashWithPassphrase_Locked(t *testing.T) {
 	require.Equal(t, "locked", statusResp.Status)
 }
 
-func TestPlugin_SignHashWithPassphrase_Unlocked(t *testing.T) {
+func TestPlugin_SignHashWithPassphrase_AlreadyUnlocked(t *testing.T) {
 	ctx := new(util.ITContext)
 	defer ctx.Cleanup()
 
@@ -466,10 +469,243 @@ func TestPlugin_SignHashWithPassphrase_UnknownAccount(t *testing.T) {
 	toSign := crypto.Keccak256([]byte("to sign"))
 
 	_, err := ctx.AccountManager.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
-		WalletUrl:  wltUrl,
-		Account:    acct,
-		Passphrase: "",
-		Hash:       toSign,
+		WalletUrl: wltUrl,
+		Account:   acct,
+		Hash:      toSign,
+	})
+	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
+}
+
+func TestPlugin_SignTx_Private(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// sign hash
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	acct := &proto.Account{
+		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Url:     wltUrl,
+	}
+
+	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  acct,
+		Duration: 0,
+	})
+	require.NoError(t, err)
+
+	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
+	toSign.SetPrivate()
+	rlpToSign, err := rlp.EncodeToBytes(toSign)
+	require.NoError(t, err)
+
+	resp, err := ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
+		WalletUrl: wltUrl,
+		Account:   acct,
+		RlpTx:     rlpToSign,
+		ChainID:   big.NewInt(42).Bytes(),
+	})
+	require.NoError(t, err)
+
+	got := new(types.Transaction)
+	err = rlp.DecodeBytes(resp.RlpTx, got)
+	require.NoError(t, err)
+
+	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
+	signer := types.QuorumPrivateTxSigner{}
+	txSignerHash := signer.Hash(toSign)
+	txSignerSignature, err := crypto.Sign(txSignerHash[:], prv)
+	require.NoError(t, err)
+
+	want, err := toSign.WithSignature(signer, txSignerSignature)
+	require.NoError(t, err)
+	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.
+	// When the caller decodes it back to a tx, the size field of the tx is populated (see
+	// types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that
+	// we can compare the returned tx with want.  This is achieved by calling Size().
+	want.Size()
+
+	require.Equal(t, want, got)
+}
+
+func TestPlugin_SignTx_Homestead(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// sign hash
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	acct := &proto.Account{
+		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Url:     wltUrl,
+	}
+
+	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  acct,
+		Duration: 0,
+	})
+	require.NoError(t, err)
+
+	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
+	rlpToSign, err := rlp.EncodeToBytes(toSign)
+	require.NoError(t, err)
+
+	resp, err := ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
+		WalletUrl: wltUrl,
+		Account:   acct,
+		RlpTx:     rlpToSign,
+		ChainID:   nil,
+	})
+	require.NoError(t, err)
+
+	got := new(types.Transaction)
+	err = rlp.DecodeBytes(resp.RlpTx, got)
+	require.NoError(t, err)
+
+	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
+	signer := types.HomesteadSigner{}
+	txSignerHash := signer.Hash(toSign)
+	txSignerSignature, err := crypto.Sign(txSignerHash[:], prv)
+	require.NoError(t, err)
+
+	want, err := toSign.WithSignature(signer, txSignerSignature)
+	require.NoError(t, err)
+	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.
+	// When the caller decodes it back to a tx, the size field of the tx is populated (see
+	// types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that
+	// we can compare the returned tx with want.  This is achieved by calling Size().
+	want.Size()
+
+	require.Equal(t, want, got)
+}
+
+func TestPlugin_SignTx_EIP155(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// sign hash
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	acct := &proto.Account{
+		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Url:     wltUrl,
+	}
+
+	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
+		Account:  acct,
+		Duration: 0,
+	})
+	require.NoError(t, err)
+
+	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
+	rlpToSign, err := rlp.EncodeToBytes(toSign)
+	require.NoError(t, err)
+
+	resp, err := ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
+		WalletUrl: wltUrl,
+		Account:   acct,
+		RlpTx:     rlpToSign,
+		ChainID:   big.NewInt(42).Bytes(),
+	})
+	require.NoError(t, err)
+
+	got := new(types.Transaction)
+	err = rlp.DecodeBytes(resp.RlpTx, got)
+	require.NoError(t, err)
+
+	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
+	signer := types.NewEIP155Signer(big.NewInt(42))
+	txSignerHash := signer.Hash(toSign)
+	txSignerSignature, err := crypto.Sign(txSignerHash[:], prv)
+	require.NoError(t, err)
+
+	want, err := toSign.WithSignature(signer, txSignerSignature)
+	require.NoError(t, err)
+	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.
+	// When the caller decodes it back to a tx, the size field of the tx is populated (see
+	// types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that
+	// we can compare the returned tx with want.  This is achieved by calling Size().
+	want.Size()
+
+	require.Equal(t, want, got)
+}
+
+func TestPlugin_SignTx_Locked(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// sign hash
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	acct := &proto.Account{
+		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Url:     wltUrl,
+	}
+
+	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
+	rlpToSign, err := rlp.EncodeToBytes(toSign)
+	require.NoError(t, err)
+
+	_, err = ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
+		WalletUrl: wltUrl,
+		Account:   acct,
+		RlpTx:     rlpToSign,
+		ChainID:   big.NewInt(42).Bytes(),
+	})
+	require.EqualError(t, err, "rpc error: code = Internal desc = account locked")
+}
+
+func TestPlugin_SignTx_UnknownAccount(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// sign hash
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "unknownAccount", 1)
+
+	acct := &proto.Account{
+		Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
+		Url:     wltUrl,
+	}
+
+	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
+	rlpToSign, err := rlp.EncodeToBytes(toSign)
+	require.NoError(t, err)
+
+	_, err = ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
+		WalletUrl: wltUrl,
+		Account:   acct,
+		RlpTx:     rlpToSign,
+		ChainID:   big.NewInt(42).Bytes(),
 	})
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
 }
