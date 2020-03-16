@@ -143,6 +143,20 @@ func (a *AccountManager) SignTx(_ accounts.URL, account accounts.Account, tx *ty
 	return rlp.EncodeToBytes(signedTx)
 }
 
+func (a *AccountManager) UnlockAndSignTx(wallet accounts.URL, account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
+	a.mu.Lock()
+	_, unlocked := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
+	a.mu.Unlock()
+	if !unlocked {
+		if err := a.TimedUnlock(account, 0); err != nil {
+			return nil, err
+		}
+		defer a.Lock(account)
+	}
+
+	return a.SignTx(wallet, account, tx, chainID)
+}
+
 func (a *AccountManager) signTx(tx *types.Transaction, key *ecdsa.PrivateKey, chainID *big.Int) (*types.Transaction, error) {
 	if tx.IsPrivate() {
 		return types.SignTx(tx, types.QuorumPrivateTxSigner{}, key)
@@ -151,10 +165,6 @@ func (a *AccountManager) signTx(tx *types.Transaction, key *ecdsa.PrivateKey, ch
 		return types.SignTx(tx, types.HomesteadSigner{}, key)
 	}
 	return types.SignTx(tx, types.NewEIP155Signer(chainID), key)
-}
-
-func (a *AccountManager) UnlockAndSignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
-	panic("implement me")
 }
 
 func (a *AccountManager) GetEventStream(*proto.GetEventStreamRequest, proto.AccountManager_GetEventStreamServer) error {

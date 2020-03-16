@@ -105,6 +105,26 @@ func (p *HashicorpPlugin) SignHash(_ context.Context, req *proto.SignHashRequest
 	return &proto.SignHashResponse{Result: result}, nil
 }
 
+func (p *HashicorpPlugin) SignHashWithPassphrase(_ context.Context, req *proto.SignHashWithPassphraseRequest) (*proto.SignHashResponse, error) {
+	if !p.isInitialized() {
+		return nil, status.Error(codes.Unavailable, "not configured")
+	}
+	acct, err := protoconv.ProtoToAcct(req.Account)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
+	wallet := new(accounts.URL)
+	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	result, err := p.acctManager.UnlockAndSignHash(*wallet, acct, req.Hash)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &proto.SignHashResponse{Result: result}, nil
+}
+
 func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*proto.SignTxResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
@@ -137,26 +157,6 @@ func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*
 	return &proto.SignTxResponse{RlpTx: result}, nil
 }
 
-func (p *HashicorpPlugin) SignHashWithPassphrase(_ context.Context, req *proto.SignHashWithPassphraseRequest) (*proto.SignHashResponse, error) {
-	if !p.isInitialized() {
-		return nil, status.Error(codes.Unavailable, "not configured")
-	}
-	acct, err := protoconv.ProtoToAcct(req.Account)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
-	wallet := new(accounts.URL)
-	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	result, err := p.acctManager.UnlockAndSignHash(*wallet, acct, req.Hash)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	return &proto.SignHashResponse{Result: result}, nil
-}
-
 func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPassphraseRequest) (*proto.SignTxResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
@@ -170,6 +170,10 @@ func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sig
 	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	tx := new(types.Transaction)
+	if err := rlp.DecodeBytes(req.RlpTx, tx); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	chainID := new(big.Int)
 	if len(req.ChainID) == 0 {
@@ -178,7 +182,7 @@ func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sig
 		chainID.SetBytes(req.ChainID)
 	}
 
-	result, err := p.acctManager.UnlockAndSignTx(*wallet, acct, req.RlpTx, chainID)
+	result, err := p.acctManager.UnlockAndSignTx(*wallet, acct, tx, chainID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
