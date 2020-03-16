@@ -77,6 +77,9 @@ func (c *ITContext) Cleanup() {
 	if c.Server != nil {
 		c.Server.Stop()
 	}
+	if c.Vault != nil {
+		c.Vault.Close()
+	}
 	if c.AccountConfigDirectory != "" {
 		os.RemoveAll(c.AccountConfigDirectory)
 	}

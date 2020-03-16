@@ -106,10 +106,6 @@ func (a *AccountManager) SignHash(_ accounts.URL, account accounts.Account, hash
 	return crypto.Sign(hash, key)
 }
 
-func (a *AccountManager) SignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
-	panic("implement me")
-}
-
 func (a *AccountManager) UnlockAndSignHash(wallet accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
 	a.mu.Lock()
 	_, unlocked := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
@@ -122,6 +118,10 @@ func (a *AccountManager) UnlockAndSignHash(wallet accounts.URL, account accounts
 	}
 
 	return a.SignHash(wallet, account, hash)
+}
+
+func (a *AccountManager) SignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
+	panic("implement me")
 }
 
 func (a *AccountManager) UnlockAndSignTx(wallet accounts.URL, account accounts.Account, rlpTx []byte, chainId *big.Int) ([]byte, error) {
