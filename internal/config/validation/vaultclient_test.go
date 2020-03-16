@@ -1,11 +1,12 @@
 package validation
 
 import (
+	"testing"
+
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/builders"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/env"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func minimumValidClientConfig() *builders.VaultClientBuilder {

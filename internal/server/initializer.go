@@ -3,13 +3,14 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"log"
+	"time"
+
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto_common"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/hashicorp"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"log"
-	"time"
 )
 
 func (p *HashicorpPlugin) Init(_ context.Context, req *proto_common.PluginInitialization_Request) (*proto_common.PluginInitialization_Response, error) {

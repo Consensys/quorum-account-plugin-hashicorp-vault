@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/big"
+	"time"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -13,8 +16,6 @@ import (
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/protoconv"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"math/big"
-	"time"
 )
 
 func (p *HashicorpPlugin) isInitialized() bool {

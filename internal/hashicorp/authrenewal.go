@@ -1,10 +1,11 @@
 package hashicorp
 
 import (
-	"github.com/hashicorp/vault/api"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"log"
 	"time"
+
+	"github.com/hashicorp/vault/api"
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 )
 
 type renewable struct {

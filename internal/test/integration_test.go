@@ -4,6 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"math/big"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -15,12 +22,6 @@ import (
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/env"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/util"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
-	"math/big"
-	"os"
-	"strings"
-	"testing"
-	"time"
 )
 
 func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext) {

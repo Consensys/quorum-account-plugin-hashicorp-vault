@@ -1,10 +1,11 @@
 package builders
 
 import (
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
-	"github.com/stretchr/testify/assert"
 	"net/url"
 	"testing"
+
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
+	"github.com/stretchr/testify/assert"
 )
 
 type VaultClientBuilder struct {

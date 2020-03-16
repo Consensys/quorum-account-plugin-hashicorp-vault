@@ -3,11 +3,12 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
+
 	"github.com/hashicorp/go-plugin"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto_common"
 	"google.golang.org/grpc"
-	"log"
 )
 
 func (p *HashicorpPlugin) GRPCServer(_ *plugin.GRPCBroker, s *grpc.Server) error {

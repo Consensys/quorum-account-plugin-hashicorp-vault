@@ -3,14 +3,15 @@ package hashicorp
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/hashicorp/vault/api"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/hashicorp/vault/api"
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 )
 
 const reauthRetryInterval = 5 * time.Second

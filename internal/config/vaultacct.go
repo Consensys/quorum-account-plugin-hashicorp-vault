@@ -3,8 +3,9 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts"
 	"net/url"
+
+	"github.com/ethereum/go-ethereum/accounts"
 )
 
 type AccountFile struct {

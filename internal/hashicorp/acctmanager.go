@@ -7,14 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/hashicorp/vault/api"
-	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -23,6 +15,15 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/hashicorp/vault/api"
+	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 )
 
 func NewAccountManager(config config.VaultClient) (*AccountManager, error) {

@@ -1,10 +1,11 @@
 package validation
 
 import (
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
-	"github.com/stretchr/testify/require"
 	"net/url"
 	"testing"
+
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
+	"github.com/stretchr/testify/require"
 )
 
 func toUrl(t *testing.T, raw string) *url.URL {

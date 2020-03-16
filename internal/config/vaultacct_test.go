@@ -2,10 +2,11 @@ package config
 
 import (
 	"encoding/json"
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/stretchr/testify/require"
 	"net/url"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewAccount_UnmarshalJSON(t *testing.T) {

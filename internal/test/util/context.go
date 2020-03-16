@@ -2,13 +2,14 @@ package util
 
 import (
 	"errors"
-	"github.com/hashicorp/go-plugin"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/builders"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/hashicorp/go-plugin"
+	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/builders"
+	"github.com/stretchr/testify/require"
 )
 
 type ITContext struct {
