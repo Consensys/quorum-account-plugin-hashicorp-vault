@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"os"
+	"strings"
 )
 
 type VaultClient struct {
@@ -96,6 +97,9 @@ func (c vaultClientJSON) vaultClient() (VaultClient, error) {
 		return VaultClient{}, err
 	}
 
+	if !strings.HasSuffix(c.AccountDirectory, "/") {
+		c.AccountDirectory = c.AccountDirectory + "/"
+	}
 	accountDirectory, err := url.Parse(c.AccountDirectory)
 	if err != nil {
 		return VaultClient{}, err

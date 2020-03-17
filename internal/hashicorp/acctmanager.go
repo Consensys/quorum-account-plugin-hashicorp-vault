@@ -310,7 +310,7 @@ func (a *AccountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, 
 	if err != nil {
 		return accounts.Account{}, fmt.Errorf("unable to write new account config file, err: %v", err)
 	}
-	log.Println("[INFO] New account data written to account config directory")
+	log.Printf("[INFO] New account data written to %v", fileData.Path)
 
 	// prepare return value
 	accountURL, err := fileData.Contents.AccountURL(a.client.Address())
