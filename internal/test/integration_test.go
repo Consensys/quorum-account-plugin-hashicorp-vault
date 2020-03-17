@@ -1651,3 +1651,42 @@ func TestPlugin_ImportRawKey_IncorrectCASValue(t *testing.T) {
 	require.Contains(t, err.Error(), "unable to write secret to Vault")
 	require.Contains(t, err.Error(), "invalid CAS value") // response from mock Vault server
 }
+
+func TestPlugin_GetEventStream_SendsWalletDetails(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	stream, err := ctx.AccountManager.GetEventStream(context.Background(), &proto.GetEventStreamRequest{})
+	require.NoError(t, err)
+
+	respChan := make(chan *proto.GetEventStreamResponse)
+	errChan := make(chan error)
+
+	// we start a separate goroutine to receive events from the stream.  stream.Recv() blocks until there are msgs to retrieve.
+	go func() {
+		for {
+			resp, err := stream.Recv()
+			if err != nil {
+				errChan <- err
+			} else {
+				respChan <- resp
+			}
+		}
+	}()
+
+	// one config file should have been added to the account config directory as part of the test setup
+	select {
+	case resp := <-respChan:
+		wantUrl := fmt.Sprintf("%v/v1/engine/data/myAcct?version=2", ctx.Vault.URL)
+		require.Equal(t, wantUrl, resp.WalletUrl)
+		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.WalletEvent)
+	case err := <-errChan:
+		require.NoError(t, err)
+	}
+}

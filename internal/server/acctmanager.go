@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 	"time"
 
@@ -196,41 +197,20 @@ func (p *HashicorpPlugin) GetEventStream(_ *proto.GetEventStreamRequest, stream 
 		return status.Error(codes.Unavailable, "not configured")
 	}
 
-	//wallets := p.acctManager.Wallets()
-	//
-	//// now that we have the initial set of wallets, subscribe to the acct manager backend to be notified when changes occur
-	//eventSubscription := p.acctManager.Subscribe(am.events)
-	//defer func() {
-	//	eventSubscription.Unsubscribe()
-	//	eventSubscription = nil
-	//}()
-	//
-	//// stream the currently held wallets to the caller
-	//for _, w := range wallets {
-	//	pluginEvent := &proto.GetEventStreamResponse{
-	//		WalletEvent: proto.GetEventStreamResponse_WALLET_ARRIVED,
-	//		WalletUrl:   w.URL().String(),
-	//	}
-	//
-	//	if err := stream.Send(pluginEvent); err != nil {
-	//		log.Println("[ERROR] error sending event: ", pluginEvent, "err: ", err)
-	//		return err
-	//	}
-	//	log.Println("[DEBUG] sent event: ", pluginEvent)
-	//}
-	//
-	//// listen for wallet events and stream to the caller until termination
-	//for {
-	//	e := <-am.events
-	//	pluginEvent := asProtoWalletEvent(e)
-	//	log.Println("[DEBUG] read event: ", pluginEvent)
-	//	if err := stream.Send(pluginEvent); err != nil {
-	//		log.Println("[ERROR] error sending event: ", pluginEvent, "err: ", err)
-	//		return err
-	//	}
-	//	log.Println("[DEBUG] sent event: ", pluginEvent)
-	//}
-	return status.Error(codes.Unimplemented, "implement me")
+	// stream the currently held wallets to the caller
+	for _, wltUrl := range p.acctManager.WalletURLs() {
+		pluginEvent := &proto.GetEventStreamResponse{
+			WalletEvent: proto.GetEventStreamResponse_WALLET_ARRIVED,
+			WalletUrl:   wltUrl.String(),
+		}
+		if err := stream.Send(pluginEvent); err != nil {
+			log.Println("[ERROR] error sending event: ", pluginEvent, "err: ", err)
+			return err
+		}
+		log.Println("[DEBUG] sent event: ", pluginEvent)
+	}
+
+	return nil
 }
 
 func (p *HashicorpPlugin) TimedUnlock(_ context.Context, req *proto.TimedUnlockRequest) (*proto.TimedUnlockResponse, error) {

@@ -287,6 +287,14 @@ func (a *AccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, con
 	return a.writeToVaultAndFile(privateKeyECDSA, conf)
 }
 
+func (a *AccountManager) WalletURLs() []accounts.URL {
+	urls := make([]accounts.URL, 0, len(a.client.wallets))
+	for u, _ := range a.client.wallets {
+		urls = append(urls, u)
+	}
+	return urls
+}
+
 func (a *AccountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
 	accountAddress := crypto.PubkeyToAddress(privateKeyECDSA.PublicKey)
 
