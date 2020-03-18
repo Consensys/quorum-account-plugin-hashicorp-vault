@@ -205,17 +205,17 @@ func TestPlugin_Contains_IsContained(t *testing.T) {
 		Url:     wltUrl,
 	}
 
-	resp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{WalletUrl: wltUrl, Account: toFind})
+	resp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: toFind})
 	require.NoError(t, err)
 	require.True(t, resp.IsContained)
 
-	// contains - url not required
+	// contains
 	toFind = &proto.Account{
 		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     "",
+		Url:     wltUrl,
 	}
 
-	resp, err = ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{WalletUrl: wltUrl, Account: toFind})
+	resp, err = ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: toFind})
 	require.NoError(t, err)
 	require.True(t, resp.IsContained)
 }
@@ -238,7 +238,7 @@ func TestPlugin_Contains_IsNotContained(t *testing.T) {
 		Url:     wltUrl,
 	}
 
-	resp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{WalletUrl: wltUrl, Account: toFind})
+	resp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: toFind})
 	require.NoError(t, err)
 	require.False(t, resp.IsContained)
 }
@@ -261,17 +261,8 @@ func TestPlugin_Contains_Errors(t *testing.T) {
 		Url:     wltUrl,
 	}
 
-	_, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{WalletUrl: wltUrl, Account: toFind})
+	_, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: toFind})
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
-
-	// contains - diff acct and wallet url
-	toFind = &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     "http://different/to/the/wallet/url",
-	}
-
-	_, err = ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{WalletUrl: wltUrl, Account: toFind})
-	require.EqualError(t, err, "rpc error: code = Internal desc = wallet http://nottherighturl/doesnt/exist cannot contain account with URL http://different/to/the/wallet/url")
 }
 
 func TestPlugin_SignHash(t *testing.T) {
@@ -301,9 +292,8 @@ func TestPlugin_SignHash(t *testing.T) {
 	toSign := crypto.Keccak256([]byte("to sign"))
 
 	resp, err := ctx.AccountManager.SignHash(context.Background(), &proto.SignHashRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		Hash:      toSign,
+		Account: acct,
+		Hash:    toSign,
 	})
 	require.NoError(t, err)
 
@@ -334,9 +324,8 @@ func TestPlugin_SignHash_Locked(t *testing.T) {
 	toSign := crypto.Keccak256([]byte("to sign"))
 
 	_, err := ctx.AccountManager.SignHash(context.Background(), &proto.SignHashRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		Hash:      toSign,
+		Account: acct,
+		Hash:    toSign,
 	})
 	require.EqualError(t, err, "rpc error: code = Internal desc = account locked")
 }
@@ -362,9 +351,8 @@ func TestPlugin_SignHash_UnknownAccount(t *testing.T) {
 	toSign := crypto.Keccak256([]byte("to sign"))
 
 	_, err := ctx.AccountManager.SignHash(context.Background(), &proto.SignHashRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		Hash:      toSign,
+		Account: acct,
+		Hash:    toSign,
 	})
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
 }
@@ -394,9 +382,8 @@ func TestPlugin_SignHashWithPassphrase_Locked(t *testing.T) {
 	toSign := crypto.Keccak256([]byte("to sign"))
 
 	resp, err := ctx.AccountManager.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		Hash:      toSign,
+		Account: acct,
+		Hash:    toSign,
 	})
 	require.NoError(t, err)
 
@@ -439,9 +426,8 @@ func TestPlugin_SignHashWithPassphrase_AlreadyUnlocked(t *testing.T) {
 	toSign := crypto.Keccak256([]byte("to sign"))
 
 	resp, err := ctx.AccountManager.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		Hash:      toSign,
+		Account: acct,
+		Hash:    toSign,
 	})
 	require.NoError(t, err)
 
@@ -475,9 +461,8 @@ func TestPlugin_SignHashWithPassphrase_UnknownAccount(t *testing.T) {
 	toSign := crypto.Keccak256([]byte("to sign"))
 
 	_, err := ctx.AccountManager.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		Hash:      toSign,
+		Account: acct,
+		Hash:    toSign,
 	})
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
 }
@@ -512,10 +497,9 @@ func TestPlugin_SignTx_Private(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		RlpTx:     rlpToSign,
-		ChainID:   big.NewInt(42).Bytes(),
+		Account: acct,
+		RlpTx:   rlpToSign,
+		ChainID: big.NewInt(42).Bytes(),
 	})
 	require.NoError(t, err)
 
@@ -569,10 +553,9 @@ func TestPlugin_SignTx_Homestead(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		RlpTx:     rlpToSign,
-		ChainID:   nil,
+		Account: acct,
+		RlpTx:   rlpToSign,
+		ChainID: nil,
 	})
 	require.NoError(t, err)
 
@@ -626,10 +609,9 @@ func TestPlugin_SignTx_EIP155(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		RlpTx:     rlpToSign,
-		ChainID:   big.NewInt(42).Bytes(),
+		Account: acct,
+		RlpTx:   rlpToSign,
+		ChainID: big.NewInt(42).Bytes(),
 	})
 	require.NoError(t, err)
 
@@ -677,10 +659,9 @@ func TestPlugin_SignTx_Locked(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		RlpTx:     rlpToSign,
-		ChainID:   big.NewInt(42).Bytes(),
+		Account: acct,
+		RlpTx:   rlpToSign,
+		ChainID: big.NewInt(42).Bytes(),
 	})
 	require.EqualError(t, err, "rpc error: code = Internal desc = account locked")
 }
@@ -708,10 +689,9 @@ func TestPlugin_SignTx_UnknownAccount(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		RlpTx:     rlpToSign,
-		ChainID:   big.NewInt(42).Bytes(),
+		Account: acct,
+		RlpTx:   rlpToSign,
+		ChainID: big.NewInt(42).Bytes(),
 	})
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
 }
@@ -744,10 +724,9 @@ func TestPlugin_SignTxWithPassphrase_Private_Locked(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		RlpTx:     rlpToSign,
-		ChainID:   big.NewInt(42).Bytes(),
+		Account: acct,
+		RlpTx:   rlpToSign,
+		ChainID: big.NewInt(42).Bytes(),
 	})
 	require.NoError(t, err)
 
@@ -809,10 +788,9 @@ func TestPlugin_SignTxWithPassphrase_Private_AlreadyUnlocked(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		RlpTx:     rlpToSign,
-		ChainID:   big.NewInt(42).Bytes(),
+		Account: acct,
+		RlpTx:   rlpToSign,
+		ChainID: big.NewInt(42).Bytes(),
 	})
 	require.NoError(t, err)
 
@@ -868,10 +846,9 @@ func TestPlugin_SignTxWithPassphrase_Homestead_Locked(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		RlpTx:     rlpToSign,
-		ChainID:   nil,
+		Account: acct,
+		RlpTx:   rlpToSign,
+		ChainID: nil,
 	})
 	require.NoError(t, err)
 
@@ -932,10 +909,9 @@ func TestPlugin_SignTxWithPassphrase_Homestead_AlreadyUnlocked(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		RlpTx:     rlpToSign,
-		ChainID:   nil,
+		Account: acct,
+		RlpTx:   rlpToSign,
+		ChainID: nil,
 	})
 	require.NoError(t, err)
 
@@ -991,10 +967,9 @@ func TestPlugin_SignTxWithPassphrase_EIP155_Locked(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		RlpTx:     rlpToSign,
-		ChainID:   big.NewInt(42).Bytes(),
+		Account: acct,
+		RlpTx:   rlpToSign,
+		ChainID: big.NewInt(42).Bytes(),
 	})
 	require.NoError(t, err)
 
@@ -1055,10 +1030,9 @@ func TestPlugin_SignTxWithPassphrase_EIP155_AlreadyUnlocked(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		RlpTx:     rlpToSign,
-		ChainID:   big.NewInt(42).Bytes(),
+		Account: acct,
+		RlpTx:   rlpToSign,
+		ChainID: big.NewInt(42).Bytes(),
 	})
 	require.NoError(t, err)
 
@@ -1110,10 +1084,9 @@ func TestPlugin_SignTxWithPassphrase_UnknownAccount(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		WalletUrl: wltUrl,
-		Account:   acct,
-		RlpTx:     rlpToSign,
-		ChainID:   big.NewInt(42).Bytes(),
+		Account: acct,
+		RlpTx:   rlpToSign,
+		ChainID: big.NewInt(42).Bytes(),
 	})
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
 }

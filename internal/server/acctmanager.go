@@ -71,16 +71,11 @@ func (p *HashicorpPlugin) Contains(_ context.Context, req *proto.ContainsRequest
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
-	wallet := new(accounts.URL)
-	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
 	acct, err := protoconv.ProtoToAcct(req.Account)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	isContained, err := p.acctManager.Contains(*wallet, acct)
+	isContained, err := p.acctManager.Contains(acct)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -95,12 +90,7 @@ func (p *HashicorpPlugin) SignHash(_ context.Context, req *proto.SignHashRequest
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
-	wallet := new(accounts.URL)
-	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	result, err := p.acctManager.SignHash(*wallet, acct, req.Hash)
+	result, err := p.acctManager.SignHash(acct, req.Hash)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -115,12 +105,7 @@ func (p *HashicorpPlugin) SignHashWithPassphrase(_ context.Context, req *proto.S
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
-	wallet := new(accounts.URL)
-	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	result, err := p.acctManager.UnlockAndSignHash(*wallet, acct, req.Hash)
+	result, err := p.acctManager.UnlockAndSignHash(acct, req.Hash)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -135,11 +120,6 @@ func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
-	wallet := new(accounts.URL)
-	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
 	tx := new(types.Transaction)
 	if err := rlp.DecodeBytes(req.RlpTx, tx); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -152,7 +132,7 @@ func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*
 		chainID.SetBytes(req.ChainID)
 	}
 
-	result, err := p.acctManager.SignTx(*wallet, acct, tx, chainID)
+	result, err := p.acctManager.SignTx(acct, tx, chainID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -167,11 +147,6 @@ func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sig
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
-	wallet := new(accounts.URL)
-	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
 	tx := new(types.Transaction)
 	if err := rlp.DecodeBytes(req.RlpTx, tx); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -184,7 +159,7 @@ func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sig
 		chainID.SetBytes(req.ChainID)
 	}
 
-	result, err := p.acctManager.UnlockAndSignTx(*wallet, acct, tx, chainID)
+	result, err := p.acctManager.UnlockAndSignTx(acct, tx, chainID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -256,7 +231,6 @@ func (p *HashicorpPlugin) NewAccount(_ context.Context, req *proto.NewAccountReq
 	}
 	return &proto.NewAccountResponse{
 		Account: protoconv.AcctToProto(acct),
-		KeyUri:  "", // TODO(cjh) get rid of this field from protobuf def if we're just showing vault secret url
 	}, nil
 }
 
@@ -281,6 +255,5 @@ func (p *HashicorpPlugin) ImportRawKey(_ context.Context, req *proto.ImportRawKe
 	}
 	return &proto.ImportRawKeyResponse{
 		Account: protoconv.AcctToProto(acct),
-		KeyUri:  "", // TODO(cjh) get rid of this field from protobuf def if we're just showing vault secret url
 	}, nil
 }

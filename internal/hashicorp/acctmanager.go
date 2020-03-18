@@ -84,23 +84,18 @@ func (a *AccountManager) Account(wallet accounts.URL) (accounts.Account, error) 
 	return accounts.Account{Address: byteAddr, URL: wallet}, nil
 }
 
-// TODO(cjh) review the wallet arg and whether all methods need them, e.g. if we are also passing in account
-
-func (a *AccountManager) Contains(wallet accounts.URL, account accounts.Account) (bool, error) {
-	if account.URL != (accounts.URL{}) && wallet != account.URL {
-		return false, fmt.Errorf("wallet %v cannot contain account with URL %v", wallet.String(), account.URL.String())
-	}
-	if !a.client.hasWallet(wallet) {
+func (a *AccountManager) Contains(account accounts.Account) (bool, error) {
+	if !a.client.hasWallet(account.URL) {
 		return false, errors.New("unknown wallet")
 	}
-	acctFile := a.client.wallets[wallet]
+	acctFile := a.client.wallets[account.URL]
 	if bytes.Compare(common.Hex2Bytes(acctFile.Contents.Address), account.Address.Bytes()) != 0 {
 		return false, nil
 	}
 	return true, nil
 }
 
-func (a *AccountManager) SignHash(_ accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
+func (a *AccountManager) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
 	if !a.client.hasWallet(account.URL) {
 		return nil, errors.New("unknown wallet")
 	}
@@ -117,7 +112,7 @@ func (a *AccountManager) SignHash(_ accounts.URL, account accounts.Account, hash
 	return crypto.Sign(hash, key)
 }
 
-func (a *AccountManager) UnlockAndSignHash(wallet accounts.URL, account accounts.Account, hash []byte) ([]byte, error) {
+func (a *AccountManager) UnlockAndSignHash(account accounts.Account, hash []byte) ([]byte, error) {
 	a.mu.Lock()
 	_, unlocked := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
 	a.mu.Unlock()
@@ -128,10 +123,10 @@ func (a *AccountManager) UnlockAndSignHash(wallet accounts.URL, account accounts
 		defer a.Lock(account)
 	}
 
-	return a.SignHash(wallet, account, hash)
+	return a.SignHash(account, hash)
 }
 
-func (a *AccountManager) SignTx(_ accounts.URL, account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
+func (a *AccountManager) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
 	if !a.client.hasWallet(account.URL) {
 		return nil, errors.New("unknown wallet")
 	}
@@ -152,7 +147,7 @@ func (a *AccountManager) SignTx(_ accounts.URL, account accounts.Account, tx *ty
 	return rlp.EncodeToBytes(signedTx)
 }
 
-func (a *AccountManager) UnlockAndSignTx(wallet accounts.URL, account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
+func (a *AccountManager) UnlockAndSignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
 	a.mu.Lock()
 	_, unlocked := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
 	a.mu.Unlock()
@@ -163,7 +158,7 @@ func (a *AccountManager) UnlockAndSignTx(wallet accounts.URL, account accounts.A
 		defer a.Lock(account)
 	}
 
-	return a.SignTx(wallet, account, tx, chainID)
+	return a.SignTx(account, tx, chainID)
 }
 
 func (a *AccountManager) signTx(tx *types.Transaction, key *ecdsa.PrivateKey, chainID *big.Int) (*types.Transaction, error) {
