@@ -22,7 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hashicorp/vault/api"
-	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 )
 
@@ -175,10 +174,6 @@ func (a *AccountManager) signTx(tx *types.Transaction, key *ecdsa.PrivateKey, ch
 		return types.SignTx(tx, types.HomesteadSigner{}, key)
 	}
 	return types.SignTx(tx, types.NewEIP155Signer(chainID), key)
-}
-
-func (a *AccountManager) GetEventStream(*proto.GetEventStreamRequest, proto.AccountManager_GetEventStreamServer) error {
-	panic("implement me")
 }
 
 func (a *AccountManager) TimedUnlock(account accounts.Account, duration time.Duration) error {
