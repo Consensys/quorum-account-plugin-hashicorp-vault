@@ -32,7 +32,16 @@ func NewAccountManager(config config.VaultClient) (*AccountManager, error) {
 		return nil, err
 	}
 
-	return &AccountManager{client: client, unlocked: make(map[string]*lockableKey)}, nil
+	a := &AccountManager{client: client, unlocked: make(map[string]*lockableKey)}
+
+	for _, toUnlock := range config.Unlock {
+		acct := accounts.Account{Address: common.HexToAddress(toUnlock)}
+		if err := a.TimedUnlock(acct, 0); err != nil {
+			log.Printf("[INFO] unable to unlock %v, err = %v", toUnlock, err)
+		}
+	}
+
+	return a, nil
 }
 
 type AccountManager struct {

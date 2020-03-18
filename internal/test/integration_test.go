@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext) {
+func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext, args ...map[string]string) {
 	err := ctx.StartPlugin(t)
 	require.NoError(t, err)
 
@@ -61,9 +61,8 @@ func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext) {
 		WithServerKey(builders.SERVER_KEY)
 	ctx.StartTLSVaultServer(t, vaultBuilder)
 
-	var vaultClientBuilder builders.VaultClientBuilder
-
-	conf := vaultClientBuilder.
+	vaultClientBuilder := &builders.VaultClientBuilder{}
+	vaultClientBuilder.
 		WithVaultUrl(ctx.Vault.URL).
 		WithAccountDirectory("file://" + ctx.AccountConfigDirectory).
 		WithRoleIdUrl("env://" + env.MY_ROLE_ID).
@@ -71,8 +70,14 @@ func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext) {
 		WithApprolePath("myapprole").
 		WithCaCertUrl("file://" + builders.CA_CERT).
 		WithClientCertUrl("file://" + builders.CLIENT_CERT).
-		WithClientKeyUrl("file://" + builders.CLIENT_KEY).
-		Build(t)
+		WithClientKeyUrl("file://" + builders.CLIENT_KEY)
+
+	if args != nil {
+		if unlock, ok := args[0]["unlock"]; ok {
+			vaultClientBuilder.WithUnlock(strings.Split(unlock, ","))
+		}
+	}
+	conf := vaultClientBuilder.Build(t)
 
 	rawConf, err := json.Marshal(&conf)
 	require.NoError(t, err)
@@ -1368,6 +1373,23 @@ func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
 	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
 	require.NoError(t, err)
 	require.Equal(t, "locked", resp.Status)
+}
+
+func TestPlugin_UnlockAtStartup(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx, map[string]string{"unlock": "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526,UnknownAcctShouldNotCauseError"})
+
+	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	require.NoError(t, err)
+	require.Equal(t, "unlocked", resp.Status)
 }
 
 func TestPlugin_Lock(t *testing.T) {
