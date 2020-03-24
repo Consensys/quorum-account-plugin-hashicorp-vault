@@ -41,15 +41,15 @@ func (p *HashicorpPlugin) Status(_ context.Context, req *proto.StatusRequest) (*
 
 // Open is a no-op for Vault-stored accounts
 func (p *HashicorpPlugin) Open(_ context.Context, _ *proto.OpenRequest) (*proto.OpenResponse, error) {
-	return nil, nil
+	return &proto.OpenResponse{}, nil
 }
 
 // Close is a no-op for Vault-stored accounts
 func (p *HashicorpPlugin) Close(_ context.Context, _ *proto.CloseRequest) (*proto.CloseResponse, error) {
-	return nil, nil
+	return &proto.CloseResponse{}, nil
 }
 
-func (p *HashicorpPlugin) Accounts(ctx context.Context, req *proto.AccountsRequest) (*proto.AccountsResponse, error) {
+func (p *HashicorpPlugin) Accounts(_ context.Context, req *proto.AccountsRequest) (*proto.AccountsResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
