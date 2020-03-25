@@ -172,11 +172,20 @@ func (p *HashicorpPlugin) GetEventStream(_ *proto.GetEventStreamRequest, stream 
 		return status.Error(codes.Unavailable, "not configured")
 	}
 
+	pluginEvent := &proto.GetEventStreamResponse{
+		Event: proto.GetEventStreamResponse_PLUGIN_STARTED,
+	}
+	if err := stream.Send(pluginEvent); err != nil {
+		log.Println("[ERROR] error sending event: ", pluginEvent, "err: ", err)
+		return err
+	}
+	log.Println("[DEBUG] sent event: ", pluginEvent)
+
 	// stream the currently held wallets to the caller
 	for _, wltUrl := range p.acctManager.WalletURLs() {
 		pluginEvent := &proto.GetEventStreamResponse{
-			WalletEvent: proto.GetEventStreamResponse_WALLET_ARRIVED,
-			WalletUrl:   wltUrl.String(),
+			Event:     proto.GetEventStreamResponse_WALLET_ARRIVED,
+			WalletUrl: wltUrl.String(),
 		}
 		if err := stream.Send(pluginEvent); err != nil {
 			log.Println("[ERROR] error sending event: ", pluginEvent, "err: ", err)

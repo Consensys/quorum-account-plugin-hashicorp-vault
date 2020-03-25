@@ -1678,9 +1678,16 @@ func TestPlugin_GetEventStream_SendsWalletDetails(t *testing.T) {
 	// one config file should have been added to the account config directory as part of the test setup
 	select {
 	case resp := <-respChan:
+		require.Equal(t, proto.GetEventStreamResponse_PLUGIN_STARTED, resp.Event)
+	case err := <-errChan:
+		require.NoError(t, err)
+	}
+
+	select {
+	case resp := <-respChan:
 		wantUrl := fmt.Sprintf("%v/v1/engine/data/myAcct?version=2", ctx.Vault.URL)
 		require.Equal(t, wantUrl, resp.WalletUrl)
-		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.WalletEvent)
+		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.Event)
 	case err := <-errChan:
 		require.NoError(t, err)
 	}
