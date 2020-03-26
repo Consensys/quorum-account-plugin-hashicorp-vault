@@ -50,7 +50,7 @@ type AccountManager struct {
 }
 
 type lockableKey struct {
-	key    string // TODO(cjh) change to mutable type that can be properly zeroed
+	key    *ecdsa.PrivateKey
 	cancel chan struct{}
 }
 
@@ -105,11 +105,7 @@ func (a *AccountManager) SignHash(account accounts.Account, hash []byte) ([]byte
 	if !ok {
 		return nil, errors.New("account locked")
 	}
-	key, err := crypto.HexToECDSA(lockable.key)
-	if err != nil {
-		return nil, err
-	}
-	return crypto.Sign(hash, key)
+	return crypto.Sign(hash, lockable.key)
 }
 
 func (a *AccountManager) UnlockAndSignHash(account accounts.Account, hash []byte) ([]byte, error) {
@@ -136,11 +132,7 @@ func (a *AccountManager) SignTx(account accounts.Account, tx *types.Transaction,
 	if !ok {
 		return nil, errors.New("account locked")
 	}
-	key, err := crypto.HexToECDSA(lockable.key)
-	if err != nil {
-		return nil, err
-	}
-	signedTx, err := a.signTx(tx, key, chainID)
+	signedTx, err := a.signTx(tx, lockable.key, chainID)
 	if err != nil {
 		return nil, err
 	}
@@ -224,8 +216,13 @@ func (a *AccountManager) TimedUnlock(account accounts.Account, duration time.Dur
 		return fmt.Errorf("response does not contain data for account address %v", acctFile.Contents.Address)
 	}
 
+	ecdsaKey, err := crypto.HexToECDSA(privKey.(string))
+	if err != nil {
+		return err
+	}
+
 	lockableKey := &lockableKey{
-		key: privKey.(string),
+		key: ecdsaKey,
 	}
 
 	if duration > 0 {
@@ -398,6 +395,9 @@ func (a *AccountManager) writeToFile(addrHex string, secretVersion int64, conf c
 	return fileData, nil
 }
 
-func zeroKey(key *lockableKey) {
-	key.key = ""
+func zeroKey(lockableKey *lockableKey) {
+	b := lockableKey.key.D.Bits()
+	for i := range b {
+		b[i] = 0
+	}
 }

@@ -166,7 +166,6 @@ func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sig
 	return &proto.SignTxResponse{RlpTx: result}, nil
 }
 
-// TODO(cjh) read about the GRPCBroker arg to the GRPCServer method as a potential alternative to this
 func (p *HashicorpPlugin) GetEventStream(_ *proto.GetEventStreamRequest, stream proto.AccountManager_GetEventStreamServer) error {
 	if !p.isInitialized() {
 		return status.Error(codes.Unavailable, "not configured")

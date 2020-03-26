@@ -14,7 +14,7 @@ type AccountFile struct {
 }
 
 type AccountFileJSON struct {
-	Address      string // TODO(cjh) use hex encoded bytes instead of string (to account for 0x[...] or just [...])
+	Address      string
 	VaultAccount vaultAccountJSON
 	Version      int
 }
