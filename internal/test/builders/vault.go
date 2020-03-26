@@ -59,13 +59,13 @@ func (b *VaultBuilder) WithHandler(t *testing.T, d HandlerData) *VaultBuilder {
 	}
 	path := fmt.Sprintf("/v1/%v/data/%v", d.SecretEnginePath, d.SecretPath)
 
-	//TODO(cjh) possible to check version?
-
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		// check plugin has correctly authenticated the request
 		header := map[string][]string(r.Header)
 		requestTokens := header[consts.AuthHeaderName]
 		require.Equal(t, AUTH_TOKEN, requestTokens[0])
+
+		require.Equal(t, r.URL.Query().Get("version"), "2")
 
 		vaultResponse := &api.Secret{
 			Data: map[string]interface{}{
