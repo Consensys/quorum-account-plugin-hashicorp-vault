@@ -61,9 +61,6 @@ func (c VaultClientTLS) validate() error {
 }
 
 func (c NewAccount) Validate() error {
-	if c.Vault == nil || c.Vault.Scheme == "" {
-		return errors.New(InvalidVaultUrl)
-	}
 	if c.SecretEnginePath == "" || c.SecretPath == "" {
 		return errors.New(InvalidSecretLocation)
 	}

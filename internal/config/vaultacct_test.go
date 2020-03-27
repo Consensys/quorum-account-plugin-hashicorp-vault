@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"net/url"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -11,7 +10,6 @@ import (
 
 func TestNewAccount_UnmarshalJSON(t *testing.T) {
 	b := []byte(`{
-		"vault": "http://vault:1111",
 		"secretEnginePath": "engine",
 		"secretPath": "secret",
 		"insecureSkipCAS": true,
@@ -19,10 +17,6 @@ func TestNewAccount_UnmarshalJSON(t *testing.T) {
 	}`)
 
 	want := NewAccount{
-		Vault: &url.URL{
-			Scheme: "http",
-			Host:   "vault:1111",
-		},
 		SecretEnginePath: "engine",
 		SecretPath:       "secret",
 		InsecureSkipCAS:  true,

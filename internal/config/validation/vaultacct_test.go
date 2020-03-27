@@ -16,7 +16,6 @@ func toUrl(t *testing.T, raw string) *url.URL {
 
 func minimumValidNewAccountConfig(t *testing.T) config.NewAccount {
 	return config.NewAccount{
-		Vault:            toUrl(t, "http://vault:1111"),
 		SecretEnginePath: "engine",
 		SecretPath:       "secret",
 		InsecureSkipCAS:  false,
@@ -27,24 +26,6 @@ func minimumValidNewAccountConfig(t *testing.T) config.NewAccount {
 func TestNewAccount_Validate_MinimumValidConfig(t *testing.T) {
 	err := minimumValidNewAccountConfig(t).Validate()
 	require.NoError(t, err)
-}
-
-func TestNewAccount_Validate_Vault_Invalid(t *testing.T) {
-	var (
-		conf    config.NewAccount
-		err     error
-		wantErr = config.InvalidVaultUrl
-	)
-
-	conf = minimumValidNewAccountConfig(t)
-	conf.Vault = nil
-	err = conf.Validate()
-	require.EqualError(t, err, wantErr)
-
-	conf = minimumValidNewAccountConfig(t)
-	conf.Vault = toUrl(t, "noscheme")
-	err = conf.Validate()
-	require.EqualError(t, err, wantErr)
 }
 
 func TestNewAccount_Validate_SecretLocation_Invalid(t *testing.T) {

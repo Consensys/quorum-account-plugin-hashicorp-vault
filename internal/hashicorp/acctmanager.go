@@ -265,9 +265,6 @@ func (a *AccountManager) Lock(account accounts.Account) {
 }
 
 func (a *AccountManager) NewAccount(conf config.NewAccount) (accounts.Account, error) {
-	if conf.Vault.String() != a.client.Address() {
-		return accounts.Account{}, errors.New("incorrect vault url provided")
-	}
 	privateKeyECDSA, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	if err != nil {
 		return accounts.Account{}, err
@@ -277,9 +274,6 @@ func (a *AccountManager) NewAccount(conf config.NewAccount) (accounts.Account, e
 }
 
 func (a *AccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
-	if conf.Vault.String() != a.client.Address() {
-		return accounts.Account{}, errors.New("incorrect vault url provided")
-	}
 	return a.writeToVaultAndFile(privateKeyECDSA, conf)
 }
 
