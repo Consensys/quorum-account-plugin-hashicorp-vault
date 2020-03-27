@@ -11,7 +11,6 @@ import (
 const defaultProtocolVersion = 1
 
 var (
-	// TODO from godoc: "the plugin host creates a HandshakeConfig that is exported and plugins then can easily consume it.  Export in quorum/plugin-definitions"
 	defaultHandshakeConfig = plugin.HandshakeConfig{
 		ProtocolVersion:  defaultProtocolVersion,
 		MagicCookieKey:   "QUORUM_PLUGIN_MAGIC_COOKIE",
