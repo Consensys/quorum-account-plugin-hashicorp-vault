@@ -25,13 +25,13 @@ import (
 	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
 )
 
-func NewAccountManager(config config.VaultClient) (*AccountManager, error) {
+func NewAccountManager(config config.VaultClient) (AccountManager, error) {
 	client, err := newVaultClient(config)
 	if err != nil {
 		return nil, err
 	}
 
-	a := &AccountManager{client: client, unlocked: make(map[string]*lockableKey)}
+	a := &accountManager{client: client, unlocked: make(map[string]*lockableKey)}
 
 	for _, toUnlock := range config.Unlock {
 		acct := accounts.Account{Address: common.HexToAddress(toUnlock)}
@@ -43,7 +43,22 @@ func NewAccountManager(config config.VaultClient) (*AccountManager, error) {
 	return a, nil
 }
 
-type AccountManager struct {
+type AccountManager interface {
+	Status(wallet accounts.URL) (string, error)
+	Account(wallet accounts.URL) (accounts.Account, error)
+	Contains(account accounts.Account) (bool, error)
+	SignHash(account accounts.Account, hash []byte) ([]byte, error)
+	UnlockAndSignHash(account accounts.Account, hash []byte) ([]byte, error)
+	SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error)
+	UnlockAndSignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error)
+	TimedUnlock(account accounts.Account, duration time.Duration) error
+	Lock(account accounts.Account)
+	NewAccount(conf config.NewAccount) (accounts.Account, error)
+	ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error)
+	WalletURLs() []accounts.URL
+}
+
+type accountManager struct {
 	client   *vaultClient
 	unlocked map[string]*lockableKey
 	mu       sync.Mutex
@@ -61,7 +76,7 @@ type Account struct {
 
 type Transaction struct{}
 
-func (a *AccountManager) Status(wallet accounts.URL) (string, error) {
+func (a *accountManager) Status(wallet accounts.URL) (string, error) {
 	if !a.client.hasWallet(wallet) {
 		return "", errors.New("unknown wallet")
 	}
@@ -74,7 +89,7 @@ func (a *AccountManager) Status(wallet accounts.URL) (string, error) {
 
 }
 
-func (a *AccountManager) Account(wallet accounts.URL) (accounts.Account, error) {
+func (a *accountManager) Account(wallet accounts.URL) (accounts.Account, error) {
 	if !a.client.hasWallet(wallet) {
 		return accounts.Account{}, errors.New("unknown wallet")
 	}
@@ -84,7 +99,7 @@ func (a *AccountManager) Account(wallet accounts.URL) (accounts.Account, error) 
 	return accounts.Account{Address: byteAddr, URL: wallet}, nil
 }
 
-func (a *AccountManager) Contains(account accounts.Account) (bool, error) {
+func (a *accountManager) Contains(account accounts.Account) (bool, error) {
 	if !a.client.hasWallet(account.URL) {
 		return false, errors.New("unknown wallet")
 	}
@@ -95,7 +110,7 @@ func (a *AccountManager) Contains(account accounts.Account) (bool, error) {
 	return true, nil
 }
 
-func (a *AccountManager) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
+func (a *accountManager) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
 	if !a.client.hasWallet(account.URL) {
 		return nil, errors.New("unknown wallet")
 	}
@@ -108,7 +123,7 @@ func (a *AccountManager) SignHash(account accounts.Account, hash []byte) ([]byte
 	return crypto.Sign(hash, lockable.key)
 }
 
-func (a *AccountManager) UnlockAndSignHash(account accounts.Account, hash []byte) ([]byte, error) {
+func (a *accountManager) UnlockAndSignHash(account accounts.Account, hash []byte) ([]byte, error) {
 	a.mu.Lock()
 	_, unlocked := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
 	a.mu.Unlock()
@@ -122,7 +137,7 @@ func (a *AccountManager) UnlockAndSignHash(account accounts.Account, hash []byte
 	return a.SignHash(account, hash)
 }
 
-func (a *AccountManager) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
+func (a *accountManager) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
 	if !a.client.hasWallet(account.URL) {
 		return nil, errors.New("unknown wallet")
 	}
@@ -139,7 +154,7 @@ func (a *AccountManager) SignTx(account accounts.Account, tx *types.Transaction,
 	return rlp.EncodeToBytes(signedTx)
 }
 
-func (a *AccountManager) UnlockAndSignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
+func (a *accountManager) UnlockAndSignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
 	a.mu.Lock()
 	_, unlocked := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
 	a.mu.Unlock()
@@ -153,7 +168,7 @@ func (a *AccountManager) UnlockAndSignTx(account accounts.Account, tx *types.Tra
 	return a.SignTx(account, tx, chainID)
 }
 
-func (a *AccountManager) signTx(tx *types.Transaction, key *ecdsa.PrivateKey, chainID *big.Int) (*types.Transaction, error) {
+func (a *accountManager) signTx(tx *types.Transaction, key *ecdsa.PrivateKey, chainID *big.Int) (*types.Transaction, error) {
 	if tx.IsPrivate() {
 		return types.SignTx(tx, types.QuorumPrivateTxSigner{}, key)
 	}
@@ -163,7 +178,7 @@ func (a *AccountManager) signTx(tx *types.Transaction, key *ecdsa.PrivateKey, ch
 	return types.SignTx(tx, types.NewEIP155Signer(chainID), key)
 }
 
-func (a *AccountManager) TimedUnlock(account accounts.Account, duration time.Duration) error {
+func (a *accountManager) TimedUnlock(account accounts.Account, duration time.Duration) error {
 	var acctFile config.AccountFile
 
 	if account.URL != (accounts.URL{}) {
@@ -236,7 +251,7 @@ func (a *AccountManager) TimedUnlock(account accounts.Account, duration time.Dur
 	return nil
 }
 
-func (a *AccountManager) lockAfter(addr string, key *lockableKey, duration time.Duration) {
+func (a *accountManager) lockAfter(addr string, key *lockableKey, duration time.Duration) {
 	t := time.NewTimer(duration)
 	defer t.Stop()
 
@@ -253,7 +268,7 @@ func (a *AccountManager) lockAfter(addr string, key *lockableKey, duration time.
 	}
 }
 
-func (a *AccountManager) Lock(account accounts.Account) {
+func (a *accountManager) Lock(account accounts.Account) {
 	addrHex := common.Bytes2Hex(account.Address.Bytes())
 	a.mu.Lock()
 	lockable, ok := a.unlocked[addrHex]
@@ -264,7 +279,7 @@ func (a *AccountManager) Lock(account accounts.Account) {
 	}
 }
 
-func (a *AccountManager) NewAccount(conf config.NewAccount) (accounts.Account, error) {
+func (a *accountManager) NewAccount(conf config.NewAccount) (accounts.Account, error) {
 	privateKeyECDSA, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	if err != nil {
 		return accounts.Account{}, err
@@ -273,11 +288,11 @@ func (a *AccountManager) NewAccount(conf config.NewAccount) (accounts.Account, e
 	return a.writeToVaultAndFile(privateKeyECDSA, conf)
 }
 
-func (a *AccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
+func (a *accountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
 	return a.writeToVaultAndFile(privateKeyECDSA, conf)
 }
 
-func (a *AccountManager) WalletURLs() []accounts.URL {
+func (a *accountManager) WalletURLs() []accounts.URL {
 	urls := make([]accounts.URL, 0, len(a.client.wallets))
 	for u, _ := range a.client.wallets {
 		urls = append(urls, u)
@@ -285,7 +300,7 @@ func (a *AccountManager) WalletURLs() []accounts.URL {
 	return urls
 }
 
-func (a *AccountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
+func (a *accountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
 	accountAddress := crypto.PubkeyToAddress(privateKeyECDSA.PublicKey)
 
 	log.Println("[DEBUG] Writing new account data to Vault...")
@@ -322,7 +337,7 @@ func (a *AccountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, 
 	}, nil
 }
 
-func (a *AccountManager) writeToVault(addrHex string, keyHex string, conf config.NewAccount) (*api.Secret, error) {
+func (a *accountManager) writeToVault(addrHex string, keyHex string, conf config.NewAccount) (*api.Secret, error) {
 	data := make(map[string]interface{})
 	data["data"] = map[string]interface{}{
 		addrHex: keyHex,
@@ -338,7 +353,7 @@ func (a *AccountManager) writeToVault(addrHex string, keyHex string, conf config
 	return a.client.Logical().Write(vaultLocation, data)
 }
 
-func (a *AccountManager) getVersionFromResponse(resp *api.Secret) (int64, error) {
+func (a *accountManager) getVersionFromResponse(resp *api.Secret) (int64, error) {
 	v, ok := resp.Data["version"]
 	if !ok {
 		return 0, errors.New("no version information returned from Vault")
@@ -355,7 +370,7 @@ func (a *AccountManager) getVersionFromResponse(resp *api.Secret) (int64, error)
 }
 
 // writeToFile writes to a temporary hidden file first then renames once complete so that the write appears atomic.  This will be useful if implementing a watcher on the directory
-func (a *AccountManager) writeToFile(addrHex string, secretVersion int64, conf config.NewAccount) (config.AccountFile, error) {
+func (a *accountManager) writeToFile(addrHex string, secretVersion int64, conf config.NewAccount) (config.AccountFile, error) {
 	now := time.Now().UTC()
 	nowISO8601 := now.Format("2006-01-02T15-04-05.000000000Z")
 	filename := fmt.Sprintf("UTC--%v--%v", nowISO8601, addrHex)

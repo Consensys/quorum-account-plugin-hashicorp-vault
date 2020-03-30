@@ -181,19 +181,25 @@ func (p *HashicorpPlugin) GetEventStream(_ *proto.GetEventStreamRequest, stream 
 	log.Println("[DEBUG] sent event: ", pluginEvent)
 
 	// stream the currently held wallets to the caller
+	go p.eventLoop(stream)
 	for _, wltUrl := range p.acctManager.WalletURLs() {
-		pluginEvent := &proto.GetEventStreamResponse{
-			Event:     proto.GetEventStreamResponse_WALLET_ARRIVED,
-			WalletUrl: wltUrl.String(),
-		}
-		if err := stream.Send(pluginEvent); err != nil {
-			log.Println("[ERROR] error sending event: ", pluginEvent, "err: ", err)
-			return err
-		}
-		log.Println("[DEBUG] sent event: ", pluginEvent)
+		p.toStream <- wltUrl.String()
 	}
 
 	return nil
+}
+
+func (p *HashicorpPlugin) eventLoop(stream proto.AccountManager_GetEventStreamServer) {
+	for url := range p.toStream {
+		pluginEvent := &proto.GetEventStreamResponse{
+			Event:     proto.GetEventStreamResponse_WALLET_ARRIVED,
+			WalletUrl: url,
+		}
+		if err := stream.Send(pluginEvent); err != nil {
+			log.Println("[ERROR] error sending event: ", pluginEvent, "err: ", err)
+		}
+		log.Println("[DEBUG] sent event: ", pluginEvent)
+	}
 }
 
 func (p *HashicorpPlugin) TimedUnlock(_ context.Context, req *proto.TimedUnlockRequest) (*proto.TimedUnlockResponse, error) {
@@ -237,6 +243,7 @@ func (p *HashicorpPlugin) NewAccount(_ context.Context, req *proto.NewAccountReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+	go p.stream(acct)
 	return &proto.NewAccountResponse{
 		Account: protoconv.AcctToProto(acct),
 	}, nil
@@ -261,7 +268,12 @@ func (p *HashicorpPlugin) ImportRawKey(_ context.Context, req *proto.ImportRawKe
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+	go p.stream(acct)
 	return &proto.ImportRawKeyResponse{
 		Account: protoconv.AcctToProto(acct),
 	}, nil
+}
+
+func (p *HashicorpPlugin) stream(acct accounts.Account) {
+	p.toStream <- acct.URL.String()
 }
