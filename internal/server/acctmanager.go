@@ -180,11 +180,13 @@ func (p *HashicorpPlugin) GetEventStream(_ *proto.GetEventStreamRequest, stream 
 	}
 	log.Println("[DEBUG] sent event: ", pluginEvent)
 
-	// stream the currently held wallets to the caller
-	go p.eventLoop(stream)
-	for _, wltUrl := range p.acctManager.WalletURLs() {
-		p.toStream <- wltUrl.String()
-	}
+	// stream the currently held wallets to the client
+	go func() {
+		for _, wltUrl := range p.acctManager.WalletURLs() {
+			p.toStream <- wltUrl.String()
+		}
+	}()
+	p.eventLoop(stream)
 
 	return nil
 }
@@ -197,8 +199,9 @@ func (p *HashicorpPlugin) eventLoop(stream proto.AccountManager_GetEventStreamSe
 		}
 		if err := stream.Send(pluginEvent); err != nil {
 			log.Println("[ERROR] error sending event: ", pluginEvent, "err: ", err)
+		} else {
+			log.Println("[DEBUG] sent event: ", pluginEvent)
 		}
-		log.Println("[DEBUG] sent event: ", pluginEvent)
 	}
 }
 
@@ -274,6 +277,7 @@ func (p *HashicorpPlugin) ImportRawKey(_ context.Context, req *proto.ImportRawKe
 	}, nil
 }
 
+// stream adds the acct to the queue of wallets to stream to the client as WalletArrived events.  Quorum uses these events to maintain a list of available wallets/accounts.
 func (p *HashicorpPlugin) stream(acct accounts.Account) {
 	p.toStream <- acct.URL.String()
 }

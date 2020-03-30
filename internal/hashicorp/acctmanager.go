@@ -331,6 +331,9 @@ func (a *accountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, 
 		return accounts.Account{}, err
 	}
 
+	// update the internal list of wallets
+	a.client.wallets[accountURL] = fileData
+
 	return accounts.Account{
 		Address: accountAddress,
 		URL:     accountURL,

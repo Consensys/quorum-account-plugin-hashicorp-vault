@@ -1555,6 +1555,40 @@ func TestPlugin_NewAccount_IncorrectCASValue(t *testing.T) {
 	require.Contains(t, err.Error(), "invalid CAS value") // response from mock Vault server
 }
 
+func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// new account
+	newAcctConfTemplate := `{
+	"vault": "%v",
+	"secretEnginePath": "engine",
+	"secretPath": "newAcct",
+	"casValue": %v
+}`
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
+
+	files, _ := ioutil.ReadDir(ctx.AccountConfigDirectory)
+	require.Len(t, files, 1)
+
+	newAccountResp, err := ctx.AccountManager.NewAccount(context.Background(), &proto.NewAccountRequest{NewAccountConfig: []byte(newAcctConf)})
+	require.NoError(t, err)
+
+	require.NotNil(t, newAccountResp)
+	require.NotNil(t, newAccountResp.Account)
+
+	// is contained
+	containsResp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: newAccountResp.Account})
+	require.NoError(t, err)
+	require.True(t, containsResp.IsContained)
+}
+
 func TestPlugin_ImportRawKey(t *testing.T) {
 	ctx := new(util.ITContext)
 	defer ctx.Cleanup()
@@ -1645,6 +1679,46 @@ func TestPlugin_ImportRawKey_IncorrectCASValue(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "unable to write secret to Vault")
 	require.Contains(t, err.Error(), "invalid CAS value") // response from mock Vault server
+}
+
+func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// new account
+	newAcctConfTemplate := `{
+	"vault": "%v",
+	"secretEnginePath": "engine",
+	"secretPath": "newAcct",
+	"casValue": %v
+}`
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
+
+	files, _ := ioutil.ReadDir(ctx.AccountConfigDirectory)
+	require.Len(t, files, 1)
+
+	importResp, err := ctx.AccountManager.ImportRawKey(context.Background(),
+		&proto.ImportRawKeyRequest{
+			RawKey:           "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec",
+			NewAccountConfig: []byte(newAcctConf),
+		},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, importResp)
+
+	require.NotNil(t, importResp)
+	require.NotNil(t, importResp.Account)
+
+	// is contained
+	containsResp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: importResp.Account})
+	require.NoError(t, err)
+	require.True(t, containsResp.IsContained)
 }
 
 func TestPlugin_GetEventStream_SendsWalletDetails(t *testing.T) {

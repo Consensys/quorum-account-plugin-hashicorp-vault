@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -104,6 +105,7 @@ func (c *vaultClient) loadWallets() (map[accounts.URL]config.AccountFile, error)
 			// do nothing with directories
 			return nil
 		}
+		log.Printf("[DEBUG] Loading %v", path)
 		b, err := ioutil.ReadFile(path)
 
 		conf := new(config.AccountFileJSON)
@@ -121,7 +123,9 @@ func (c *vaultClient) loadWallets() (map[accounts.URL]config.AccountFile, error)
 		return nil
 	})
 
-	if err := filepath.Walk(c.accountDirectory.Host+"/"+c.accountDirectory.Path, walkFn); err != nil {
+	root := c.accountDirectory.Host + "/" + c.accountDirectory.Path
+	log.Printf("[DEBUG] Loading wallets from %v", root)
+	if err := filepath.Walk(root, walkFn); err != nil {
 		return nil, err
 	}
 
