@@ -61,3 +61,61 @@ For production use it is recommended to configure TLS on Vault.  If enabled, the
 | `caCert` | PEM-encoded CA certificate file URL |
 | `clientCert` | PEM-encoded client certificate file URL |
 | `clientKey` | PEM-encoded client key file URL |
+
+## Account Creation Configuration
+```json
+{
+    "secretEnginePath": "kv",
+    "secretPath": "myacct",
+    "CasValue": 4
+}
+```
+
+| Field | Description |
+| --- | --- |
+| `secretEnginePath` | K/V v2 API path the plugin will store the new account in |
+| `secretPath` | Secret name API path the plugin will store the new account at |
+| `CasValue` / `insecureSkipCas` | See [Check-And-Set overwrite protection](#check-and-set-overwrite-protection) |
+
+### Check-And-Set overwrite protection
+
+The plugin makes use of the Vault API's Check-And-Set (CAS) feature to prevent accidental overwriting of data.
+
+If a secret already exists at the specified location, `CasValue` must be provided and must equal the current version number of the secret.  
+
+The CAS check can be skipped by setting `"insecureSkipCas": "true"`.  
+
+**TODO below TODO below TODO below TODO below TODO below TODO below TODO below**
+
+> Overwriting data may result in permanent data loss.  See **TODO** for more information on versioning
+
+### What gets stored in Vault when creating accounts?
+The string hex representations of the account address and private key are stored in the Vault as a key/value pair:
+
+```json
+{
+  ...
+  "data" : {
+      "bcc328f4679fcc781d983da1c8be3d3baa6e5ae5" : "dfe8b73d2771380d3f36bd78ce537715e812d7797c0b055fe944cd42cc750853"
+  },
+  ...
+}
+```
+
+## Account Configuration
+
+Account configuration files are stored in an `accountDirectory`.  These configuration files specify the location of the account secret in the Vault.  
+
+Typically these files do not have to be created or edited manually; the `geth account` CLI and API can be used to create new accounts when needed.
+
+```json
+{
+   "Address" : "1a31744b4a6ee9f3c3d1550beb56d53d2a4fa454",
+   "VaultAccount" : {
+      "SecretEnginePath" : "kv",
+      "SecretPath" : "myacct",
+      "SecretVersion" : 13
+   },
+   "Version" : 1
+}
+```
