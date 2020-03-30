@@ -1574,9 +1574,6 @@ func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 }`
 	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
 
-	files, _ := ioutil.ReadDir(ctx.AccountConfigDirectory)
-	require.Len(t, files, 1)
-
 	newAccountResp, err := ctx.AccountManager.NewAccount(context.Background(), &proto.NewAccountRequest{NewAccountConfig: []byte(newAcctConf)})
 	require.NoError(t, err)
 
@@ -1587,6 +1584,56 @@ func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 	containsResp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: newAccountResp.Account})
 	require.NoError(t, err)
 	require.True(t, containsResp.IsContained)
+}
+
+func TestPlugin_NewAccount_StreamsEventToClient(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	stream, err := ctx.AccountManager.GetEventStream(context.Background(), &proto.GetEventStreamRequest{})
+	require.NoError(t, err)
+
+	respChan := make(chan *proto.GetEventStreamResponse)
+
+	// we start a separate goroutine to receive events from the stream.  stream.Recv() blocks until there are msgs to retrieve.
+	go func() {
+		for {
+			resp, _ := stream.Recv()
+			respChan <- resp
+		}
+	}()
+
+	// 2 events are raised by the call to GetEventStream so drain these before creating the new account
+	<-respChan
+	<-respChan
+
+	// new account
+	newAcctConfTemplate := `{
+	"vault": "%v",
+	"secretEnginePath": "engine",
+	"secretPath": "newAcct",
+	"casValue": %v
+}`
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
+
+	newAccountResp, err := ctx.AccountManager.NewAccount(context.Background(), &proto.NewAccountRequest{NewAccountConfig: []byte(newAcctConf)})
+	require.NoError(t, err)
+	require.NotNil(t, newAccountResp)
+	require.NotNil(t, newAccountResp.Account)
+
+	select {
+	case resp := <-respChan:
+		require.Equal(t, newAccountResp.Account.Url, resp.WalletUrl)
+		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.Event)
+	case <-time.After(500 * time.Millisecond):
+		require.Fail(t, "wallet arrived event not streamed")
+	}
 }
 
 func TestPlugin_ImportRawKey(t *testing.T) {
@@ -1700,9 +1747,6 @@ func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 }`
 	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
 
-	files, _ := ioutil.ReadDir(ctx.AccountConfigDirectory)
-	require.Len(t, files, 1)
-
 	importResp, err := ctx.AccountManager.ImportRawKey(context.Background(),
 		&proto.ImportRawKeyRequest{
 			RawKey:           "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec",
@@ -1721,6 +1765,61 @@ func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 	require.True(t, containsResp.IsContained)
 }
 
+func TestPlugin_ImportRawKey_StreamsEventToClient(t *testing.T) {
+	ctx := new(util.ITContext)
+	defer ctx.Cleanup()
+
+	env.SetRoleID()
+	env.SetSecretID()
+	defer env.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	stream, err := ctx.AccountManager.GetEventStream(context.Background(), &proto.GetEventStreamRequest{})
+	require.NoError(t, err)
+
+	respChan := make(chan *proto.GetEventStreamResponse)
+
+	// we start a separate goroutine to receive events from the stream.  stream.Recv() blocks until there are msgs to retrieve.
+	go func() {
+		for {
+			resp, _ := stream.Recv()
+			respChan <- resp
+		}
+	}()
+
+	// 2 events are raised by the call to GetEventStream so drain these before creating the new account
+	<-respChan
+	<-respChan
+
+	// new account
+	newAcctConfTemplate := `{
+	"vault": "%v",
+	"secretEnginePath": "engine",
+	"secretPath": "newAcct",
+	"casValue": %v
+}`
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
+
+	newAccountResp, err := ctx.AccountManager.ImportRawKey(context.Background(),
+		&proto.ImportRawKeyRequest{
+			NewAccountConfig: []byte(newAcctConf),
+			RawKey:           "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec",
+		},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, newAccountResp)
+	require.NotNil(t, newAccountResp.Account)
+
+	select {
+	case resp := <-respChan:
+		require.Equal(t, newAccountResp.Account.Url, resp.WalletUrl)
+		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.Event)
+	case <-time.After(500 * time.Millisecond):
+		require.Fail(t, "new account event not received")
+	}
+}
+
 func TestPlugin_GetEventStream_SendsWalletDetails(t *testing.T) {
 	ctx := new(util.ITContext)
 	defer ctx.Cleanup()
@@ -1735,17 +1834,12 @@ func TestPlugin_GetEventStream_SendsWalletDetails(t *testing.T) {
 	require.NoError(t, err)
 
 	respChan := make(chan *proto.GetEventStreamResponse)
-	errChan := make(chan error)
 
 	// we start a separate goroutine to receive events from the stream.  stream.Recv() blocks until there are msgs to retrieve.
 	go func() {
 		for {
-			resp, err := stream.Recv()
-			if err != nil {
-				errChan <- err
-			} else {
-				respChan <- resp
-			}
+			resp, _ := stream.Recv()
+			respChan <- resp
 		}
 	}()
 
@@ -1753,8 +1847,8 @@ func TestPlugin_GetEventStream_SendsWalletDetails(t *testing.T) {
 	select {
 	case resp := <-respChan:
 		require.Equal(t, proto.GetEventStreamResponse_PLUGIN_STARTED, resp.Event)
-	case err := <-errChan:
-		require.NoError(t, err)
+	case <-time.After(500 * time.Millisecond):
+		require.Fail(t, "PLUGIN_STARTED event not streamed")
 	}
 
 	select {
@@ -1762,7 +1856,7 @@ func TestPlugin_GetEventStream_SendsWalletDetails(t *testing.T) {
 		wantUrl := fmt.Sprintf("%v/v1/engine/data/myAcct?version=2", ctx.Vault.URL)
 		require.Equal(t, wantUrl, resp.WalletUrl)
 		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.Event)
-	case err := <-errChan:
-		require.NoError(t, err)
+	case <-time.After(500 * time.Millisecond):
+		require.Fail(t, "WALLET_ARRIVED event not streamed")
 	}
 }
