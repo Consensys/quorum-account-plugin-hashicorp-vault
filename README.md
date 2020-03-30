@@ -1,6 +1,6 @@
 # Hashicorp Vault plugin for Quorum
 
-The Hashicorp Vault plugin for Quorum enables the storage of Quorum account private keys in a Hashicorp Vault as an alternative to storing as `keystore` files on the node.  It is an implementation of Quorum's [`account` plugin interface](https://docs.goquorum.com/en/latest/PluggableArchitecture/Plugins/account/interface/).
+The Hashicorp Vault plugin for Quorum enables the storage of Quorum account private keys in a [Hashicorp Vault KV v2 secret engine](https://www.vaultproject.io/docs/secrets/kv/kv-v2/), as an alternative to storing as `keystore` files on the node.  It is an implementation of Quorum's [`account` plugin interface](https://docs.goquorum.com/en/latest/PluggableArchitecture/Plugins/account/interface/).
 
 Managing Quorum accounts in a Hashicorp Vault offers several benefits over using the standard `geth` `keystore` files:
 
@@ -42,8 +42,8 @@ The recommended way to authenticate the plugin with Vault is with the approle au
 
 | Field | Description |
 | --- | --- |
-| `roleId` | Environment variable URL for Approle role ID |
-| `secretId` | Environment variable URL for Approle secret ID |
+| `roleId` | Environment variable URL for approle role ID |
+| `secretId` | Environment variable URL for approle secret ID |
 | `approlePath` | Approle API path the plugin will attempt to login with using the provided credentials |
 
 Alternatively, an authentication token (e.g. root token or token obtained by logging in separately using the HTTP API) can be provided directly.  This is not recommended for production use but can be helpful during testing.
@@ -51,6 +51,15 @@ Alternatively, an authentication token (e.g. root token or token obtained by log
 | Field | Description |
 | --- | --- |
 | `token` | Environment variable URL for Vault token |
+
+#### Token renewal
+
+The plugin will automatically renew approle tokens where possible.  If the token is no longer renewable (e.g. because the max TTL has been reached) then the plugin will attempt to reauthenticate and retrieve a new token.  If the token obtained from an approle login is not renewable, then the plugin will not attempt renewal.
+
+The plugin cannot renew tokens provided directly with the `token` environment variable.     
+
+!!! tip
+    For more information about Hashicorp Vault TTL, leases and renewal see the [Vault documentation](https://www.vaultproject.io/docs/concepts/lease.html). 
 
 ### tls
 
