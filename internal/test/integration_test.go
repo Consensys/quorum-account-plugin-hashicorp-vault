@@ -1485,12 +1485,11 @@ func TestPlugin_NewAccount(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"vault": "%v",
 	"secretEnginePath": "engine",
 	"secretPath": "newAcct",
 	"casValue": %v
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
 
 	files, _ := ioutil.ReadDir(ctx.AccountConfigDirectory)
 	require.Len(t, files, 1)
@@ -1542,12 +1541,11 @@ func TestPlugin_NewAccount_IncorrectCASValue(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"vault": "%v",
 	"secretEnginePath": "engine",
 	"secretPath": "newAcct",
 	"casValue": %v
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE+10)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE+10)
 
 	_, err := ctx.AccountManager.NewAccount(context.Background(), &proto.NewAccountRequest{NewAccountConfig: []byte(newAcctConf)})
 	require.Error(t, err)
@@ -1567,12 +1565,11 @@ func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"vault": "%v",
 	"secretEnginePath": "engine",
 	"secretPath": "newAcct",
 	"casValue": %v
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
 
 	newAccountResp, err := ctx.AccountManager.NewAccount(context.Background(), &proto.NewAccountRequest{NewAccountConfig: []byte(newAcctConf)})
 	require.NoError(t, err)
@@ -1615,12 +1612,11 @@ func TestPlugin_NewAccount_StreamsEventToClient(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"vault": "%v",
 	"secretEnginePath": "engine",
 	"secretPath": "newAcct",
 	"casValue": %v
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
 
 	newAccountResp, err := ctx.AccountManager.NewAccount(context.Background(), &proto.NewAccountRequest{NewAccountConfig: []byte(newAcctConf)})
 	require.NoError(t, err)
@@ -1648,12 +1644,11 @@ func TestPlugin_ImportRawKey(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"vault": "%v",
 	"secretEnginePath": "engine",
 	"secretPath": "newAcct",
 	"casValue": %v
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
 
 	files, _ := ioutil.ReadDir(ctx.AccountConfigDirectory)
 	require.Len(t, files, 1)
@@ -1710,12 +1705,11 @@ func TestPlugin_ImportRawKey_IncorrectCASValue(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"vault": "%v",
 	"secretEnginePath": "engine",
 	"secretPath": "newAcct",
 	"casValue": %v
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE+10)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE+10)
 
 	_, err := ctx.AccountManager.ImportRawKey(context.Background(),
 		&proto.ImportRawKeyRequest{
@@ -1740,12 +1734,11 @@ func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"vault": "%v",
 	"secretEnginePath": "engine",
 	"secretPath": "newAcct",
 	"casValue": %v
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
 
 	importResp, err := ctx.AccountManager.ImportRawKey(context.Background(),
 		&proto.ImportRawKeyRequest{
@@ -1794,12 +1787,11 @@ func TestPlugin_ImportRawKey_StreamsEventToClient(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"vault": "%v",
 	"secretEnginePath": "engine",
 	"secretPath": "newAcct",
 	"casValue": %v
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, ctx.Vault.URL, builders.CAS_VALUE)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
 
 	newAccountResp, err := ctx.AccountManager.ImportRawKey(context.Background(),
 		&proto.ImportRawKeyRequest{
