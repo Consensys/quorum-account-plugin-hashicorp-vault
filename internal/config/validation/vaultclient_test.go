@@ -3,9 +3,9 @@ package validation
 import (
 	"testing"
 
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/builders"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/env"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/builders"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/env"
 	"github.com/stretchr/testify/require"
 )
 

@@ -12,7 +12,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/hashicorp/vault/api"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
 
 const reauthRetryInterval = 5 * time.Second

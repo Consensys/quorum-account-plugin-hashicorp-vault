@@ -15,12 +15,12 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
-	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto_common"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/builders"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/env"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/util"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/builders"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/env"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/util"
+	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
+	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto_common"
 	"github.com/stretchr/testify/require"
 )
 

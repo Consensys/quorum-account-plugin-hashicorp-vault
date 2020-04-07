@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/server"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/server"
 )
 
 const defaultProtocolVersion = 1

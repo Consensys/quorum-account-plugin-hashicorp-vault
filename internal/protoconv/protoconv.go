@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
+	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"strings"
 )
 

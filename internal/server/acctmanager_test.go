@@ -10,8 +10,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/require"
 )
 

@@ -6,8 +6,8 @@ import (
 	"log"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto"
-	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto_common"
+	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
+	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto_common"
 	"google.golang.org/grpc"
 )
 

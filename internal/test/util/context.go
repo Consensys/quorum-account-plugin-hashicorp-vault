@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/test/builders"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/builders"
 	"github.com/stretchr/testify/require"
 )
 

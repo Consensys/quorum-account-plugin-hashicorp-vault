@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/jpmorganchase/quorum-account-manager-plugin-sdk-go/proto_common"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/config"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/hashicorp"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/hashicorp"
+	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto_common"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

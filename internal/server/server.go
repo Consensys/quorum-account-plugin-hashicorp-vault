@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/hashicorp/go-plugin"
-	"github.com/jpmorganchase/quorum-plugin-account-store-hashicorp/internal/hashicorp"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/hashicorp"
 )
 
 type HashicorpPlugin struct {
