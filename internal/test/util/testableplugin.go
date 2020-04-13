@@ -18,12 +18,12 @@ type testableHashicorpPlugin struct {
 
 type hashicorpPluginGRPCClient struct {
 	proto_common.PluginInitializerClient
-	proto.AccountManagerClient
+	proto.AccountServiceClient
 }
 
 func (testableHashicorpPlugin) GRPCClient(ctx context.Context, b *plugin.GRPCBroker, cc *grpc.ClientConn) (interface{}, error) {
 	return hashicorpPluginGRPCClient{
 		PluginInitializerClient: proto_common.NewPluginInitializerClient(cc),
-		AccountManagerClient:    proto.NewAccountManagerClient(cc),
+		AccountServiceClient:    proto.NewAccountServiceClient(cc),
 	}, nil
 }

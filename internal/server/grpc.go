@@ -15,7 +15,7 @@ func (p *HashicorpPlugin) GRPCServer(_ *plugin.GRPCBroker, s *grpc.Server) error
 	log.Println("[INFO] Register Initializer")
 	proto_common.RegisterPluginInitializerServer(s, p)
 	log.Println("[INFO] Register Hashicorp Vault AccountManager")
-	proto.RegisterAccountManagerServer(s, p)
+	proto.RegisterAccountServiceServer(s, p)
 	return nil
 }
 

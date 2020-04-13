@@ -166,7 +166,7 @@ func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sig
 	return &proto.SignTxResponse{RlpTx: result}, nil
 }
 
-func (p *HashicorpPlugin) GetEventStream(_ *proto.GetEventStreamRequest, stream proto.AccountManager_GetEventStreamServer) error {
+func (p *HashicorpPlugin) GetEventStream(_ *proto.GetEventStreamRequest, stream proto.AccountService_GetEventStreamServer) error {
 	if !p.isInitialized() {
 		return status.Error(codes.Unavailable, "not configured")
 	}
@@ -191,7 +191,7 @@ func (p *HashicorpPlugin) GetEventStream(_ *proto.GetEventStreamRequest, stream 
 	return nil
 }
 
-func (p *HashicorpPlugin) eventLoop(stream proto.AccountManager_GetEventStreamServer) {
+func (p *HashicorpPlugin) eventLoop(stream proto.AccountService_GetEventStreamServer) {
 	for url := range p.toStream {
 		pluginEvent := &proto.GetEventStreamResponse{
 			Event:     proto.GetEventStreamResponse_WALLET_ARRIVED,

@@ -6,7 +6,7 @@ go 1.13
 // of quorum with the account plugin changes
 replace github.com/ethereum/go-ethereum => github.com/jpmorganchase/quorum v2.5.0+incompatible
 
-replace github.com/jpmorganchase/quorum-account-plugin-sdk-go => /Users/chrishounsom/quorum-account-manager-plugin-sdk-go
+replace github.com/jpmorganchase/quorum-account-plugin-sdk-go => /Users/chrishounsom/go/src/github.com/jpmorganchase/quorum-account-plugin-sdk-go
 
 require (
 	github.com/aristanetworks/goarista v0.0.0-20200214154357-2151774b0d85 // indirect
