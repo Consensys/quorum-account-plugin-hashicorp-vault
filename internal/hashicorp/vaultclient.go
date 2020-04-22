@@ -124,6 +124,15 @@ func (c *vaultClient) loadWallets() (map[accounts.URL]config.AccountFile, error)
 	})
 
 	root := c.accountDirectory.Host + "/" + c.accountDirectory.Path
+
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		log.Printf("[DEBUG] Creating empty directory at %v", root)
+		if err := os.Mkdir(root, os.ModeDir); err != nil {
+			return nil, err
+		}
+		return result, nil
+	}
+
 	log.Printf("[DEBUG] Loading wallets from %v", root)
 	if err := filepath.Walk(root, walkFn); err != nil {
 		return nil, err

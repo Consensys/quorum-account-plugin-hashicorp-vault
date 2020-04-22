@@ -105,8 +105,6 @@ github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpO
 github.com/influxdata/influxdb1-client v0.0.0-20190809212627-fc22c7df067e/go.mod h1:qj24IKcXYK6Iy9ceXlo3Tc+vtHo9lIhSX5JddghvEPo=
 github.com/jcmturner/gofork v0.0.0-20190328161633-dc7c13fece03/go.mod h1:MK8+TM0La+2rjBD4jE12Kj1pCCxK7d2LK/UM3ncEo0o=
 github.com/jessevdk/go-flags v0.0.0-20141203071132-1679536dcc89/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
-github.com/jpmorganchase/quorum v2.4.0+incompatible h1:ZKLQxG8N3CGUuwCvJhjsIjKQGw4NJxSvs3RD4DawmOs=
-github.com/jpmorganchase/quorum v2.4.0+incompatible/go.mod h1:DR/b2dsUf3s/e+ucBn6RhC9w+ouhJQp8qwZehgULebY=
 github.com/jpmorganchase/quorum v2.5.0+incompatible h1:s3Rs3r5Sutd4Zd+iNdYMtQIMoUIyPGQmx5IQUkKIQxE=
 github.com/jpmorganchase/quorum v2.5.0+incompatible/go.mod h1:DR/b2dsUf3s/e+ucBn6RhC9w+ouhJQp8qwZehgULebY=
 github.com/jrick/logrotate v1.0.0/go.mod h1:LNinyqDIJnpAur+b8yyulnQw/wDuN1+BYKlTRt3OuAQ=
