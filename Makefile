@@ -6,7 +6,9 @@ OUTPUT_DIR := "$(shell pwd)/build"
 VERSION := "1.0.0"
 LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
 -X main.Executable=${EXECUTABLE} -X main.Version=${VERSION} -X main.OutputDir=${OUTPUT_DIR}"
-TARGET_DIR := target
+XC_ARCH := amd64
+XC_OS := linux darwin
+TARGET_DIRS := $(addsuffix -$(XC_ARCH), $(XC_OS))
 
 .PHONY: ${OUTPUT_DIR}
 
@@ -30,25 +32,35 @@ dist:
 	@cp ${OUTPUT_DIR}/$(shell go env GOOS)-$(shell go env GOARCH)/${EXECUTABLE}-${VERSION}.zip ${PLUGIN_DEST_PATH}/${EXECUTABLE}-${VERSION}.zip
 
 build: checkfmt
-	@mkdir -p ${OUTPUT_DIR}/${TARGET_DIR}
+	@mkdir -p ${OUTPUT_DIR}
 	@echo Output to ${OUTPUT_DIR}
-	@LD_FLAGS=${LD_FLAGS} go generate ./internal/metadata
-	@go build \
-	    -ldflags="-s -w" \
-	    -o "${OUTPUT_DIR}/${TARGET_DIR}/${EXECUTABLE}" \
-	    .
+	@CGO_ENABLED=0 go run -ldflags=${LD_FLAGS} ./internal/metadata/gen.go
+	@CGO_ENABLED=1 gox \
+		-parallel=2 \
+		-os="${XC_OS}" \
+		-arch="${XC_ARCH}" \
+		-ldflags="-s -w" \
+		-output "${OUTPUT_DIR}/{{.OS}}-{{.Arch}}/${EXECUTABLE}" \
+		.
 
-zip: build $(TARGET_DIR)
+zip: build $(TARGET_DIRS)
 
-$(TARGET_DIR):
+$(TARGET_DIRS):
 	@zip -j -FS -q ${OUTPUT_DIR}/$@/${EXECUTABLE}-${VERSION}.zip ${OUTPUT_DIR}/*.json ${OUTPUT_DIR}/$@/*
+	@shasum -a 256 ${OUTPUT_DIR}/$@/${EXECUTABLE}-${VERSION}.zip | awk '{print $$1}' > ${OUTPUT_DIR}/$@/${EXECUTABLE}-${VERSION}.zip.sha256sum
 
-tools: goimports
+
+tools: goimports gox
 	@go mod download
 
 goimports:
 ifeq (, $(shell which goimports))
 	@go get -u golang.org/x/tools/cmd/goimports
+endif
+
+gox:
+ifeq (, $(shell which gox))
+	@GO111MODULE=off go get -u github.com/mitchellh/gox
 endif
 
 clean:
