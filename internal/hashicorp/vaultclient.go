@@ -20,7 +20,7 @@ const reauthRetryInterval = 5 * time.Second
 type vaultClient struct {
 	*api.Client
 	accountDirectory *url.URL
-	wallets          map[accounts.URL]config.AccountFile
+	accts            map[accounts.URL]config.AccountFile
 }
 
 // newVaultClient creates an authenticated Vault client using the credentials provided as environment variables
@@ -50,11 +50,11 @@ func newVaultClient(conf config.VaultClient) (*vaultClient, error) {
 		return nil, err
 	}
 
-	result, err := vaultClient.loadWallets()
+	result, err := vaultClient.loadAccounts()
 	if err != nil {
 		return nil, fmt.Errorf("error loading account directory: %v", err)
 	}
-	vaultClient.wallets = result
+	vaultClient.accts = result
 
 	return vaultClient, nil
 }
@@ -94,7 +94,7 @@ func (c *vaultClient) authenticateWithApprole(conf config.VaultClientAuthenticat
 	return &renewable{Secret: resp}, nil
 }
 
-func (c *vaultClient) loadWallets() (map[accounts.URL]config.AccountFile, error) {
+func (c *vaultClient) loadAccounts() (map[accounts.URL]config.AccountFile, error) {
 	result := make(map[accounts.URL]config.AccountFile)
 
 	walkFn := filepath.WalkFunc(func(path string, info os.FileInfo, err error) error {
@@ -133,7 +133,7 @@ func (c *vaultClient) loadWallets() (map[accounts.URL]config.AccountFile, error)
 		return result, nil
 	}
 
-	log.Printf("[DEBUG] Loading wallets from %v", root)
+	log.Printf("[DEBUG] Loading accts from %v", root)
 	if err := filepath.Walk(root, walkFn); err != nil {
 		return nil, err
 	}
@@ -141,12 +141,12 @@ func (c *vaultClient) loadWallets() (map[accounts.URL]config.AccountFile, error)
 	return result, nil
 }
 
-func (c *vaultClient) hasWallet(wallet accounts.URL) bool {
-	_, hasWallet := c.wallets[wallet]
-	return hasWallet
+func (c *vaultClient) hasAccount(url accounts.URL) bool {
+	_, hasAccount := c.accts[url]
+	return hasAccount
 }
 
-func (c *vaultClient) getAccountAddress(wallet accounts.URL) string {
-	w, _ := c.wallets[wallet]
+func (c *vaultClient) getAccountAddress(url accounts.URL) string {
+	w, _ := c.accts[url]
 	return w.Contents.Address
 }

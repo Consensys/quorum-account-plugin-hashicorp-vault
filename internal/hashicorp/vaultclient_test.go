@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestVaultClient_LoadWallets_AccountDirectoryCreatedIfDoesntExist(t *testing.T) {
+func TestVaultClient_LoadAccounts_AccountDirectoryCreatedIfDoesntExist(t *testing.T) {
 	buf := make([]byte, 16)
 	_, err := rand.Read(buf)
 	require.NoError(t, err)
@@ -29,7 +29,7 @@ func TestVaultClient_LoadWallets_AccountDirectoryCreatedIfDoesntExist(t *testing
 		accountDirectory: acctDir,
 	}
 
-	result, err := c.loadWallets()
+	result, err := c.loadAccounts()
 	require.Len(t, result, 0)
 	require.NoError(t, err)
 

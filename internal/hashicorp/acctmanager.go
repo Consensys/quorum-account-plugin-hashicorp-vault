@@ -95,7 +95,7 @@ func (a *accountManager) Status() (string, error) {
 
 func (a *accountManager) Accounts() ([]accounts.Account, error) {
 	var (
-		w     = a.client.wallets
+		w     = a.client.accts
 		accts = make([]accounts.Account, 0, len(w))
 		acct  accounts.Account
 		i     = 0
@@ -112,10 +112,10 @@ func (a *accountManager) Accounts() ([]accounts.Account, error) {
 }
 
 func (a *accountManager) Contains(account accounts.Account) (bool, error) {
-	if !a.client.hasWallet(account.URL) {
-		return false, errors.New("unknown wallet")
+	if !a.client.hasAccount(account.URL) {
+		return false, errors.New("unknown account")
 	}
-	acctFile := a.client.wallets[account.URL]
+	acctFile := a.client.accts[account.URL]
 	if bytes.Compare(common.Hex2Bytes(acctFile.Contents.Address), account.Address.Bytes()) != 0 {
 		return false, nil
 	}
@@ -123,8 +123,8 @@ func (a *accountManager) Contains(account accounts.Account) (bool, error) {
 }
 
 func (a *accountManager) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
-	if !a.client.hasWallet(account.URL) {
-		return nil, errors.New("unknown wallet")
+	if !a.client.hasAccount(account.URL) {
+		return nil, errors.New("unknown account")
 	}
 	a.mu.Lock()
 	lockable, ok := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
@@ -150,8 +150,8 @@ func (a *accountManager) UnlockAndSignHash(account accounts.Account, hash []byte
 }
 
 func (a *accountManager) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
-	if !a.client.hasWallet(account.URL) {
-		return nil, errors.New("unknown wallet")
+	if !a.client.hasAccount(account.URL) {
+		return nil, errors.New("unknown account")
 	}
 	a.mu.Lock()
 	lockable, ok := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
@@ -194,15 +194,15 @@ func (a *accountManager) TimedUnlock(account accounts.Account, duration time.Dur
 	var acctFile config.AccountFile
 
 	if account.URL != (accounts.URL{}) {
-		if a.client.hasWallet(account.URL) {
-			file := a.client.wallets[account.URL]
+		if a.client.hasAccount(account.URL) {
+			file := a.client.accts[account.URL]
 			if file.Contents.Address != common.Bytes2Hex(account.Address.Bytes()) {
 				return fmt.Errorf("inconsistent account data provided: request contained URL %v and account address %v, but this URL refers to account config file containing account address %v", account.URL.String(), common.Bytes2Hex(account.Address.Bytes()), file.Contents.Address)
 			}
 			acctFile = file
 		}
 	} else {
-		for _, file := range a.client.wallets {
+		for _, file := range a.client.accts {
 			if file.Contents.Address == common.Bytes2Hex(account.Address.Bytes()) {
 				acctFile = file
 			}
@@ -210,7 +210,7 @@ func (a *accountManager) TimedUnlock(account accounts.Account, duration time.Dur
 	}
 
 	if acctFile == (config.AccountFile{}) {
-		return errors.New("unknown wallet")
+		return errors.New("unknown acocount")
 	}
 
 	conf := acctFile.Contents.VaultAccount
@@ -335,8 +335,8 @@ func (a *accountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, 
 		return accounts.Account{}, err
 	}
 
-	// update the internal list of wallets
-	a.client.wallets[accountURL] = fileData
+	// update the internal list of accts
+	a.client.accts[accountURL] = fileData
 
 	return accounts.Account{
 		Address: accountAddress,
