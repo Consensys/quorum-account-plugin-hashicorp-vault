@@ -94,14 +94,22 @@ func (a *accountManager) Status() (string, error) {
 	return status, nil
 }
 
-func (a *accountManager) Account(wallet accounts.URL) (accounts.Account, error) {
-	if !a.client.hasWallet(wallet) {
-		return accounts.Account{}, errors.New("unknown wallet")
+func (a *accountManager) Accounts() ([]accounts.Account, error) {
+	var (
+		w     = a.client.wallets
+		accts = make([]accounts.Account, 0, len(w))
+		acct  accounts.Account
+		i     = 0
+	)
+	for url, conf := range w {
+		acct = accounts.Account{
+			Address: common.HexToAddress(conf.Contents.Address),
+			URL:     url,
+		}
+		accts[i] = acct
+		i++
 	}
-	hexAddr := a.client.getAccountAddress(wallet)
-	byteAddr := common.HexToAddress(hexAddr)
-
-	return accounts.Account{Address: byteAddr, URL: wallet}, nil
+	return accts, nil
 }
 
 func (a *accountManager) Contains(account accounts.Account) (bool, error) {
