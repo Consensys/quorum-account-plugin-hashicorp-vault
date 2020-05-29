@@ -55,7 +55,6 @@ type AccountManager interface {
 	Lock(account accounts.Account)
 	NewAccount(conf config.NewAccount) (accounts.Account, error)
 	ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error)
-	WalletURLs() []accounts.URL
 }
 
 type accountManager struct {
@@ -303,14 +302,6 @@ func (a *accountManager) NewAccount(conf config.NewAccount) (accounts.Account, e
 
 func (a *accountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
 	return a.writeToVaultAndFile(privateKeyECDSA, conf)
-}
-
-func (a *accountManager) WalletURLs() []accounts.URL {
-	urls := make([]accounts.URL, 0, len(a.client.wallets))
-	for u, _ := range a.client.wallets {
-		urls = append(urls, u)
-	}
-	return urls
 }
 
 func (a *accountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {

@@ -81,11 +81,11 @@ type stubAccountManager struct {
 	newAccountUrl accounts.URL
 }
 
-func (m stubAccountManager) Status(wallet accounts.URL) (string, error) {
+func (m stubAccountManager) Status() (string, error) {
 	panic("implement me")
 }
 
-func (m stubAccountManager) Account(wallet accounts.URL) (accounts.Account, error) {
+func (m stubAccountManager) Accounts() ([]accounts.Account, error) {
 	panic("implement me")
 }
 
@@ -123,8 +123,4 @@ func (m stubAccountManager) NewAccount(conf config.NewAccount) (accounts.Account
 
 func (m stubAccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
 	return accounts.Account{URL: m.newAccountUrl}, nil
-}
-
-func (m stubAccountManager) WalletURLs() []accounts.URL {
-	panic("implement me")
 }
