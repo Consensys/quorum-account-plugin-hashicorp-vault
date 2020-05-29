@@ -51,8 +51,8 @@ func (p *HashicorpPlugin) Accounts(_ context.Context, _ *proto.AccountsRequest) 
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	protoAccts := make([]*proto.Account, 0, len(accts))
-	for i, a := range accts {
-		protoAccts[i] = protoconv.AcctToProto(a)
+	for _, a := range accts {
+		protoAccts = append(protoAccts, protoconv.AcctToProto(a))
 	}
 
 	return &proto.AccountsResponse{Accounts: protoAccts}, nil

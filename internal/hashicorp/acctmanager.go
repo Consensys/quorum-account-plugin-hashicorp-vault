@@ -81,11 +81,11 @@ func (a *accountManager) Status() (string, error) {
 
 	unlockedCount := len(a.unlocked)
 
-	status := fmt.Sprintf("%v unlocked accts", unlockedCount)
+	status := fmt.Sprintf("%v unlocked account(s)", unlockedCount)
 	if unlockedCount != 0 {
 		var unlockedAddrs []string
 		for addr, _ := range a.unlocked {
-			unlockedAddrs = append(unlockedAddrs, addr)
+			unlockedAddrs = append(unlockedAddrs, fmt.Sprintf("0x%v", addr))
 		}
 		status = fmt.Sprintf("%v: %v", status, unlockedAddrs)
 	}
@@ -98,15 +98,13 @@ func (a *accountManager) Accounts() ([]accounts.Account, error) {
 		w     = a.client.accts
 		accts = make([]accounts.Account, 0, len(w))
 		acct  accounts.Account
-		i     = 0
 	)
 	for url, conf := range w {
 		acct = accounts.Account{
 			Address: common.HexToAddress(conf.Contents.Address),
 			URL:     url,
 		}
-		accts[i] = acct
-		i++
+		accts = append(accts, acct)
 	}
 	return accts, nil
 }
@@ -210,7 +208,7 @@ func (a *accountManager) TimedUnlock(account accounts.Account, duration time.Dur
 	}
 
 	if acctFile == (config.AccountFile{}) {
-		return errors.New("unknown acocount")
+		return errors.New("unknown account")
 	}
 
 	conf := acctFile.Contents.VaultAccount

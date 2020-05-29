@@ -120,29 +120,10 @@ func TestPlugin_Status_AccountLockedByDefault(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// status
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
 
-	require.Equal(t, "locked", resp.Status)
-}
-
-func TestPlugin_Status_UnknownWallet(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// accounts
-	wltUrl := ctx.Vault.URL + "/v1/unknown/data/wallet"
-
-	_, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
-	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
+	require.Equal(t, "0 unlocked account(s)", resp.Status)
 }
 
 func TestPlugin_Accounts(t *testing.T) {
@@ -156,35 +137,16 @@ func TestPlugin_Accounts(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// accounts
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	resp, err := ctx.AccountManager.Accounts(context.Background(), &proto.AccountsRequest{WalletUrl: wltUrl})
+	resp, err := ctx.AccountManager.Accounts(context.Background(), &proto.AccountsRequest{})
 	require.NoError(t, err)
 
 	want := proto.Account{
 		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
+		Url:     fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2),
 	}
 
 	require.Len(t, resp.Accounts, 1)
 	require.Equal(t, want, *resp.Accounts[0])
-}
-
-func TestPlugin_Accounts_UnknownWallet(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// accounts
-	wltUrl := ctx.Vault.URL + "/v1/unknown/data/wallet"
-
-	_, err := ctx.AccountManager.Accounts(context.Background(), &proto.AccountsRequest{WalletUrl: wltUrl})
-	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
 }
 
 func TestPlugin_Contains_IsContained(t *testing.T) {
@@ -262,7 +224,7 @@ func TestPlugin_Contains_Errors(t *testing.T) {
 	}
 
 	_, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: toFind})
-	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
+	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
 }
 
 func TestPlugin_SignHash(t *testing.T) {
@@ -354,7 +316,7 @@ func TestPlugin_SignHash_UnknownAccount(t *testing.T) {
 		Account: acct,
 		Hash:    toSign,
 	})
-	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
+	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
 }
 
 func TestPlugin_SignHashWithPassphrase_Locked(t *testing.T) {
@@ -375,9 +337,9 @@ func TestPlugin_SignHashWithPassphrase_Locked(t *testing.T) {
 		Url:     wltUrl,
 	}
 
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", statusResp.Status)
+	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
 
 	toSign := crypto.Keccak256([]byte("to sign"))
 
@@ -391,9 +353,9 @@ func TestPlugin_SignHashWithPassphrase_Locked(t *testing.T) {
 	want, _ := crypto.Sign(toSign, prv)
 	require.Equal(t, want, resp.Result)
 
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", statusResp.Status)
+	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
 }
 
 func TestPlugin_SignHashWithPassphrase_AlreadyUnlocked(t *testing.T) {
@@ -419,9 +381,9 @@ func TestPlugin_SignHashWithPassphrase_AlreadyUnlocked(t *testing.T) {
 		Duration: 0,
 	})
 
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", statusResp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
 
 	toSign := crypto.Keccak256([]byte("to sign"))
 
@@ -435,9 +397,9 @@ func TestPlugin_SignHashWithPassphrase_AlreadyUnlocked(t *testing.T) {
 	want, _ := crypto.Sign(toSign, prv)
 	require.Equal(t, want, resp.Result)
 
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", statusResp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
 }
 
 func TestPlugin_SignHashWithPassphrase_UnknownAccount(t *testing.T) {
@@ -464,7 +426,7 @@ func TestPlugin_SignHashWithPassphrase_UnknownAccount(t *testing.T) {
 		Account: acct,
 		Hash:    toSign,
 	})
-	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
+	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
 }
 
 func TestPlugin_SignTx_Private(t *testing.T) {
@@ -693,7 +655,7 @@ func TestPlugin_SignTx_UnknownAccount(t *testing.T) {
 		RlpTx:   rlpToSign,
 		ChainID: big.NewInt(42).Bytes(),
 	})
-	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
+	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
 }
 
 func TestPlugin_SignTxWithPassphrase_Private_Locked(t *testing.T) {
@@ -714,9 +676,9 @@ func TestPlugin_SignTxWithPassphrase_Private_Locked(t *testing.T) {
 		Url:     wltUrl,
 	}
 
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", statusResp.Status)
+	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
 
 	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
 	toSign.SetPrivate()
@@ -750,9 +712,9 @@ func TestPlugin_SignTxWithPassphrase_Private_Locked(t *testing.T) {
 
 	require.Equal(t, want, got)
 
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", statusResp.Status)
+	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
 }
 
 func TestPlugin_SignTxWithPassphrase_Private_AlreadyUnlocked(t *testing.T) {
@@ -778,9 +740,9 @@ func TestPlugin_SignTxWithPassphrase_Private_AlreadyUnlocked(t *testing.T) {
 		Duration: 0,
 	})
 
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", statusResp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
 
 	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
 	toSign.SetPrivate()
@@ -814,9 +776,9 @@ func TestPlugin_SignTxWithPassphrase_Private_AlreadyUnlocked(t *testing.T) {
 
 	require.Equal(t, want, got)
 
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", statusResp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
 }
 
 func TestPlugin_SignTxWithPassphrase_Homestead_Locked(t *testing.T) {
@@ -837,9 +799,9 @@ func TestPlugin_SignTxWithPassphrase_Homestead_Locked(t *testing.T) {
 		Url:     wltUrl,
 	}
 
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", statusResp.Status)
+	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
 
 	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
 	rlpToSign, err := rlp.EncodeToBytes(toSign)
@@ -872,9 +834,9 @@ func TestPlugin_SignTxWithPassphrase_Homestead_Locked(t *testing.T) {
 
 	require.Equal(t, want, got)
 
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", statusResp.Status)
+	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
 }
 
 func TestPlugin_SignTxWithPassphrase_Homestead_AlreadyUnlocked(t *testing.T) {
@@ -900,9 +862,9 @@ func TestPlugin_SignTxWithPassphrase_Homestead_AlreadyUnlocked(t *testing.T) {
 		Duration: 0,
 	})
 
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", statusResp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
 
 	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
 	rlpToSign, err := rlp.EncodeToBytes(toSign)
@@ -935,9 +897,9 @@ func TestPlugin_SignTxWithPassphrase_Homestead_AlreadyUnlocked(t *testing.T) {
 
 	require.Equal(t, want, got)
 
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", statusResp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
 }
 
 func TestPlugin_SignTxWithPassphrase_EIP155_Locked(t *testing.T) {
@@ -958,9 +920,9 @@ func TestPlugin_SignTxWithPassphrase_EIP155_Locked(t *testing.T) {
 		Url:     wltUrl,
 	}
 
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", statusResp.Status)
+	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
 
 	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
 	rlpToSign, err := rlp.EncodeToBytes(toSign)
@@ -993,9 +955,9 @@ func TestPlugin_SignTxWithPassphrase_EIP155_Locked(t *testing.T) {
 
 	require.Equal(t, want, got)
 
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", statusResp.Status)
+	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
 }
 
 func TestPlugin_SignTxWithPassphrase_EIP155_AlreadyUnlocked(t *testing.T) {
@@ -1021,9 +983,9 @@ func TestPlugin_SignTxWithPassphrase_EIP155_AlreadyUnlocked(t *testing.T) {
 		Duration: 0,
 	})
 
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", statusResp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
 
 	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
 	rlpToSign, err := rlp.EncodeToBytes(toSign)
@@ -1056,9 +1018,9 @@ func TestPlugin_SignTxWithPassphrase_EIP155_AlreadyUnlocked(t *testing.T) {
 
 	require.Equal(t, want, got)
 
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", statusResp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
 }
 
 func TestPlugin_SignTxWithPassphrase_UnknownAccount(t *testing.T) {
@@ -1088,7 +1050,7 @@ func TestPlugin_SignTxWithPassphrase_UnknownAccount(t *testing.T) {
 		RlpTx:   rlpToSign,
 		ChainID: big.NewInt(42).Bytes(),
 	})
-	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
+	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
 }
 
 func TestPlugin_Unlock(t *testing.T) {
@@ -1102,11 +1064,9 @@ func TestPlugin_Unlock(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// timed unlock
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", resp.Status)
+	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
 		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
@@ -1114,15 +1074,15 @@ func TestPlugin_Unlock(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", resp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
 	time.Sleep(1 * time.Second)
 
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", resp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 }
 
 func TestPlugin_Unlock_OptionalWalletUrlInRequest(t *testing.T) {
@@ -1138,9 +1098,9 @@ func TestPlugin_Unlock_OptionalWalletUrlInRequest(t *testing.T) {
 	// timed unlock
 	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
 
-	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", resp.Status)
+	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
 		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"), Url: wltUrl},
@@ -1148,9 +1108,9 @@ func TestPlugin_Unlock_OptionalWalletUrlInRequest(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", resp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 }
 
 func TestPlugin_Unlock_InvalidOptionalWalletUrlInRequest(t *testing.T) {
@@ -1168,7 +1128,7 @@ func TestPlugin_Unlock_InvalidOptionalWalletUrlInRequest(t *testing.T) {
 		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"), Url: "http://this/is/the/wrong/url/for/this/address"},
 		Duration: 0,
 	})
-	require.EqualError(t, err, "rpc error: code = Internal desc = unknown wallet")
+	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
 }
 
 func TestPlugin_Unlock_InconsistentAddressAndWalletUrl(t *testing.T) {
@@ -1203,11 +1163,9 @@ func TestPlugin_TimedUnlock(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// timed unlock
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", resp.Status)
+	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
 		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
@@ -1215,15 +1173,15 @@ func TestPlugin_TimedUnlock(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", resp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
 	time.Sleep(1 * time.Second)
 
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", resp.Status)
+	require.Equal(t, "0 unlocked account(s)", resp.Status)
 }
 
 func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
@@ -1237,11 +1195,9 @@ func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// timed unlock
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", resp.Status)
+	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
 		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
@@ -1249,9 +1205,9 @@ func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", resp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
 		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
@@ -1261,9 +1217,9 @@ func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", resp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 }
 
 func TestPlugin_TimedUnlock_Extend(t *testing.T) {
@@ -1277,11 +1233,9 @@ func TestPlugin_TimedUnlock_Extend(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// timed unlock
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", resp.Status)
+	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
 		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
@@ -1297,15 +1251,15 @@ func TestPlugin_TimedUnlock_Extend(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", resp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
 	time.Sleep(1 * time.Second)
 
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", resp.Status)
+	require.Equal(t, "0 unlocked account(s)", resp.Status)
 }
 
 func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
@@ -1319,11 +1273,9 @@ func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// timed unlock
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", resp.Status)
+	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
 		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
@@ -1337,15 +1289,15 @@ func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", resp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
 	time.Sleep(1 * time.Second)
 
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", resp.Status)
+	require.Equal(t, "0 unlocked account(s)", resp.Status)
 }
 
 func TestPlugin_UnlockAtStartup(t *testing.T) {
@@ -1358,11 +1310,9 @@ func TestPlugin_UnlockAtStartup(t *testing.T) {
 
 	setupPluginAndVaultAndFiles(t, ctx, map[string]string{"unlock": "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526,UnknownAcctShouldNotCauseError"})
 
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", resp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 }
 
 func TestPlugin_Lock(t *testing.T) {
@@ -1376,26 +1326,24 @@ func TestPlugin_Lock(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// lock
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
 		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
 		Duration: 0,
 	})
 	require.NoError(t, err)
 
-	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", resp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
 	_, err = ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
 		Account: &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
 	})
 	require.NoError(t, err)
 
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", resp.Status)
+	require.Equal(t, "0 unlocked account(s)", resp.Status)
 }
 
 func TestPlugin_Lock_MultipleTimes(t *testing.T) {
@@ -1431,26 +1379,24 @@ func TestPlugin_Lock_CancelsTimedUnlock(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// lock
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
 		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
 		Duration: time.Second.Nanoseconds(),
 	})
 	require.NoError(t, err)
 
-	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "unlocked", resp.Status)
+	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
 	_, err = ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
 		Account: &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
 	})
 	require.NoError(t, err)
 
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{WalletUrl: wltUrl})
+	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
-	require.Equal(t, "locked", resp.Status)
+	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
 	// sleep for more than the original timed unlock duration to make sure no unexpected behaviour occurs
 	time.Sleep(2 * time.Second)
@@ -1583,55 +1529,6 @@ func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 	require.True(t, containsResp.IsContained)
 }
 
-func TestPlugin_NewAccount_StreamsEventToClient(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	stream, err := ctx.AccountManager.GetEventStream(context.Background(), &proto.GetEventStreamRequest{})
-	require.NoError(t, err)
-
-	respChan := make(chan *proto.GetEventStreamResponse)
-
-	// we start a separate goroutine to receive events from the stream.  stream.Recv() blocks until there are msgs to retrieve.
-	go func() {
-		for {
-			resp, _ := stream.Recv()
-			respChan <- resp
-		}
-	}()
-
-	// 2 events are raised by the call to GetEventStream so drain these before creating the new account
-	<-respChan
-	<-respChan
-
-	// new account
-	newAcctConfTemplate := `{
-	"secretEnginePath": "engine",
-	"secretPath": "newAcct",
-	"casValue": %v
-}`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
-
-	newAccountResp, err := ctx.AccountManager.NewAccount(context.Background(), &proto.NewAccountRequest{NewAccountConfig: []byte(newAcctConf)})
-	require.NoError(t, err)
-	require.NotNil(t, newAccountResp)
-	require.NotNil(t, newAccountResp.Account)
-
-	select {
-	case resp := <-respChan:
-		require.Equal(t, newAccountResp.Account.Url, resp.WalletUrl)
-		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.Event)
-	case <-time.After(500 * time.Millisecond):
-		require.Fail(t, "wallet arrived event not streamed")
-	}
-}
-
 func TestPlugin_ImportRawKey(t *testing.T) {
 	ctx := new(util.ITContext)
 	defer ctx.Cleanup()
@@ -1756,99 +1653,4 @@ func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 	containsResp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: importResp.Account})
 	require.NoError(t, err)
 	require.True(t, containsResp.IsContained)
-}
-
-func TestPlugin_ImportRawKey_StreamsEventToClient(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	stream, err := ctx.AccountManager.GetEventStream(context.Background(), &proto.GetEventStreamRequest{})
-	require.NoError(t, err)
-
-	respChan := make(chan *proto.GetEventStreamResponse)
-
-	// we start a separate goroutine to receive events from the stream.  stream.Recv() blocks until there are msgs to retrieve.
-	go func() {
-		for {
-			resp, _ := stream.Recv()
-			respChan <- resp
-		}
-	}()
-
-	// 2 events are raised by the call to GetEventStream so drain these before creating the new account
-	<-respChan
-	<-respChan
-
-	// new account
-	newAcctConfTemplate := `{
-	"secretEnginePath": "engine",
-	"secretPath": "newAcct",
-	"casValue": %v
-}`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
-
-	newAccountResp, err := ctx.AccountManager.ImportRawKey(context.Background(),
-		&proto.ImportRawKeyRequest{
-			NewAccountConfig: []byte(newAcctConf),
-			RawKey:           "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec",
-		},
-	)
-	require.NoError(t, err)
-	require.NotNil(t, newAccountResp)
-	require.NotNil(t, newAccountResp.Account)
-
-	select {
-	case resp := <-respChan:
-		require.Equal(t, newAccountResp.Account.Url, resp.WalletUrl)
-		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.Event)
-	case <-time.After(500 * time.Millisecond):
-		require.Fail(t, "new account event not received")
-	}
-}
-
-func TestPlugin_GetEventStream_SendsWalletDetails(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	stream, err := ctx.AccountManager.GetEventStream(context.Background(), &proto.GetEventStreamRequest{})
-	require.NoError(t, err)
-
-	respChan := make(chan *proto.GetEventStreamResponse)
-
-	// we start a separate goroutine to receive events from the stream.  stream.Recv() blocks until there are msgs to retrieve.
-	go func() {
-		for {
-			resp, _ := stream.Recv()
-			respChan <- resp
-		}
-	}()
-
-	// one config file should have been added to the account config directory as part of the test setup
-	select {
-	case resp := <-respChan:
-		require.Equal(t, proto.GetEventStreamResponse_PLUGIN_STARTED, resp.Event)
-	case <-time.After(500 * time.Millisecond):
-		require.Fail(t, "PLUGIN_STARTED event not streamed")
-	}
-
-	select {
-	case resp := <-respChan:
-		wantUrl := fmt.Sprintf("%v/v1/engine/data/myAcct?version=2", ctx.Vault.URL)
-		require.Equal(t, wantUrl, resp.WalletUrl)
-		require.Equal(t, proto.GetEventStreamResponse_WALLET_ARRIVED, resp.Event)
-	case <-time.After(500 * time.Millisecond):
-		require.Fail(t, "WALLET_ARRIVED event not streamed")
-	}
 }
