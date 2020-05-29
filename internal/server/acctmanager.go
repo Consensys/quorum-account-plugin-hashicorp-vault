@@ -3,8 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"log"
 	"math/big"
 	"time"
 
@@ -23,16 +21,11 @@ func (p *HashicorpPlugin) isInitialized() bool {
 	return p.acctManager != nil
 }
 
-func (p *HashicorpPlugin) Status(_ context.Context, req *proto.StatusRequest) (*proto.StatusResponse, error) {
+func (p *HashicorpPlugin) Status(_ context.Context, _ *proto.StatusRequest) (*proto.StatusResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
-	wallet := new(accounts.URL)
-	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	s, err := p.acctManager.Status(*wallet)
+	s, err := p.acctManager.Status()
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -49,22 +42,20 @@ func (p *HashicorpPlugin) Close(_ context.Context, _ *proto.CloseRequest) (*prot
 	return &proto.CloseResponse{}, nil
 }
 
-func (p *HashicorpPlugin) Accounts(_ context.Context, req *proto.AccountsRequest) (*proto.AccountsResponse, error) {
+func (p *HashicorpPlugin) Accounts(_ context.Context, _ *proto.AccountsRequest) (*proto.AccountsResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	jsonUrl := fmt.Sprintf("\"%v\"", req.WalletUrl)
-	wallet := new(accounts.URL)
-	if err := json.Unmarshal([]byte(jsonUrl), wallet); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	acct, err := p.acctManager.Account(*wallet)
+	accts, err := p.acctManager.Accounts()
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	protoAcct := protoconv.AcctToProto(acct)
+	protoAccts := make([]*proto.Account, 0, len(accts))
+	for i, a := range accts {
+		protoAccts[i] = protoconv.AcctToProto(a)
+	}
 
-	return &proto.AccountsResponse{Accounts: []*proto.Account{protoAcct}}, nil
+	return &proto.AccountsResponse{Accounts: protoAccts}, nil
 }
 
 func (p *HashicorpPlugin) Contains(_ context.Context, req *proto.ContainsRequest) (*proto.ContainsResponse, error) {
@@ -164,45 +155,6 @@ func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sig
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &proto.SignTxResponse{RlpTx: result}, nil
-}
-
-func (p *HashicorpPlugin) GetEventStream(_ *proto.GetEventStreamRequest, stream proto.AccountService_GetEventStreamServer) error {
-	if !p.isInitialized() {
-		return status.Error(codes.Unavailable, "not configured")
-	}
-
-	pluginEvent := &proto.GetEventStreamResponse{
-		Event: proto.GetEventStreamResponse_PLUGIN_STARTED,
-	}
-	if err := stream.Send(pluginEvent); err != nil {
-		log.Println("[ERROR] error sending event: ", pluginEvent, "err: ", err)
-		return err
-	}
-	log.Println("[DEBUG] sent event: ", pluginEvent)
-
-	// stream the currently held wallets to the client
-	go func() {
-		for _, wltUrl := range p.acctManager.WalletURLs() {
-			p.toStream <- wltUrl.String()
-		}
-	}()
-	p.eventLoop(stream)
-
-	return nil
-}
-
-func (p *HashicorpPlugin) eventLoop(stream proto.AccountService_GetEventStreamServer) {
-	for url := range p.toStream {
-		pluginEvent := &proto.GetEventStreamResponse{
-			Event:     proto.GetEventStreamResponse_WALLET_ARRIVED,
-			WalletUrl: url,
-		}
-		if err := stream.Send(pluginEvent); err != nil {
-			log.Println("[ERROR] error sending event: ", pluginEvent, "err: ", err)
-		} else {
-			log.Println("[DEBUG] sent event: ", pluginEvent)
-		}
-	}
 }
 
 func (p *HashicorpPlugin) TimedUnlock(_ context.Context, req *proto.TimedUnlockRequest) (*proto.TimedUnlockResponse, error) {

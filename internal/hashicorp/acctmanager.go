@@ -44,8 +44,8 @@ func NewAccountManager(config config.VaultClient) (AccountManager, error) {
 }
 
 type AccountManager interface {
-	Status(wallet accounts.URL) (string, error)
-	Account(wallet accounts.URL) (accounts.Account, error)
+	Status() (string, error)
+	Accounts() ([]accounts.Account, error)
 	Contains(account accounts.Account) (bool, error)
 	SignHash(account accounts.Account, hash []byte) ([]byte, error)
 	UnlockAndSignHash(account accounts.Account, hash []byte) ([]byte, error)
@@ -76,17 +76,22 @@ type Account struct {
 
 type Transaction struct{}
 
-func (a *accountManager) Status(wallet accounts.URL) (string, error) {
-	if !a.client.hasWallet(wallet) {
-		return "", errors.New("unknown wallet")
-	}
-	addr := a.client.getAccountAddress(wallet)
-	_, isUnlocked := a.unlocked[addr]
-	if isUnlocked {
-		return "unlocked", nil
-	}
-	return "locked", nil
+func (a *accountManager) Status() (string, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
+	unlockedCount := len(a.unlocked)
+
+	status := fmt.Sprintf("%v unlocked accts", unlockedCount)
+	if unlockedCount != 0 {
+		var unlockedAddrs []string
+		for addr, _ := range a.unlocked {
+			unlockedAddrs = append(unlockedAddrs, addr)
+		}
+		status = fmt.Sprintf("%v: %v", status, unlockedAddrs)
+	}
+
+	return status, nil
 }
 
 func (a *accountManager) Account(wallet accounts.URL) (accounts.Account, error) {
