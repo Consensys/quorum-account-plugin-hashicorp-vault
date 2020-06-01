@@ -21,7 +21,7 @@ type hashicorpPluginGRPCClient struct {
 	proto.AccountServiceClient
 }
 
-func (testableHashicorpPlugin) GRPCClient(ctx context.Context, b *plugin.GRPCBroker, cc *grpc.ClientConn) (interface{}, error) {
+func (testableHashicorpPlugin) GRPCClient(_ context.Context, _ *plugin.GRPCBroker, cc *grpc.ClientConn) (interface{}, error) {
 	return hashicorpPluginGRPCClient{
 		PluginInitializerClient: proto_common.NewPluginInitializerClient(cc),
 		AccountServiceClient:    proto.NewAccountServiceClient(cc),

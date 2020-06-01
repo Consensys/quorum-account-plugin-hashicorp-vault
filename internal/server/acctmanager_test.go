@@ -89,38 +89,38 @@ func (m stubAccountManager) Accounts() ([]accounts.Account, error) {
 	panic("implement me")
 }
 
-func (m stubAccountManager) Contains(account accounts.Account) (bool, error) {
+func (m stubAccountManager) Contains(_ accounts.Account) (bool, error) {
 	panic("implement me")
 }
 
-func (m stubAccountManager) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
+func (m stubAccountManager) SignHash(_ accounts.Account, _ []byte) ([]byte, error) {
 	panic("implement me")
 }
 
-func (m stubAccountManager) UnlockAndSignHash(account accounts.Account, hash []byte) ([]byte, error) {
+func (m stubAccountManager) UnlockAndSignHash(_ accounts.Account, _ []byte) ([]byte, error) {
 	panic("implement me")
 }
 
-func (m stubAccountManager) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
+func (m stubAccountManager) SignTx(_ accounts.Account, _ *types.Transaction, _ *big.Int) ([]byte, error) {
 	panic("implement me")
 }
 
-func (m stubAccountManager) UnlockAndSignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
+func (m stubAccountManager) UnlockAndSignTx(_ accounts.Account, _ *types.Transaction, _ *big.Int) ([]byte, error) {
 	panic("implement me")
 }
 
-func (m stubAccountManager) TimedUnlock(account accounts.Account, duration time.Duration) error {
+func (m stubAccountManager) TimedUnlock(_ accounts.Account, _ time.Duration) error {
 	panic("implement me")
 }
 
-func (m stubAccountManager) Lock(account accounts.Account) {
+func (m stubAccountManager) Lock(_ accounts.Account) {
 	panic("implement me")
 }
 
-func (m stubAccountManager) NewAccount(conf config.NewAccount) (accounts.Account, error) {
+func (m stubAccountManager) NewAccount(_ config.NewAccount) (accounts.Account, error) {
 	return accounts.Account{URL: m.newAccountUrl}, nil
 }
 
-func (m stubAccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
+func (m stubAccountManager) ImportPrivateKey(_ *ecdsa.PrivateKey, _ config.NewAccount) (accounts.Account, error) {
 	return accounts.Account{URL: m.newAccountUrl}, nil
 }
