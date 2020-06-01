@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -198,7 +197,6 @@ func (p *HashicorpPlugin) NewAccount(_ context.Context, req *proto.NewAccountReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
-	go p.stream(acct)
 	return &proto.NewAccountResponse{
 		Account: protoconv.AcctToProto(acct),
 	}, nil
@@ -223,13 +221,7 @@ func (p *HashicorpPlugin) ImportRawKey(_ context.Context, req *proto.ImportRawKe
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
-	go p.stream(acct)
 	return &proto.ImportRawKeyResponse{
 		Account: protoconv.AcctToProto(acct),
 	}, nil
-}
-
-// stream adds the acct to the queue of wallets to stream to the client as WalletArrived events.  Quorum uses these events to maintain a list of available wallets/accounts.
-func (p *HashicorpPlugin) stream(acct accounts.Account) {
-	p.toStream <- acct.URL.String()
 }

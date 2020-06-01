@@ -8,5 +8,4 @@ import (
 type HashicorpPlugin struct {
 	plugin.Plugin
 	acctManager hashicorp.AccountManager
-	toStream    chan string
 }

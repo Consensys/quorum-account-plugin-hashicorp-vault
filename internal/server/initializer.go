@@ -35,7 +35,6 @@ func (p *HashicorpPlugin) Init(_ context.Context, req *proto_common.PluginInitia
 	}
 
 	p.acctManager = am
-	p.toStream = make(chan string)
 
 	return &proto_common.PluginInitialization_Response{}, nil
 }
