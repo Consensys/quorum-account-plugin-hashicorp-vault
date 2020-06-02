@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -61,11 +62,7 @@ func (p *HashicorpPlugin) Contains(_ context.Context, req *proto.ContainsRequest
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	acct, err := protoconv.ProtoToAcct(req.Account)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	isContained, err := p.acctManager.Contains(acct)
+	isContained, err := p.acctManager.Contains(common.BytesToAddress(req.Address))
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -76,11 +73,7 @@ func (p *HashicorpPlugin) SignHash(_ context.Context, req *proto.SignHashRequest
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	acct, err := protoconv.ProtoToAcct(req.Account)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	result, err := p.acctManager.SignHash(acct, req.Hash)
+	result, err := p.acctManager.SignHash(common.BytesToAddress(req.Address), req.Hash)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -91,11 +84,7 @@ func (p *HashicorpPlugin) SignHashWithPassphrase(_ context.Context, req *proto.S
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	acct, err := protoconv.ProtoToAcct(req.Account)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	result, err := p.acctManager.UnlockAndSignHash(acct, req.Hash)
+	result, err := p.acctManager.UnlockAndSignHash(common.BytesToAddress(req.Address), req.Hash)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -106,10 +95,6 @@ func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	acct, err := protoconv.ProtoToAcct(req.Account)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
 	tx := new(types.Transaction)
 	if err := rlp.DecodeBytes(req.RlpTx, tx); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -122,7 +107,7 @@ func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*
 		chainID.SetBytes(req.ChainID)
 	}
 
-	result, err := p.acctManager.SignTx(acct, tx, chainID)
+	result, err := p.acctManager.SignTx(common.BytesToAddress(req.Address), tx, chainID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -133,10 +118,6 @@ func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sig
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	acct, err := protoconv.ProtoToAcct(req.Account)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
 	tx := new(types.Transaction)
 	if err := rlp.DecodeBytes(req.RlpTx, tx); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -149,7 +130,7 @@ func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.Sig
 		chainID.SetBytes(req.ChainID)
 	}
 
-	result, err := p.acctManager.UnlockAndSignTx(acct, tx, chainID)
+	result, err := p.acctManager.UnlockAndSignTx(common.BytesToAddress(req.Address), tx, chainID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -160,11 +141,7 @@ func (p *HashicorpPlugin) TimedUnlock(_ context.Context, req *proto.TimedUnlockR
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	acct, err := protoconv.ProtoToAcct(req.Account)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	if err := p.acctManager.TimedUnlock(acct, time.Duration(req.Duration)); err != nil {
+	if err := p.acctManager.TimedUnlock(common.BytesToAddress(req.Address), time.Duration(req.Duration)); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &proto.TimedUnlockResponse{}, nil
@@ -174,11 +151,7 @@ func (p *HashicorpPlugin) Lock(_ context.Context, req *proto.LockRequest) (*prot
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	acct, err := protoconv.ProtoToAcct(req.Account)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	p.acctManager.Lock(acct)
+	p.acctManager.Lock(common.BytesToAddress(req.Address))
 	return &proto.LockResponse{}, nil
 }
 

@@ -160,24 +160,9 @@ func TestPlugin_Contains_IsContained(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// contains
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+	toFind := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
-	toFind := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
-
-	resp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: toFind})
-	require.NoError(t, err)
-	require.True(t, resp.IsContained)
-
-	// contains
-	toFind = &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
-
-	resp, err = ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: toFind})
+	resp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Address: toFind})
 	require.NoError(t, err)
 	require.True(t, resp.IsContained)
 }
@@ -193,38 +178,11 @@ func TestPlugin_Contains_IsNotContained(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// contains
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
+	toFind := common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
 
-	toFind := &proto.Account{
-		Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
-		Url:     wltUrl,
-	}
-
-	resp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: toFind})
+	resp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Address: toFind})
 	require.NoError(t, err)
 	require.False(t, resp.IsContained)
-}
-
-func TestPlugin_Contains_Errors(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// contains - wallet not found
-	wltUrl := "http://nottherighturl/doesnt/exist"
-
-	toFind := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
-
-	_, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: toFind})
-	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
 }
 
 func TestPlugin_SignHash(t *testing.T) {
@@ -238,15 +196,10 @@ func TestPlugin_SignHash(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  acct,
+		Address:  acctAddr,
 		Duration: 0,
 	})
 	require.NoError(t, err)
@@ -254,7 +207,7 @@ func TestPlugin_SignHash(t *testing.T) {
 	toSign := crypto.Keccak256([]byte("to sign"))
 
 	resp, err := ctx.AccountManager.SignHash(context.Background(), &proto.SignHashRequest{
-		Account: acct,
+		Address: acctAddr,
 		Hash:    toSign,
 	})
 	require.NoError(t, err)
@@ -276,17 +229,12 @@ func TestPlugin_SignHash_Locked(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	toSign := crypto.Keccak256([]byte("to sign"))
 
 	_, err := ctx.AccountManager.SignHash(context.Background(), &proto.SignHashRequest{
-		Account: acct,
+		Address: acctAddr,
 		Hash:    toSign,
 	})
 	require.EqualError(t, err, "rpc error: code = Internal desc = account locked")
@@ -303,17 +251,12 @@ func TestPlugin_SignHash_UnknownAccount(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "unknownAccount", 1)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
 
 	toSign := crypto.Keccak256([]byte("to sign"))
 
 	_, err := ctx.AccountManager.SignHash(context.Background(), &proto.SignHashRequest{
-		Account: acct,
+		Address: acctAddr,
 		Hash:    toSign,
 	})
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
@@ -330,12 +273,7 @@ func TestPlugin_SignHashWithPassphrase_Locked(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
@@ -344,7 +282,7 @@ func TestPlugin_SignHashWithPassphrase_Locked(t *testing.T) {
 	toSign := crypto.Keccak256([]byte("to sign"))
 
 	resp, err := ctx.AccountManager.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
-		Account: acct,
+		Address: acctAddr,
 		Hash:    toSign,
 	})
 	require.NoError(t, err)
@@ -369,15 +307,10 @@ func TestPlugin_SignHashWithPassphrase_AlreadyUnlocked(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  acct,
+		Address:  acctAddr,
 		Duration: 0,
 	})
 
@@ -388,7 +321,7 @@ func TestPlugin_SignHashWithPassphrase_AlreadyUnlocked(t *testing.T) {
 	toSign := crypto.Keccak256([]byte("to sign"))
 
 	resp, err := ctx.AccountManager.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
-		Account: acct,
+		Address: acctAddr,
 		Hash:    toSign,
 	})
 	require.NoError(t, err)
@@ -413,17 +346,12 @@ func TestPlugin_SignHashWithPassphrase_UnknownAccount(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "unknownAccount", 1)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
 
 	toSign := crypto.Keccak256([]byte("to sign"))
 
 	_, err := ctx.AccountManager.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
-		Account: acct,
+		Address: acctAddr,
 		Hash:    toSign,
 	})
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
@@ -440,15 +368,10 @@ func TestPlugin_SignTx_Private(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  acct,
+		Address:  acctAddr,
 		Duration: 0,
 	})
 	require.NoError(t, err)
@@ -459,7 +382,7 @@ func TestPlugin_SignTx_Private(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		Account: acct,
+		Address: acctAddr,
 		RlpTx:   rlpToSign,
 		ChainID: big.NewInt(42).Bytes(),
 	})
@@ -497,15 +420,10 @@ func TestPlugin_SignTx_Homestead(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  acct,
+		Address:  acctAddr,
 		Duration: 0,
 	})
 	require.NoError(t, err)
@@ -515,7 +433,7 @@ func TestPlugin_SignTx_Homestead(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		Account: acct,
+		Address: acctAddr,
 		RlpTx:   rlpToSign,
 		ChainID: nil,
 	})
@@ -553,15 +471,10 @@ func TestPlugin_SignTx_EIP155(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  acct,
+		Address:  acctAddr,
 		Duration: 0,
 	})
 	require.NoError(t, err)
@@ -571,7 +484,7 @@ func TestPlugin_SignTx_EIP155(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		Account: acct,
+		Address: acctAddr,
 		RlpTx:   rlpToSign,
 		ChainID: big.NewInt(42).Bytes(),
 	})
@@ -609,19 +522,14 @@ func TestPlugin_SignTx_Locked(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
 	rlpToSign, err := rlp.EncodeToBytes(toSign)
 	require.NoError(t, err)
 
 	_, err = ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		Account: acct,
+		Address: acctAddr,
 		RlpTx:   rlpToSign,
 		ChainID: big.NewInt(42).Bytes(),
 	})
@@ -639,19 +547,14 @@ func TestPlugin_SignTx_UnknownAccount(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "unknownAccount", 1)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
 
 	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
 	rlpToSign, err := rlp.EncodeToBytes(toSign)
 	require.NoError(t, err)
 
 	_, err = ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		Account: acct,
+		Address: acctAddr,
 		RlpTx:   rlpToSign,
 		ChainID: big.NewInt(42).Bytes(),
 	})
@@ -669,12 +572,7 @@ func TestPlugin_SignTxWithPassphrase_Private_Locked(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
@@ -686,7 +584,7 @@ func TestPlugin_SignTxWithPassphrase_Private_Locked(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Account: acct,
+		Address: acctAddr,
 		RlpTx:   rlpToSign,
 		ChainID: big.NewInt(42).Bytes(),
 	})
@@ -728,15 +626,10 @@ func TestPlugin_SignTxWithPassphrase_Private_AlreadyUnlocked(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  acct,
+		Address:  acctAddr,
 		Duration: 0,
 	})
 
@@ -750,7 +643,7 @@ func TestPlugin_SignTxWithPassphrase_Private_AlreadyUnlocked(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Account: acct,
+		Address: acctAddr,
 		RlpTx:   rlpToSign,
 		ChainID: big.NewInt(42).Bytes(),
 	})
@@ -792,12 +685,7 @@ func TestPlugin_SignTxWithPassphrase_Homestead_Locked(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
@@ -808,7 +696,7 @@ func TestPlugin_SignTxWithPassphrase_Homestead_Locked(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Account: acct,
+		Address: acctAddr,
 		RlpTx:   rlpToSign,
 		ChainID: nil,
 	})
@@ -850,15 +738,10 @@ func TestPlugin_SignTxWithPassphrase_Homestead_AlreadyUnlocked(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  acct,
+		Address:  acctAddr,
 		Duration: 0,
 	})
 
@@ -871,7 +754,7 @@ func TestPlugin_SignTxWithPassphrase_Homestead_AlreadyUnlocked(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Account: acct,
+		Address: acctAddr,
 		RlpTx:   rlpToSign,
 		ChainID: nil,
 	})
@@ -913,12 +796,7 @@ func TestPlugin_SignTxWithPassphrase_EIP155_Locked(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
@@ -929,7 +807,7 @@ func TestPlugin_SignTxWithPassphrase_EIP155_Locked(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Account: acct,
+		Address: acctAddr,
 		RlpTx:   rlpToSign,
 		ChainID: big.NewInt(42).Bytes(),
 	})
@@ -971,15 +849,10 @@ func TestPlugin_SignTxWithPassphrase_EIP155_AlreadyUnlocked(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  acct,
+		Address:  acctAddr,
 		Duration: 0,
 	})
 
@@ -992,7 +865,7 @@ func TestPlugin_SignTxWithPassphrase_EIP155_AlreadyUnlocked(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Account: acct,
+		Address: acctAddr,
 		RlpTx:   rlpToSign,
 		ChainID: big.NewInt(42).Bytes(),
 	})
@@ -1034,19 +907,14 @@ func TestPlugin_SignTxWithPassphrase_UnknownAccount(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "unknownAccount", 1)
-
-	acct := &proto.Account{
-		Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
-		Url:     wltUrl,
-	}
+	acctAddr := common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
 
 	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
 	rlpToSign, err := rlp.EncodeToBytes(toSign)
 	require.NoError(t, err)
 
 	_, err = ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Account: acct,
+		Address: acctAddr,
 		RlpTx:   rlpToSign,
 		ChainID: big.NewInt(42).Bytes(),
 	})
@@ -1069,7 +937,7 @@ func TestPlugin_Unlock(t *testing.T) {
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 		Duration: 0,
 	})
 	require.NoError(t, err)
@@ -1083,73 +951,6 @@ func TestPlugin_Unlock(t *testing.T) {
 	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
-}
-
-func TestPlugin_Unlock_OptionalWalletUrlInRequest(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// timed unlock
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "0 unlocked account(s)", resp.Status)
-
-	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"), Url: wltUrl},
-		Duration: 0,
-	})
-	require.NoError(t, err)
-
-	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
-}
-
-func TestPlugin_Unlock_InvalidOptionalWalletUrlInRequest(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// timed unlock
-	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"), Url: "http://this/is/the/wrong/url/for/this/address"},
-		Duration: 0,
-	})
-	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
-}
-
-func TestPlugin_Unlock_InconsistentAddressAndWalletUrl(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// the account config directory contains a file that resolves to this wlturl.  The address contained in that file is dc99ddec13457de6c0f6bb8e6cf3955c86f55526.  If we provide this url but a different address we should expect the request to fail.
-	wltUrl := fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2)
-
-	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  &proto.Account{Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"), Url: wltUrl},
-		Duration: 0,
-	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "rpc error: code = Internal desc = inconsistent account data provided")
 }
 
 func TestPlugin_TimedUnlock(t *testing.T) {
@@ -1168,7 +969,7 @@ func TestPlugin_TimedUnlock(t *testing.T) {
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 		Duration: (1 * time.Second).Nanoseconds(),
 	})
 	require.NoError(t, err)
@@ -1200,7 +1001,7 @@ func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 		Duration: (1 * time.Second).Nanoseconds(),
 	})
 	require.NoError(t, err)
@@ -1210,7 +1011,7 @@ func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 		Duration: 0,
 	})
 	require.NoError(t, err)
@@ -1238,13 +1039,13 @@ func TestPlugin_TimedUnlock_Extend(t *testing.T) {
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 		Duration: (1 * time.Second).Nanoseconds(),
 	})
 	require.NoError(t, err)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 		Duration: (2 * time.Second).Nanoseconds(),
 	})
 	require.NoError(t, err)
@@ -1278,13 +1079,13 @@ func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 		Duration: (2 * time.Second).Nanoseconds(),
 	})
 	require.NoError(t, err)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 		Duration: (1 * time.Second).Nanoseconds(),
 	})
 	require.NoError(t, err)
@@ -1327,7 +1128,7 @@ func TestPlugin_Lock(t *testing.T) {
 
 	// lock
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 		Duration: 0,
 	})
 	require.NoError(t, err)
@@ -1337,7 +1138,7 @@ func TestPlugin_Lock(t *testing.T) {
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
 	_, err = ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
-		Account: &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 	})
 	require.NoError(t, err)
 
@@ -1358,12 +1159,12 @@ func TestPlugin_Lock_MultipleTimes(t *testing.T) {
 
 	// lock
 	_, err := ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
-		Account: &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 	})
 	require.NoError(t, err)
 
 	_, err = ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
-		Account: &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 	})
 	require.NoError(t, err)
 }
@@ -1380,7 +1181,7 @@ func TestPlugin_Lock_CancelsTimedUnlock(t *testing.T) {
 
 	// lock
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Account:  &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 		Duration: time.Second.Nanoseconds(),
 	})
 	require.NoError(t, err)
@@ -1390,7 +1191,7 @@ func TestPlugin_Lock_CancelsTimedUnlock(t *testing.T) {
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
 	_, err = ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
-		Account: &proto.Account{Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")},
+		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
 	})
 	require.NoError(t, err)
 
@@ -1414,7 +1215,7 @@ func TestPlugin_Lock_UnknownAccount(t *testing.T) {
 
 	// lock
 	_, err := ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
-		Account: &proto.Account{Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")},
+		Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
 	})
 	require.NoError(t, err)
 }
@@ -1524,7 +1325,7 @@ func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 	require.NotNil(t, newAccountResp.Account)
 
 	// is contained
-	containsResp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: newAccountResp.Account})
+	containsResp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Address: newAccountResp.Account.Address})
 	require.NoError(t, err)
 	require.True(t, containsResp.IsContained)
 }
@@ -1650,7 +1451,7 @@ func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 	require.NotNil(t, importResp.Account)
 
 	// is contained
-	containsResp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Account: importResp.Account})
+	containsResp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Address: importResp.Account.Address})
 	require.NoError(t, err)
 	require.True(t, containsResp.IsContained)
 }

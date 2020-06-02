@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/vault/api"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
@@ -20,7 +21,7 @@ const reauthRetryInterval = 5 * time.Second
 type vaultClient struct {
 	*api.Client
 	accountDirectory *url.URL
-	accts            map[accounts.URL]config.AccountFile
+	accts            accountsByURL
 }
 
 // newVaultClient creates an authenticated Vault client using the credentials provided as environment variables
@@ -141,12 +142,10 @@ func (c *vaultClient) loadAccounts() (map[accounts.URL]config.AccountFile, error
 	return result, nil
 }
 
-func (c *vaultClient) hasAccount(url accounts.URL) bool {
-	_, hasAccount := c.accts[url]
-	return hasAccount
+func (c *vaultClient) hasAccount(acctAddr common.Address) bool {
+	return c.accts.HasAccountWithAddress(acctAddr)
 }
 
-func (c *vaultClient) getAccountAddress(url accounts.URL) string {
-	w, _ := c.accts[url]
-	return w.Contents.Address
+func (c *vaultClient) getAccount(acctAddr common.Address) config.AccountFile {
+	return c.accts.GetAccountWithAddress(acctAddr)
 }

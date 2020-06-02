@@ -1,7 +1,6 @@
 package hashicorp
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/json"
@@ -34,8 +33,7 @@ func NewAccountManager(config config.VaultClient) (AccountManager, error) {
 	a := &accountManager{client: client, unlocked: make(map[string]*lockableKey)}
 
 	for _, toUnlock := range config.Unlock {
-		acct := accounts.Account{Address: common.HexToAddress(toUnlock)}
-		if err := a.TimedUnlock(acct, 0); err != nil {
+		if err := a.TimedUnlock(common.HexToAddress(toUnlock), 0); err != nil {
 			log.Printf("[INFO] unable to unlock %v, err = %v", toUnlock, err)
 		}
 	}
@@ -46,13 +44,13 @@ func NewAccountManager(config config.VaultClient) (AccountManager, error) {
 type AccountManager interface {
 	Status() (string, error)
 	Accounts() ([]accounts.Account, error)
-	Contains(account accounts.Account) (bool, error)
-	SignHash(account accounts.Account, hash []byte) ([]byte, error)
-	UnlockAndSignHash(account accounts.Account, hash []byte) ([]byte, error)
-	SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error)
-	UnlockAndSignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error)
-	TimedUnlock(account accounts.Account, duration time.Duration) error
-	Lock(account accounts.Account)
+	Contains(acctAddr common.Address) (bool, error)
+	SignHash(acctAddr common.Address, hash []byte) ([]byte, error)
+	UnlockAndSignHash(acctAddr common.Address, hash []byte) ([]byte, error)
+	SignTx(acctAddr common.Address, tx *types.Transaction, chainID *big.Int) ([]byte, error)
+	UnlockAndSignTx(acctAddr common.Address, tx *types.Transaction, chainID *big.Int) ([]byte, error)
+	TimedUnlock(acctAddr common.Address, duration time.Duration) error
+	Lock(acctAddr common.Address)
 	NewAccount(conf config.NewAccount) (accounts.Account, error)
 	ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error)
 }
@@ -109,23 +107,16 @@ func (a *accountManager) Accounts() ([]accounts.Account, error) {
 	return accts, nil
 }
 
-func (a *accountManager) Contains(account accounts.Account) (bool, error) {
-	if !a.client.hasAccount(account.URL) {
-		return false, errors.New("unknown account")
-	}
-	acctFile := a.client.accts[account.URL]
-	if bytes.Compare(common.Hex2Bytes(acctFile.Contents.Address), account.Address.Bytes()) != 0 {
-		return false, nil
-	}
-	return true, nil
+func (a *accountManager) Contains(acctAddr common.Address) (bool, error) {
+	return a.client.hasAccount(acctAddr), nil
 }
 
-func (a *accountManager) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
-	if !a.client.hasAccount(account.URL) {
+func (a *accountManager) SignHash(acctAddr common.Address, hash []byte) ([]byte, error) {
+	if !a.client.hasAccount(acctAddr) {
 		return nil, errors.New("unknown account")
 	}
 	a.mu.Lock()
-	lockable, ok := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
+	lockable, ok := a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
 	a.mu.Unlock()
 	if !ok {
 		return nil, errors.New("account locked")
@@ -133,26 +124,29 @@ func (a *accountManager) SignHash(account accounts.Account, hash []byte) ([]byte
 	return crypto.Sign(hash, lockable.key)
 }
 
-func (a *accountManager) UnlockAndSignHash(account accounts.Account, hash []byte) ([]byte, error) {
-	a.mu.Lock()
-	_, unlocked := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
-	a.mu.Unlock()
-	if !unlocked {
-		if err := a.TimedUnlock(account, 0); err != nil {
-			return nil, err
-		}
-		defer a.Lock(account)
-	}
-
-	return a.SignHash(account, hash)
-}
-
-func (a *accountManager) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
-	if !a.client.hasAccount(account.URL) {
+func (a *accountManager) UnlockAndSignHash(acctAddr common.Address, hash []byte) ([]byte, error) {
+	if !a.client.hasAccount(acctAddr) {
 		return nil, errors.New("unknown account")
 	}
 	a.mu.Lock()
-	lockable, ok := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
+	lockable, unlocked := a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
+	a.mu.Unlock()
+	if !unlocked {
+		if err := a.TimedUnlock(acctAddr, 0); err != nil {
+			return nil, err
+		}
+		defer a.Lock(acctAddr)
+		lockable, _ = a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
+	}
+	return crypto.Sign(hash, lockable.key)
+}
+
+func (a *accountManager) SignTx(acctAddr common.Address, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
+	if !a.client.hasAccount(acctAddr) {
+		return nil, errors.New("unknown account")
+	}
+	a.mu.Lock()
+	lockable, ok := a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
 	a.mu.Unlock()
 	if !ok {
 		return nil, errors.New("account locked")
@@ -164,18 +158,25 @@ func (a *accountManager) SignTx(account accounts.Account, tx *types.Transaction,
 	return rlp.EncodeToBytes(signedTx)
 }
 
-func (a *accountManager) UnlockAndSignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
+func (a *accountManager) UnlockAndSignTx(acctAddr common.Address, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
+	if !a.client.hasAccount(acctAddr) {
+		return nil, errors.New("unknown account")
+	}
 	a.mu.Lock()
-	_, unlocked := a.unlocked[common.Bytes2Hex(account.Address.Bytes())]
+	lockable, unlocked := a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
 	a.mu.Unlock()
 	if !unlocked {
-		if err := a.TimedUnlock(account, 0); err != nil {
+		if err := a.TimedUnlock(acctAddr, 0); err != nil {
 			return nil, err
 		}
-		defer a.Lock(account)
+		defer a.Lock(acctAddr)
+		lockable, _ = a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
 	}
-
-	return a.SignTx(account, tx, chainID)
+	signedTx, err := a.signTx(tx, lockable.key, chainID)
+	if err != nil {
+		return nil, err
+	}
+	return rlp.EncodeToBytes(signedTx)
 }
 
 func (a *accountManager) signTx(tx *types.Transaction, key *ecdsa.PrivateKey, chainID *big.Int) (*types.Transaction, error) {
@@ -188,24 +189,8 @@ func (a *accountManager) signTx(tx *types.Transaction, key *ecdsa.PrivateKey, ch
 	return types.SignTx(tx, types.NewEIP155Signer(chainID), key)
 }
 
-func (a *accountManager) TimedUnlock(account accounts.Account, duration time.Duration) error {
-	var acctFile config.AccountFile
-
-	if account.URL != (accounts.URL{}) {
-		if a.client.hasAccount(account.URL) {
-			file := a.client.accts[account.URL]
-			if file.Contents.Address != common.Bytes2Hex(account.Address.Bytes()) {
-				return fmt.Errorf("inconsistent account data provided: request contained URL %v and account address %v, but this URL refers to account config file containing account address %v", account.URL.String(), common.Bytes2Hex(account.Address.Bytes()), file.Contents.Address)
-			}
-			acctFile = file
-		}
-	} else {
-		for _, file := range a.client.accts {
-			if file.Contents.Address == common.Bytes2Hex(account.Address.Bytes()) {
-				acctFile = file
-			}
-		}
-	}
+func (a *accountManager) TimedUnlock(acctAddr common.Address, duration time.Duration) error {
+	acctFile := a.client.getAccount(acctAddr)
 
 	if acctFile == (config.AccountFile{}) {
 		return errors.New("unknown account")
@@ -278,8 +263,8 @@ func (a *accountManager) lockAfter(addr string, key *lockableKey, duration time.
 	}
 }
 
-func (a *accountManager) Lock(account accounts.Account) {
-	addrHex := common.Bytes2Hex(account.Address.Bytes())
+func (a *accountManager) Lock(acctAddr common.Address) {
+	addrHex := common.Bytes2Hex(acctAddr.Bytes())
 	a.mu.Lock()
 	lockable, ok := a.unlocked[addrHex]
 	a.mu.Unlock()
