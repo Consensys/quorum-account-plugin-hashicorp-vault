@@ -93,7 +93,7 @@ If a secret already exists at the specified location, `CasValue` must be provide
 
 The CAS check can be skipped by setting `"insecureSkipCas": "true"`.  
 
-> **WARNING:** Overwriting data may result in permanent data loss.  See the (KV v2 API documentation)[https://www.vaultproject.io/api/secret/kv/kv-v2#parameters] for details on how to configure this.
+> **WARNING:** Overwriting data may result in permanent data loss.  See the [KV v2 API documentation](https://www.vaultproject.io/api/secret/kv/kv-v2#parameters) for details on how to configure this.
 
 ### What gets stored in Vault when creating accounts?
 The string hex representations of the account address and private key are stored in the Vault as a key/value pair:
