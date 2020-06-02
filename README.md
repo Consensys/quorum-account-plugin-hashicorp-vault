@@ -1,6 +1,6 @@
 # Hashicorp Vault plugin for Quorum
 
-The Hashicorp Vault plugin for Quorum enables the storage of Quorum account private keys in a [Hashicorp Vault KV v2 secret engine](https://www.vaultproject.io/docs/secrets/kv/kv-v2/), as an alternative to storing as `keystore` files on the node.  It is an implementation of Quorum's [`account` plugin interface](https://docs.goquorum.com/en/latest/PluggableArchitecture/Plugins/account/interface/).
+The Hashicorp Vault plugin for Quorum enables the storage of Quorum account private keys in a [Hashicorp Vault KV v2 secret engine](https://www.vaultproject.io/docs/secrets/kv/kv-v2/), as an alternative to storing as `keystore` files on the node.  It is an implementation of Quorum's [`account` plugin interface](https://docs.goquorum.com/en/latest/PluggableArchitecture/Plugins/account/account/).
 
 Managing Quorum accounts in a Hashicorp Vault offers several benefits over using the standard `geth` `keystore` files:
 
@@ -58,8 +58,7 @@ The plugin will automatically renew approle tokens where possible.  If the token
 
 The plugin cannot renew tokens provided directly with the `token` environment variable.     
 
-!!! tip
-    For more information about Hashicorp Vault TTL, leases and renewal see the [Vault documentation](https://www.vaultproject.io/docs/concepts/lease.html). 
+> For more information about Hashicorp Vault TTL, leases and renewal see the [Vault documentation](https://www.vaultproject.io/docs/concepts/lease.html). 
 
 ### tls
 
@@ -94,14 +93,12 @@ If a secret already exists at the specified location, `CasValue` must be provide
 
 The CAS check can be skipped by setting `"insecureSkipCas": "true"`.  
 
-**TODO below TODO below TODO below TODO below TODO below TODO below TODO below**
-
-> Overwriting data may result in permanent data loss.  See **TODO** for more information on versioning
+> **WARNING:** Overwriting data may result in permanent data loss.  See the (KV v2 API documentation)[https://www.vaultproject.io/api/secret/kv/kv-v2#parameters] for details on how to configure this.
 
 ### What gets stored in Vault when creating accounts?
 The string hex representations of the account address and private key are stored in the Vault as a key/value pair:
 
-```json
+```
 {
   ...
   "data" : {
