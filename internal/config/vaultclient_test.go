@@ -12,6 +12,7 @@ import (
 func TestVaultClient_UnmarshalJSON(t *testing.T) {
 	b := []byte(`{
 		"vault": "http://vault:1111",
+	    "kvEngineName": "engine",
 		"accountDirectory": "file:///path/to/dir/",
 		"unlock": [
 			"0x4d6d744b6da435b5bbdde2526dc20e9a41cb72e5",
@@ -34,6 +35,7 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 			Scheme: "http",
 			Host:   "vault:1111",
 		},
+		KVEngineName: "engine",
 		AccountDirectory: &url.URL{
 			Scheme: "file",
 			Path:   "/path/to/dir/",
@@ -88,6 +90,7 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 func TestVaultClient_UnmarshalJSON_AddsTrailingSlashToAcctDir(t *testing.T) {
 	b := []byte(`{
 		"vault": "http://vault:1111",
+		"kvEngineName": "engine",
 		"accountDirectory": "file:///path/to/dir",
 		"unlock": [
 			"0x4d6d744b6da435b5bbdde2526dc20e9a41cb72e5",
@@ -110,6 +113,7 @@ func TestVaultClient_UnmarshalJSON_AddsTrailingSlashToAcctDir(t *testing.T) {
 			Scheme: "http",
 			Host:   "vault:1111",
 		},
+		KVEngineName: "engine",
 		AccountDirectory: &url.URL{
 			Scheme: "file",
 			Path:   "/path/to/dir/",

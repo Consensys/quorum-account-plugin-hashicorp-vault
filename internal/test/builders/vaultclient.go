@@ -10,6 +10,7 @@ import (
 
 type VaultClientBuilder struct {
 	vaultUrl      string
+	kvEngineName  string
 	acctDir       string
 	unlock        []string
 	tokenUrl      string
@@ -23,6 +24,11 @@ type VaultClientBuilder struct {
 
 func (b *VaultClientBuilder) WithVaultUrl(s string) *VaultClientBuilder {
 	b.vaultUrl = s
+	return b
+}
+
+func (b *VaultClientBuilder) WithKVEngineName(s string) *VaultClientBuilder {
+	b.kvEngineName = s
 	return b
 }
 
@@ -127,6 +133,7 @@ func (b *VaultClientBuilder) Build(t *testing.T) config.VaultClient {
 
 	return config.VaultClient{
 		Vault:            vault,
+		KVEngineName:     b.kvEngineName,
 		AccountDirectory: acctDir,
 		Unlock:           b.unlock,
 		Authentication: config.VaultClientAuthentication{

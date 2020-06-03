@@ -20,17 +20,16 @@ type AccountFileJSON struct {
 }
 
 type vaultAccountJSON struct {
-	SecretEnginePath string
-	SecretPath       string
-	SecretVersion    int64
+	SecretName    string
+	SecretVersion int64
 }
 
-func (c *AccountFileJSON) AccountURL(vaultURL string) (accounts.URL, error) {
+func (c *AccountFileJSON) AccountURL(vaultURL, kvEngineName string) (accounts.URL, error) {
 	u, err := url.Parse(vaultURL)
 	if err != nil {
 		return accounts.URL{}, err
 	}
-	acctUrl, err := u.Parse(fmt.Sprintf("v1/%v/data/%v?version=%v", c.VaultAccount.SecretEnginePath, c.VaultAccount.SecretPath, c.VaultAccount.SecretVersion))
+	acctUrl, err := u.Parse(fmt.Sprintf("v1/%v/data/%v?version=%v", kvEngineName, c.VaultAccount.SecretName, c.VaultAccount.SecretVersion))
 	if err != nil {
 		return accounts.URL{}, err
 	}
@@ -46,10 +45,13 @@ func (c *AccountFileJSON) AccountURL(vaultURL string) (accounts.URL, error) {
 }
 
 type NewAccount struct {
-	SecretEnginePath string
-	SecretPath       string
-	InsecureSkipCAS  bool
-	CASValue         uint64
+	SecretName          string
+	OverwriteProtection OverwriteProtection
+}
+
+type OverwriteProtection struct {
+	InsecureDisable bool
+	CurrentVersion  uint64
 }
 
 func (c *NewAccount) AccountFile(path string, address string, secretVersion int64) AccountFile {
@@ -58,9 +60,8 @@ func (c *NewAccount) AccountFile(path string, address string, secretVersion int6
 		Contents: AccountFileJSON{
 			Address: address,
 			VaultAccount: vaultAccountJSON{
-				SecretEnginePath: c.SecretEnginePath,
-				SecretPath:       c.SecretPath,
-				SecretVersion:    secretVersion,
+				SecretName:    c.SecretName,
+				SecretVersion: secretVersion,
 			},
 			Version: 1,
 		},

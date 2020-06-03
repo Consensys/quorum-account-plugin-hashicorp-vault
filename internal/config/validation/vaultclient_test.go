@@ -13,13 +13,14 @@ func minimumValidClientConfig() *builders.VaultClientBuilder {
 	var vaultClientBuilder builders.VaultClientBuilder
 	return vaultClientBuilder.
 		WithVaultUrl("http://vault:1111").
+		WithKVEngineName("engine").
 		WithAccountDirectory("file:///path/to/dir").
 		WithRoleIdUrl("env://" + env.MY_ROLE_ID).
 		WithSecretIdUrl("env://" + env.MY_SECRET_ID).
 		WithApprolePath("myapprole")
 }
 
-func TestVaultClients_Validate_MinimumValidConfig(t *testing.T) {
+func TestVaultClient_Validate_MinimumValidConfig(t *testing.T) {
 	defer env.UnsetAll()
 	env.SetRoleID()
 	env.SetSecretID()
@@ -30,7 +31,7 @@ func TestVaultClients_Validate_MinimumValidConfig(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestVaultClients_Validate_VaultUrl_Valid(t *testing.T) {
+func TestVaultClient_Validate_VaultUrl_Valid(t *testing.T) {
 	defer env.UnsetAll()
 	env.SetRoleID()
 	env.SetSecretID()
@@ -52,7 +53,7 @@ func TestVaultClients_Validate_VaultUrl_Valid(t *testing.T) {
 	}
 }
 
-func TestVaultClients_Validate_VaultUrl_Invalid(t *testing.T) {
+func TestVaultClient_Validate_VaultUrl_Invalid(t *testing.T) {
 	wantErrMsg := config.InvalidVaultUrl
 
 	vaultUrls := []string{
@@ -71,7 +72,18 @@ func TestVaultClients_Validate_VaultUrl_Invalid(t *testing.T) {
 	}
 }
 
-func TestVaultClients_Validate_AccountDirectory_Valid(t *testing.T) {
+func TestVaultClient_Validate_KVEngineName_Invalid(t *testing.T) {
+	wantErrMsg := config.InvalidKVEngineName
+
+	vaultClient := minimumValidClientConfig().
+		WithKVEngineName("").
+		Build(t)
+
+	gotErr := vaultClient.Validate()
+	require.EqualError(t, gotErr, wantErrMsg)
+}
+
+func TestVaultClient_Validate_AccountDirectory_Valid(t *testing.T) {
 	defer env.UnsetAll()
 	env.SetRoleID()
 	env.SetSecretID()
@@ -94,7 +106,7 @@ func TestVaultClients_Validate_AccountDirectory_Valid(t *testing.T) {
 	}
 }
 
-func TestVaultClients_Validate_AccountDirectory_Invalid(t *testing.T) {
+func TestVaultClient_Validate_AccountDirectory_Invalid(t *testing.T) {
 	wantErrMsg := config.InvalidAccountDirectory
 
 	acctDirUrls := []string{
@@ -115,7 +127,7 @@ func TestVaultClients_Validate_AccountDirectory_Invalid(t *testing.T) {
 	}
 }
 
-func TestVaultClients_Validate_Authentication_Valid(t *testing.T) {
+func TestVaultClient_Validate_Authentication_Valid(t *testing.T) {
 	var auths = map[string]struct {
 		tokenUrl    string
 		roleIdUrl   string
@@ -175,7 +187,7 @@ func TestVaultClients_Validate_Authentication_Valid(t *testing.T) {
 	}
 }
 
-func TestVaultClients_Validate_Authentication_Invalid(t *testing.T) {
+func TestVaultClient_Validate_Authentication_Invalid(t *testing.T) {
 	wantErrMsg := config.InvalidAuthentication
 
 	var auths = map[string]struct {
@@ -279,7 +291,7 @@ func TestVaultClients_Validate_Authentication_Invalid(t *testing.T) {
 	}
 }
 
-func TestVaultClients_Validate_TLS_Valid(t *testing.T) {
+func TestVaultClient_Validate_TLS_Valid(t *testing.T) {
 	defer env.UnsetAll()
 	env.SetRoleID()
 	env.SetSecretID()
@@ -335,7 +347,7 @@ func TestVaultClients_Validate_TLS_Valid(t *testing.T) {
 	}
 }
 
-func TestVaultClients_Validate_TLS_Invalid(t *testing.T) {
+func TestVaultClient_Validate_TLS_Invalid(t *testing.T) {
 	defer env.UnsetAll()
 	env.SetRoleID()
 	env.SetSecretID()

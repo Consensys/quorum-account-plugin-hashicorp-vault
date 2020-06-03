@@ -5,19 +5,23 @@ import (
 )
 
 const (
-	InvalidVaultUrl         = "vault must be a valid HTTP/HTTPS url"
-	InvalidAccountDirectory = "accountDirectory must be a valid file url"
-	InvalidAuthentication   = "authentication must contain roleId, secretId and approlePath OR only token, and the given environment variables must be set"
-	InvalidCaCert           = "caCert must be a valid file url"
-	InvalidClientCert       = "clientCert must be a valid file url"
-	InvalidClientKey        = "clientKey must be a valid file url"
-	InvalidSecretLocation   = "secretEnginePath and secretPath must be set"
-	InvalidCAS              = "insecureSkipCAS and casValue cannot be set at the same time"
+	InvalidVaultUrl            = "vault must be a valid HTTP/HTTPS url"
+	InvalidKVEngineName        = "kvEngineName must be set"
+	InvalidAccountDirectory    = "accountDirectory must be a valid file url"
+	InvalidAuthentication      = "authentication must contain roleId, secretId and approlePath OR only token, and the given environment variables must be set"
+	InvalidCaCert              = "caCert must be a valid file url"
+	InvalidClientCert          = "clientCert must be a valid file url"
+	InvalidClientKey           = "clientKey must be a valid file url"
+	InvalidSecretName          = "secretName must be set"
+	InvalidOverwriteProtection = "currentVersion and insecureDisable cannot both be set"
 )
 
 func (c VaultClient) Validate() error {
 	if c.Vault == nil || c.Vault.Scheme == "" {
 		return errors.New(InvalidVaultUrl)
+	}
+	if c.KVEngineName == "" {
+		return errors.New(InvalidKVEngineName)
 	}
 	if c.AccountDirectory == nil || c.AccountDirectory.Scheme != "file" || (c.AccountDirectory.Host == "" && c.AccountDirectory.Path == "") {
 		return errors.New(InvalidAccountDirectory)
@@ -61,11 +65,18 @@ func (c VaultClientTLS) validate() error {
 }
 
 func (c NewAccount) Validate() error {
-	if c.SecretEnginePath == "" || c.SecretPath == "" {
-		return errors.New(InvalidSecretLocation)
+	if c.SecretName == "" {
+		return errors.New(InvalidSecretName)
 	}
-	if c.InsecureSkipCAS && c.CASValue != 0 {
-		return errors.New(InvalidCAS)
+	if err := c.OverwriteProtection.validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c OverwriteProtection) validate() error {
+	if c.InsecureDisable && c.CurrentVersion != 0 {
+		return errors.New(InvalidOverwriteProtection)
 	}
 	return nil
 }

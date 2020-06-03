@@ -20,6 +20,7 @@ const reauthRetryInterval = 5 * time.Second
 
 type vaultClient struct {
 	*api.Client
+	kvEngineName     string
 	accountDirectory *url.URL
 	accts            accountsByURL
 }
@@ -46,7 +47,12 @@ func newVaultClient(conf config.VaultClient) (*vaultClient, error) {
 		return nil, fmt.Errorf("error creating Hashicorp Vault client: %v", err)
 	}
 
-	vaultClient := &vaultClient{Client: c, accountDirectory: conf.AccountDirectory}
+	vaultClient := &vaultClient{
+		Client:           c,
+		kvEngineName:     conf.KVEngineName,
+		accountDirectory: conf.AccountDirectory,
+	}
+
 	if err := vaultClient.authenticate(conf.Authentication); err != nil {
 		return nil, err
 	}
@@ -115,7 +121,7 @@ func (c *vaultClient) loadAccounts() (map[accounts.URL]config.AccountFile, error
 			return fmt.Errorf("unable to unmarshal contents of %v, err: %v", path, err)
 		}
 
-		acctURL, err := conf.AccountURL(c.Address())
+		acctURL, err := conf.AccountURL(c.Address(), c.kvEngineName)
 		if err != nil {
 			return fmt.Errorf("unable to parse account URL for %v, err %v", path, err)
 		}

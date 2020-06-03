@@ -9,6 +9,7 @@ import (
 
 type VaultClient struct {
 	Vault            *url.URL
+	KVEngineName     string // the path of the K/V v2 secret engine
 	AccountDirectory *url.URL
 	Unlock           []string
 	Authentication   VaultClientAuthentication
@@ -51,6 +52,7 @@ type VaultClientTLS struct {
 
 type vaultClientJSON struct {
 	Vault            string
+	KVEngineName     string
 	AccountDirectory string
 	Unlock           []string
 	Authentication   vaultClientAuthenticationJSON
@@ -117,6 +119,7 @@ func (c vaultClientJSON) vaultClient() (VaultClient, error) {
 
 	return VaultClient{
 		Vault:            vault,
+		KVEngineName:     c.KVEngineName,
 		AccountDirectory: accountDirectory,
 		Unlock:           c.Unlock,
 		Authentication:   authentication,
@@ -180,6 +183,7 @@ func (c vaultClientTLSJSON) vaultClientTls() (VaultClientTLS, error) {
 func (c VaultClient) vaultClientJSON() (vaultClientJSON, error) {
 	return vaultClientJSON{
 		Vault:            c.Vault.String(),
+		KVEngineName:     c.KVEngineName,
 		AccountDirectory: c.AccountDirectory.String(),
 		Unlock:           c.Unlock,
 		Authentication:   c.Authentication.vaultClientAuthenticationJSON(),

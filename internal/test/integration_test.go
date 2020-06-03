@@ -31,8 +31,7 @@ func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext, args ...map[
 	acctConf := `{
 	"address": "dc99ddec13457de6c0f6bb8e6cf3955c86f55526",
 	"vaultAccount": {
-		"SecretEnginePath": "engine",
-		"SecretPath": "myAcct",
+		"SecretName": "myAcct",
 		"SecretVersion": 2
 	},
 	"id": "afb297d8-1995-4212-974a-e861d7e31e19",
@@ -64,6 +63,7 @@ func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext, args ...map[
 	vaultClientBuilder := &builders.VaultClientBuilder{}
 	vaultClientBuilder.
 		WithVaultUrl(ctx.Vault.URL).
+		WithKVEngineName("engine").
 		WithAccountDirectory("file://" + ctx.AccountConfigDirectory).
 		WithRoleIdUrl("env://" + env.MY_ROLE_ID).
 		WithSecretIdUrl("env://" + env.MY_SECRET_ID).
@@ -1232,9 +1232,10 @@ func TestPlugin_NewAccount(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"secretEnginePath": "engine",
-	"secretPath": "newAcct",
-	"casValue": %v
+	"secretName": "newAcct",
+	"overwriteProtection": {
+		"currentVersion": %v
+	}
 }`
 	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
 
@@ -1271,8 +1272,7 @@ func TestPlugin_NewAccount(t *testing.T) {
 	require.NoError(t, json.Unmarshal(raw, gotContents))
 
 	require.NotEmpty(t, gotContents.Address)
-	require.Equal(t, "engine", gotContents.VaultAccount.SecretEnginePath)
-	require.Equal(t, "newAcct", gotContents.VaultAccount.SecretPath)
+	require.Equal(t, "newAcct", gotContents.VaultAccount.SecretName)
 	require.Equal(t, int64(6), gotContents.VaultAccount.SecretVersion)
 }
 
@@ -1288,9 +1288,10 @@ func TestPlugin_NewAccount_IncorrectCASValue(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"secretEnginePath": "engine",
-	"secretPath": "newAcct",
-	"casValue": %v
+	"secretName": "newAcct",
+	"overwriteProtection": {
+		"currentVersion": %v
+	}
 }`
 	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE+10)
 
@@ -1312,9 +1313,10 @@ func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"secretEnginePath": "engine",
-	"secretPath": "newAcct",
-	"casValue": %v
+	"secretName": "newAcct",
+	"overwriteProtection": {
+		"currentVersion": %v
+	}
 }`
 	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
 
@@ -1342,9 +1344,10 @@ func TestPlugin_ImportRawKey(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"secretEnginePath": "engine",
-	"secretPath": "newAcct",
-	"casValue": %v
+	"secretName": "newAcct",
+	"overwriteProtection": {
+		"currentVersion": %v
+	}
 }`
 	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
 
@@ -1386,8 +1389,7 @@ func TestPlugin_ImportRawKey(t *testing.T) {
 	require.NoError(t, json.Unmarshal(raw, gotContents))
 
 	require.Equal(t, "4d6d744b6da435b5bbdde2526dc20e9a41cb72e5", gotContents.Address)
-	require.Equal(t, "engine", gotContents.VaultAccount.SecretEnginePath)
-	require.Equal(t, "newAcct", gotContents.VaultAccount.SecretPath)
+	require.Equal(t, "newAcct", gotContents.VaultAccount.SecretName)
 	require.Equal(t, int64(6), gotContents.VaultAccount.SecretVersion)
 }
 
@@ -1403,9 +1405,10 @@ func TestPlugin_ImportRawKey_IncorrectCASValue(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"secretEnginePath": "engine",
-	"secretPath": "newAcct",
-	"casValue": %v
+	"secretName": "newAcct",
+	"overwriteProtection": {
+		"currentVersion": %v
+	}
 }`
 	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE+10)
 
@@ -1432,9 +1435,10 @@ func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 
 	// new account
 	newAcctConfTemplate := `{
-	"secretEnginePath": "engine",
-	"secretPath": "newAcct",
-	"casValue": %v
+	"secretName": "newAcct",
+	"overwriteProtection": {
+		"currentVersion": %v
+	}
 }`
 	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
 

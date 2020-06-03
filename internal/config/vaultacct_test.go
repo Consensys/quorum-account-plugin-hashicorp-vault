@@ -10,17 +10,19 @@ import (
 
 func TestNewAccount_UnmarshalJSON(t *testing.T) {
 	b := []byte(`{
-		"secretEnginePath": "engine",
-		"secretPath": "secret",
-		"insecureSkipCAS": true,
-		"casValue": 10
+		"secretName": "secret",
+		"overwriteProtection": {
+			"insecureDisable": true,
+			"currentVersion": 10
+		}
 	}`)
 
 	want := NewAccount{
-		SecretEnginePath: "engine",
-		SecretPath:       "secret",
-		InsecureSkipCAS:  true,
-		CASValue:         10,
+		SecretName: "secret",
+		OverwriteProtection: OverwriteProtection{
+			InsecureDisable: true,
+			CurrentVersion:  10,
+		},
 	}
 
 	var got NewAccount
@@ -35,9 +37,8 @@ func TestAccountFileJSON_AccountURL(t *testing.T) {
 	conf := AccountFileJSON{
 		Address: "hexpubkey",
 		VaultAccount: vaultAccountJSON{
-			SecretEnginePath: "engine",
-			SecretPath:       "path",
-			SecretVersion:    10,
+			SecretName:    "path",
+			SecretVersion: 10,
 		},
 		Version: 1,
 	}
@@ -49,7 +50,7 @@ func TestAccountFileJSON_AccountURL(t *testing.T) {
 		Path:   "vault:1111/v1/engine/data/path?version=10",
 	}
 
-	got, err := conf.AccountURL(vaultUrl)
+	got, err := conf.AccountURL(vaultUrl, "engine")
 
 	require.NoError(t, err)
 	require.Equal(t, want, got)

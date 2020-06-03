@@ -30,7 +30,11 @@ func NewAccountManager(config config.VaultClient) (AccountManager, error) {
 		return nil, err
 	}
 
-	a := &accountManager{client: client, unlocked: make(map[string]*lockableKey)}
+	a := &accountManager{
+		client:       client,
+		kvEngineName: config.KVEngineName,
+		unlocked:     make(map[string]*lockableKey),
+	}
 
 	for _, toUnlock := range config.Unlock {
 		if err := a.TimedUnlock(common.HexToAddress(toUnlock), 0); err != nil {
@@ -56,9 +60,10 @@ type AccountManager interface {
 }
 
 type accountManager struct {
-	client   *vaultClient
-	unlocked map[string]*lockableKey
-	mu       sync.Mutex
+	client       *vaultClient
+	kvEngineName string
+	unlocked     map[string]*lockableKey
+	mu           sync.Mutex
 }
 
 type lockableKey struct {
@@ -199,7 +204,7 @@ func (a *accountManager) TimedUnlock(acctAddr common.Address, duration time.Dura
 	conf := acctFile.Contents.VaultAccount
 
 	// get from Vault
-	vaultLocation := fmt.Sprintf("%v/data/%v", conf.SecretEnginePath, conf.SecretPath)
+	vaultLocation := fmt.Sprintf("%v/data/%v", a.kvEngineName, conf.SecretName)
 
 	reqData := make(map[string][]string)
 	reqData["version"] = []string{strconv.FormatInt(conf.SecretVersion, 10)}
@@ -313,7 +318,7 @@ func (a *accountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, 
 	log.Printf("[INFO] New account data written to %v", fileData.Path)
 
 	// prepare return value
-	accountURL, err := fileData.Contents.AccountURL(a.client.Address())
+	accountURL, err := fileData.Contents.AccountURL(a.client.Address(), a.kvEngineName)
 	if err != nil {
 		return accounts.Account{}, err
 	}
@@ -333,12 +338,12 @@ func (a *accountManager) writeToVault(addrHex string, keyHex string, conf config
 		addrHex: keyHex,
 	}
 
-	if !conf.InsecureSkipCAS {
+	if !conf.OverwriteProtection.InsecureDisable {
 		data["options"] = map[string]interface{}{
-			"cas": conf.CASValue,
+			"cas": conf.OverwriteProtection.CurrentVersion,
 		}
 	}
-	vaultLocation := fmt.Sprintf("%v/data/%v", conf.SecretEnginePath, conf.SecretPath)
+	vaultLocation := fmt.Sprintf("%v/data/%v", a.kvEngineName, conf.SecretName)
 
 	return a.client.Logical().Write(vaultLocation, data)
 }
