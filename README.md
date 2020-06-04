@@ -13,6 +13,7 @@ Managing Quorum accounts in a Hashicorp Vault offers several benefits over using
 ```json
 {
     "vault": "https://localhost:8200",
+    "kvEngineName": "my-kv-engine",
     "accountDirectory": "file:///path/to/accts",
     "unlock": ["1a31744b4a6ee9f3c3d1550beb56d53d2a4fa454"],
     "authentication": {
@@ -31,6 +32,7 @@ Managing Quorum accounts in a Hashicorp Vault offers several benefits over using
 | Field | Description |
 | --- | --- |
 | `vault` | Vault server URL |
+| `kvEngineName` | Name of an enabled Vault KV v2 secret engine to use for account storage |
 | `accountDirectory` | Path to directory containing [account config files](#account-configuration) |
 | `unlock` | List of accounts to retrieve from Vault at startup and store in memory |
 | `authentication` | See [authentication](#authentication) |
@@ -73,25 +75,30 @@ For production use it is recommended to configure TLS on Vault.  If enabled, the
 ## Account Creation Configuration
 ```json
 {
-    "secretEnginePath": "kv",
-    "secretPath": "myacct",
-    "CasValue": 4
+    "secretName": "myacct",
+    "overwriteProtection": {
+      "currentVersion": 4
+    }
 }
 ```
 
 | Field | Description |
 | --- | --- |
-| `secretEnginePath` | K/V v2 API path the plugin will store the new account in |
-| `secretPath` | Secret name API path the plugin will store the new account at |
-| `CasValue` / `insecureSkipCas` | See [Check-And-Set overwrite protection](#check-and-set-overwrite-protection) |
+| `secretName` | Secret name API path the plugin will store the new account at |
+| `overwriteProtection` | See [overwriteProtection](#overwriteProtection) |
 
-### Check-And-Set overwrite protection
+### overwriteProtection
 
-The plugin makes use of the Vault API's Check-And-Set (CAS) feature to prevent accidental overwriting of data.
+| Field | Description |
+| --- | --- |
+| `currentVersion` | Current integer version of this secret in Vault |
+| `insecureDisable` | Disable overwrite protection |
 
-If a secret already exists at the specified location, `CasValue` must be provided and must equal the current version number of the secret.  
+The plugin makes use of the [Vault KV v2 API's Check-And-Set (CAS) feature](https://www.vaultproject.io/api-docs/secret/kv/kv-v2#create-update-secret) to prevent accidental overwriting of data.
 
-The CAS check can be skipped by setting `"insecureSkipCas": "true"`.  
+If a secret with the same name already exists, `currentVersion` must be provided and must equal the current version number of the secret.
+
+The CAS check can be skipped by setting `"insecureDisable": "true"`.  
 
 > **WARNING:** Overwriting data may result in permanent data loss.  See the [KV v2 API documentation](https://www.vaultproject.io/api/secret/kv/kv-v2#parameters) for details on how to configure this.
 
@@ -110,16 +117,15 @@ The string hex representations of the account address and private key are stored
 
 ## Account Configuration
 
-Account configuration files are stored in an `accountDirectory`.  These configuration files specify the location of the account secret in the Vault.  
+Account configuration files are stored in an `accountDirectory`.  These configuration files specify which secrets from Vault to use as accounts.  
 
-Typically these files do not have to be created or edited manually; the `geth account` CLI and API can be used to create new accounts when needed.
+Typically these files do not have to be created or edited manually; the `geth account` API and CLI should be used to create new accounts when needed.
 
 ```json
 {
    "Address" : "1a31744b4a6ee9f3c3d1550beb56d53d2a4fa454",
    "VaultAccount" : {
-      "SecretEnginePath" : "kv",
-      "SecretPath" : "myacct",
+      "SecretName" : "myacct",
       "SecretVersion" : 13
    },
    "Version" : 1
