@@ -69,6 +69,28 @@ func (p *HashicorpPlugin) Contains(_ context.Context, req *proto.ContainsRequest
 	return &proto.ContainsResponse{IsContained: isContained}, nil
 }
 
+func (p *HashicorpPlugin) Sign(_ context.Context, req *proto.SignRequest) (*proto.SignResponse, error) {
+	if !p.isInitialized() {
+		return nil, status.Error(codes.Unavailable, "not configured")
+	}
+	result, err := p.acctManager.Sign(common.BytesToAddress(req.Address), req.ToSign)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &proto.SignResponse{Sig: result}, nil
+}
+
+func (p *HashicorpPlugin) UnlockAndSign(_ context.Context, req *proto.UnlockAndSignRequest) (*proto.SignResponse, error) {
+	if !p.isInitialized() {
+		return nil, status.Error(codes.Unavailable, "not configured")
+	}
+	result, err := p.acctManager.UnlockAndSign(common.BytesToAddress(req.Address), req.ToSign)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &proto.SignResponse{Sig: result}, nil
+}
+
 func (p *HashicorpPlugin) SignHash(_ context.Context, req *proto.SignHashRequest) (*proto.SignHashResponse, error) {
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")

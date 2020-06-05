@@ -49,6 +49,8 @@ type AccountManager interface {
 	Status() (string, error)
 	Accounts() ([]accounts.Account, error)
 	Contains(acctAddr common.Address) (bool, error)
+	Sign(acctAddr common.Address, toSign []byte) ([]byte, error)
+	UnlockAndSign(acctAddr common.Address, toSign []byte) ([]byte, error)
 	SignHash(acctAddr common.Address, hash []byte) ([]byte, error)
 	UnlockAndSignHash(acctAddr common.Address, hash []byte) ([]byte, error)
 	SignTx(acctAddr common.Address, tx *types.Transaction, chainID *big.Int) ([]byte, error)
@@ -114,6 +116,36 @@ func (a *accountManager) Accounts() ([]accounts.Account, error) {
 
 func (a *accountManager) Contains(acctAddr common.Address) (bool, error) {
 	return a.client.hasAccount(acctAddr), nil
+}
+
+func (a *accountManager) Sign(acctAddr common.Address, toSign []byte) ([]byte, error) {
+	if !a.client.hasAccount(acctAddr) {
+		return nil, errors.New("unknown account")
+	}
+	a.mu.Lock()
+	lockable, ok := a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
+	a.mu.Unlock()
+	if !ok {
+		return nil, errors.New("account locked")
+	}
+	return crypto.Sign(toSign, lockable.key)
+}
+
+func (a *accountManager) UnlockAndSign(acctAddr common.Address, toSign []byte) ([]byte, error) {
+	if !a.client.hasAccount(acctAddr) {
+		return nil, errors.New("unknown account")
+	}
+	a.mu.Lock()
+	lockable, unlocked := a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
+	a.mu.Unlock()
+	if !unlocked {
+		if err := a.TimedUnlock(acctAddr, 0); err != nil {
+			return nil, err
+		}
+		defer a.Lock(acctAddr)
+		lockable, _ = a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
+	}
+	return crypto.Sign(toSign, lockable.key)
 }
 
 func (a *accountManager) SignHash(acctAddr common.Address, hash []byte) ([]byte, error) {
