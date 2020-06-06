@@ -1,16 +1,15 @@
-package validation
+package config
 
 import (
 	"testing"
 
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
-func minimumValidNewAccountConfig() config.NewAccount {
-	return config.NewAccount{
+func minimumValidNewAccountConfig() NewAccount {
+	return NewAccount{
 		SecretName: "secret",
-		OverwriteProtection: config.OverwriteProtection{
+		OverwriteProtection: OverwriteProtection{
 			InsecureDisable: false,
 			CurrentVersion:  0,
 		},
@@ -24,9 +23,9 @@ func TestNewAccount_Validate_MinimumValidConfig(t *testing.T) {
 
 func TestNewAccount_Validate_SecretName_Invalid(t *testing.T) {
 	var (
-		conf    config.NewAccount
+		conf    NewAccount
 		err     error
-		wantErr = config.InvalidSecretName
+		wantErr = InvalidSecretName
 	)
 
 	conf = minimumValidNewAccountConfig()
@@ -37,7 +36,7 @@ func TestNewAccount_Validate_SecretName_Invalid(t *testing.T) {
 
 func TestNewAccount_Validate_OverwriteProtection_Valid(t *testing.T) {
 	var (
-		conf config.NewAccount
+		conf NewAccount
 		err  error
 	)
 
@@ -62,9 +61,9 @@ func TestNewAccount_Validate_OverwriteProtection_Valid(t *testing.T) {
 
 func TestNewAccount_Validate_OverwriteProtection_Invalid(t *testing.T) {
 	var (
-		conf    config.NewAccount
+		conf    NewAccount
 		err     error
-		wantErr = config.InvalidOverwriteProtection
+		wantErr = InvalidOverwriteProtection
 	)
 
 	conf = minimumValidNewAccountConfig()

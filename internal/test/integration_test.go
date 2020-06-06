@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/testutil"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto_common"
 	"github.com/stretchr/testify/require"
@@ -59,8 +60,8 @@ func setupPluginAndVaultAndFiles(t *testing.T, ctx *ITContext, args ...map[strin
 		WithVaultUrl(ctx.Vault.URL).
 		WithKVEngineName("engine").
 		WithAccountDirectory("file://" + ctx.AccountConfigDirectory).
-		WithRoleIdUrl("env://" + MY_ROLE_ID).
-		WithSecretIdUrl("env://" + MY_SECRET_ID).
+		WithRoleIdUrl("env://" + testutil.MY_ROLE_ID).
+		WithSecretIdUrl("env://" + testutil.MY_SECRET_ID).
 		WithApprolePath("myapprole").
 		WithCaCertUrl("file://" + CA_CERT).
 		WithClientCertUrl("file://" + CLIENT_CERT).
@@ -107,9 +108,9 @@ func TestPlugin_Status_AccountLockedByDefault(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -124,9 +125,9 @@ func TestPlugin_Accounts(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -147,9 +148,9 @@ func TestPlugin_Contains_IsContained(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -165,9 +166,9 @@ func TestPlugin_Contains_IsNotContained(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -183,9 +184,9 @@ func TestPlugin_Sign(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -216,9 +217,9 @@ func TestPlugin_Sign_Locked(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -238,9 +239,9 @@ func TestPlugin_Sign_UnknownAccount(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -260,9 +261,9 @@ func TestPlugin_UnlockAndSign_Locked(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -294,9 +295,9 @@ func TestPlugin_UnlockAndSign_AlreadyUnlocked(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -333,9 +334,9 @@ func TestPlugin_UnlockAndSign_UnknownAccount(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -355,9 +356,9 @@ func TestPlugin_Unlock(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -387,9 +388,9 @@ func TestPlugin_TimedUnlock(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -419,9 +420,9 @@ func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -457,9 +458,9 @@ func TestPlugin_TimedUnlock_Extend(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -497,9 +498,9 @@ func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -535,9 +536,9 @@ func TestPlugin_UnlockAtStartup(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx, map[string]string{"unlock": "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526,UnknownAcctShouldNotCauseError"})
 
@@ -550,9 +551,9 @@ func TestPlugin_Lock(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -581,9 +582,9 @@ func TestPlugin_Lock_MultipleTimes(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -603,9 +604,9 @@ func TestPlugin_Lock_CancelsTimedUnlock(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -637,9 +638,9 @@ func TestPlugin_Lock_UnknownAccount(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -654,9 +655,9 @@ func TestPlugin_NewAccount(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -710,9 +711,9 @@ func TestPlugin_NewAccount_IncorrectCASValue(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -735,9 +736,9 @@ func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -766,9 +767,9 @@ func TestPlugin_ImportRawKey(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -827,9 +828,9 @@ func TestPlugin_ImportRawKey_IncorrectCASValue(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -857,9 +858,9 @@ func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	SetRoleID()
-	SetSecretID()
-	defer UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
