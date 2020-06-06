@@ -1,4 +1,4 @@
-package builders
+package test
 
 import (
 	"crypto/tls"
@@ -16,11 +16,11 @@ import (
 )
 
 const (
-	CA_CERT     = "resources/tls/caRoot.pem"
-	CLIENT_CERT = "resources/tls/quorum-client-chain.pem"
-	CLIENT_KEY  = "resources/tls/quorum-client.key"
-	SERVER_CERT = "resources/tls/localhost-with-san-chain.pem"
-	SERVER_KEY  = "resources/tls/localhost-with-san.key"
+	CA_CERT     = "testdata/tls/caRoot.pem"
+	CLIENT_CERT = "testdata/tls/quorum-client-chain.pem"
+	CLIENT_KEY  = "testdata/tls/quorum-client.key"
+	SERVER_CERT = "testdata/tls/localhost-with-san-chain.pem"
+	SERVER_KEY  = "testdata/tls/localhost-with-san.key"
 
 	AUTH_TOKEN = "authToken"
 	CAS_VALUE  = 5

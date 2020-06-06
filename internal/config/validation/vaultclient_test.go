@@ -1,29 +1,28 @@
 package validation
 
 import (
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test"
 	"testing"
 
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/builders"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/env"
 	"github.com/stretchr/testify/require"
 )
 
-func minimumValidClientConfig() *builders.VaultClientBuilder {
-	var vaultClientBuilder builders.VaultClientBuilder
+func minimumValidClientConfig() *test.VaultClientBuilder {
+	var vaultClientBuilder test.VaultClientBuilder
 	return vaultClientBuilder.
 		WithVaultUrl("http://vault:1111").
 		WithKVEngineName("engine").
 		WithAccountDirectory("file:///path/to/dir").
-		WithRoleIdUrl("env://" + env.MY_ROLE_ID).
-		WithSecretIdUrl("env://" + env.MY_SECRET_ID).
+		WithRoleIdUrl("env://" + test.MY_ROLE_ID).
+		WithSecretIdUrl("env://" + test.MY_SECRET_ID).
 		WithApprolePath("myapprole")
 }
 
 func TestVaultClient_Validate_MinimumValidConfig(t *testing.T) {
-	defer env.UnsetAll()
-	env.SetRoleID()
-	env.SetSecretID()
+	defer test.UnsetAll()
+	test.SetRoleID()
+	test.SetSecretID()
 
 	vaultClient := minimumValidClientConfig().Build(t)
 
@@ -32,9 +31,9 @@ func TestVaultClient_Validate_MinimumValidConfig(t *testing.T) {
 }
 
 func TestVaultClient_Validate_VaultUrl_Valid(t *testing.T) {
-	defer env.UnsetAll()
-	env.SetRoleID()
-	env.SetSecretID()
+	defer test.UnsetAll()
+	test.SetRoleID()
+	test.SetSecretID()
 
 	vaultUrls := []string{
 		"http://vault",
@@ -84,9 +83,9 @@ func TestVaultClient_Validate_KVEngineName_Invalid(t *testing.T) {
 }
 
 func TestVaultClient_Validate_AccountDirectory_Valid(t *testing.T) {
-	defer env.UnsetAll()
-	env.SetRoleID()
-	env.SetSecretID()
+	defer test.UnsetAll()
+	test.SetRoleID()
+	test.SetSecretID()
 
 	acctDirUrls := []string{
 		"file:///absolute/path/to/dir",
@@ -136,32 +135,32 @@ func TestVaultClient_Validate_Authentication_Valid(t *testing.T) {
 		setEnvFuncs []func()
 	}{
 		"token": {
-			tokenUrl:    "env://" + env.MY_TOKEN,
+			tokenUrl:    "env://" + test.MY_TOKEN,
 			roleIdUrl:   "",
 			secretIdUrl: "",
 			approlePath: "",
-			setEnvFuncs: []func(){env.SetToken},
+			setEnvFuncs: []func(){test.SetToken},
 		},
 		"token_all_envs": {
-			tokenUrl:    "env://" + env.MY_TOKEN,
+			tokenUrl:    "env://" + test.MY_TOKEN,
 			roleIdUrl:   "",
 			secretIdUrl: "",
 			approlePath: "",
-			setEnvFuncs: []func(){env.SetToken, env.SetRoleID, env.SetSecretID},
+			setEnvFuncs: []func(){test.SetToken, test.SetRoleID, test.SetSecretID},
 		},
 		"approle": {
 			tokenUrl:    "",
-			roleIdUrl:   "env://" + env.MY_ROLE_ID,
-			secretIdUrl: "env://" + env.MY_SECRET_ID,
+			roleIdUrl:   "env://" + test.MY_ROLE_ID,
+			secretIdUrl: "env://" + test.MY_SECRET_ID,
 			approlePath: "myapprole",
-			setEnvFuncs: []func(){env.SetRoleID, env.SetSecretID},
+			setEnvFuncs: []func(){test.SetRoleID, test.SetSecretID},
 		},
 		"approle_all_envs": {
 			tokenUrl:    "",
-			roleIdUrl:   "env://" + env.MY_ROLE_ID,
-			secretIdUrl: "env://" + env.MY_SECRET_ID,
+			roleIdUrl:   "env://" + test.MY_ROLE_ID,
+			secretIdUrl: "env://" + test.MY_SECRET_ID,
 			approlePath: "myapprole",
-			setEnvFuncs: []func(){env.SetToken, env.SetRoleID, env.SetSecretID},
+			setEnvFuncs: []func(){test.SetToken, test.SetRoleID, test.SetSecretID},
 		},
 	}
 
@@ -180,7 +179,7 @@ func TestVaultClient_Validate_Authentication_Valid(t *testing.T) {
 
 			gotErr := vaultClient.Validate()
 
-			env.UnsetAll()
+			test.UnsetAll()
 
 			require.NoError(t, gotErr)
 		})
@@ -198,11 +197,11 @@ func TestVaultClient_Validate_Authentication_Invalid(t *testing.T) {
 		setEnvFuncs []func()
 	}{
 		"all_set": {
-			tokenUrl:    "env://" + env.MY_TOKEN,
-			roleIdUrl:   "env://" + env.MY_ROLE_ID,
-			secretIdUrl: "env://" + env.MY_SECRET_ID,
+			tokenUrl:    "env://" + test.MY_TOKEN,
+			roleIdUrl:   "env://" + test.MY_ROLE_ID,
+			secretIdUrl: "env://" + test.MY_SECRET_ID,
 			approlePath: "myapprole",
-			setEnvFuncs: []func(){env.SetToken, env.SetRoleID, env.SetSecretID},
+			setEnvFuncs: []func(){test.SetToken, test.SetRoleID, test.SetSecretID},
 		},
 		"none_set": {
 			tokenUrl:    "",
@@ -213,59 +212,59 @@ func TestVaultClient_Validate_Authentication_Invalid(t *testing.T) {
 		},
 		"approle_no_path": {
 			tokenUrl:    "",
-			roleIdUrl:   "env://" + env.MY_ROLE_ID,
-			secretIdUrl: "env://" + env.MY_SECRET_ID,
+			roleIdUrl:   "env://" + test.MY_ROLE_ID,
+			secretIdUrl: "env://" + test.MY_SECRET_ID,
 			approlePath: "",
-			setEnvFuncs: []func(){env.SetToken, env.SetRoleID, env.SetSecretID},
+			setEnvFuncs: []func(){test.SetToken, test.SetRoleID, test.SetSecretID},
 		},
 		"approle_only_role_id": {
 			tokenUrl:    "",
-			roleIdUrl:   "env://" + env.MY_ROLE_ID,
+			roleIdUrl:   "env://" + test.MY_ROLE_ID,
 			secretIdUrl: "",
 			approlePath: "myapprole",
-			setEnvFuncs: []func(){env.SetToken, env.SetRoleID, env.SetSecretID},
+			setEnvFuncs: []func(){test.SetToken, test.SetRoleID, test.SetSecretID},
 		},
 		"approle_only_secret_id": {
 			tokenUrl:    "",
 			roleIdUrl:   "",
-			secretIdUrl: "env://" + env.MY_SECRET_ID,
+			secretIdUrl: "env://" + test.MY_SECRET_ID,
 			approlePath: "myapprole",
-			setEnvFuncs: []func(){env.SetToken, env.SetRoleID, env.SetSecretID},
+			setEnvFuncs: []func(){test.SetToken, test.SetRoleID, test.SetSecretID},
 		},
 		"token_approle_path": {
-			tokenUrl:    "env://" + env.MY_TOKEN,
+			tokenUrl:    "env://" + test.MY_TOKEN,
 			roleIdUrl:   "",
 			secretIdUrl: "",
 			approlePath: "myapprole",
-			setEnvFuncs: []func(){env.SetToken, env.SetRoleID, env.SetSecretID},
+			setEnvFuncs: []func(){test.SetToken, test.SetRoleID, test.SetSecretID},
 		},
 		"token_no_env": {
-			tokenUrl:    "env://" + env.MY_TOKEN,
+			tokenUrl:    "env://" + test.MY_TOKEN,
 			roleIdUrl:   "",
 			secretIdUrl: "",
 			approlePath: "",
 			setEnvFuncs: []func(){},
 		},
 		"token_incorrect_env": {
-			tokenUrl:    "env://" + env.MY_TOKEN,
+			tokenUrl:    "env://" + test.MY_TOKEN,
 			roleIdUrl:   "",
 			secretIdUrl: "",
 			approlePath: "",
-			setEnvFuncs: []func(){env.SetRoleID, env.SetSecretID},
+			setEnvFuncs: []func(){test.SetRoleID, test.SetSecretID},
 		},
 		"approle_no_env": {
 			tokenUrl:    "",
-			roleIdUrl:   "env://" + env.MY_ROLE_ID,
-			secretIdUrl: "env://" + env.MY_SECRET_ID,
+			roleIdUrl:   "env://" + test.MY_ROLE_ID,
+			secretIdUrl: "env://" + test.MY_SECRET_ID,
 			approlePath: "myapprole",
 			setEnvFuncs: []func(){},
 		},
 		"approle_incorrect_env": {
 			tokenUrl:    "",
-			roleIdUrl:   "env://" + env.MY_ROLE_ID,
-			secretIdUrl: "env://" + env.MY_SECRET_ID,
+			roleIdUrl:   "env://" + test.MY_ROLE_ID,
+			secretIdUrl: "env://" + test.MY_SECRET_ID,
 			approlePath: "myapprole",
-			setEnvFuncs: []func(){env.SetToken},
+			setEnvFuncs: []func(){test.SetToken},
 		},
 	}
 
@@ -284,7 +283,7 @@ func TestVaultClient_Validate_Authentication_Invalid(t *testing.T) {
 
 			gotErr := vaultClient.Validate()
 
-			env.UnsetAll()
+			test.UnsetAll()
 
 			require.EqualError(t, gotErr, wantErrMsg)
 		})
@@ -292,9 +291,9 @@ func TestVaultClient_Validate_Authentication_Invalid(t *testing.T) {
 }
 
 func TestVaultClient_Validate_TLS_Valid(t *testing.T) {
-	defer env.UnsetAll()
-	env.SetRoleID()
-	env.SetSecretID()
+	defer test.UnsetAll()
+	test.SetRoleID()
+	test.SetSecretID()
 
 	var tls = map[string]struct {
 		caCert     string
@@ -348,9 +347,9 @@ func TestVaultClient_Validate_TLS_Valid(t *testing.T) {
 }
 
 func TestVaultClient_Validate_TLS_Invalid(t *testing.T) {
-	defer env.UnsetAll()
-	env.SetRoleID()
-	env.SetSecretID()
+	defer test.UnsetAll()
+	test.SetRoleID()
+	test.SetSecretID()
 
 	var tls = map[string]struct {
 		caCert     string

@@ -1,4 +1,4 @@
-package util
+package test
 
 import (
 	"errors"
@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/builders"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,7 +41,7 @@ func (c *ITContext) StartPlugin(t *testing.T) error {
 	return nil
 }
 
-func (c *ITContext) StartTLSVaultServer(t *testing.T, b builders.VaultBuilder) {
+func (c *ITContext) StartTLSVaultServer(t *testing.T, b VaultBuilder) {
 	vault := b.Build(t)
 	vault.StartTLS()
 	c.Vault = vault

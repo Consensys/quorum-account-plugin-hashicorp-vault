@@ -5,26 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/builders"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/env"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/util"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto_common"
 	"github.com/stretchr/testify/require"
 )
 
-func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext, args ...map[string]string) {
+func setupPluginAndVaultAndFiles(t *testing.T, ctx *ITContext, args ...map[string]string) {
 	err := ctx.StartPlugin(t)
 	require.NoError(t, err)
 
@@ -41,36 +35,36 @@ func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext, args ...map[
 	err = ctx.WriteToAccountConfigDirectory(t, []byte(acctConf))
 	require.NoError(t, err)
 
-	var vaultBuilder builders.VaultBuilder
+	var vaultBuilder VaultBuilder
 	vaultBuilder.
 		WithLoginHandler("myapprole").
-		WithHandler(t, builders.HandlerData{
+		WithHandler(t, HandlerData{
 			SecretEnginePath: "engine",
 			SecretPath:       "myAcct",
 			SecretVersion:    2,
 			AcctAddrResponse: "dc99ddec13457de6c0f6bb8e6cf3955c86f55526",
 			PrivKeyResponse:  "7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28",
 		}).
-		WithAccountCreationHandler(t, builders.HandlerData{
+		WithAccountCreationHandler(t, HandlerData{
 			SecretEnginePath: "engine",
 			SecretPath:       "newAcct",
 		}).
-		WithCaCert(builders.CA_CERT).
-		WithServerCert(builders.SERVER_CERT).
-		WithServerKey(builders.SERVER_KEY)
+		WithCaCert(CA_CERT).
+		WithServerCert(SERVER_CERT).
+		WithServerKey(SERVER_KEY)
 	ctx.StartTLSVaultServer(t, vaultBuilder)
 
-	vaultClientBuilder := &builders.VaultClientBuilder{}
+	vaultClientBuilder := &VaultClientBuilder{}
 	vaultClientBuilder.
 		WithVaultUrl(ctx.Vault.URL).
 		WithKVEngineName("engine").
 		WithAccountDirectory("file://" + ctx.AccountConfigDirectory).
-		WithRoleIdUrl("env://" + env.MY_ROLE_ID).
-		WithSecretIdUrl("env://" + env.MY_SECRET_ID).
+		WithRoleIdUrl("env://" + MY_ROLE_ID).
+		WithSecretIdUrl("env://" + MY_SECRET_ID).
 		WithApprolePath("myapprole").
-		WithCaCertUrl("file://" + builders.CA_CERT).
-		WithClientCertUrl("file://" + builders.CLIENT_CERT).
-		WithClientKeyUrl("file://" + builders.CLIENT_KEY)
+		WithCaCertUrl("file://" + CA_CERT).
+		WithClientCertUrl("file://" + CLIENT_CERT).
+		WithClientKeyUrl("file://" + CLIENT_KEY)
 
 	if args != nil {
 		if unlock, ok := args[0]["unlock"]; ok {
@@ -89,7 +83,7 @@ func setupPluginAndVaultAndFiles(t *testing.T, ctx *util.ITContext, args ...map[
 }
 
 func TestPlugin_Init_InvalidPluginConfig(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
 	err := ctx.StartPlugin(t)
@@ -110,12 +104,12 @@ func TestPlugin_Init_InvalidPluginConfig(t *testing.T) {
 }
 
 func TestPlugin_Status_AccountLockedByDefault(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -127,12 +121,12 @@ func TestPlugin_Status_AccountLockedByDefault(t *testing.T) {
 }
 
 func TestPlugin_Accounts(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -150,12 +144,12 @@ func TestPlugin_Accounts(t *testing.T) {
 }
 
 func TestPlugin_Contains_IsContained(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -168,12 +162,12 @@ func TestPlugin_Contains_IsContained(t *testing.T) {
 }
 
 func TestPlugin_Contains_IsNotContained(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -185,13 +179,13 @@ func TestPlugin_Contains_IsNotContained(t *testing.T) {
 	require.False(t, resp.IsContained)
 }
 
-func TestPlugin_SignHash(t *testing.T) {
-	ctx := new(util.ITContext)
+func TestPlugin_Sign(t *testing.T) {
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -206,25 +200,25 @@ func TestPlugin_SignHash(t *testing.T) {
 
 	toSign := crypto.Keccak256([]byte("to sign"))
 
-	resp, err := ctx.AccountManager.SignHash(context.Background(), &proto.SignHashRequest{
+	resp, err := ctx.AccountManager.Sign(context.Background(), &proto.SignRequest{
 		Address: acctAddr,
-		Hash:    toSign,
+		ToSign:  toSign,
 	})
 	require.NoError(t, err)
 
 	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
 	want, _ := crypto.Sign(toSign, prv)
 
-	require.Equal(t, want, resp.Result)
+	require.Equal(t, want, resp.Sig)
 }
 
-func TestPlugin_SignHash_Locked(t *testing.T) {
-	ctx := new(util.ITContext)
+func TestPlugin_Sign_Locked(t *testing.T) {
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -233,20 +227,20 @@ func TestPlugin_SignHash_Locked(t *testing.T) {
 
 	toSign := crypto.Keccak256([]byte("to sign"))
 
-	_, err := ctx.AccountManager.SignHash(context.Background(), &proto.SignHashRequest{
+	_, err := ctx.AccountManager.Sign(context.Background(), &proto.SignRequest{
 		Address: acctAddr,
-		Hash:    toSign,
+		ToSign:  toSign,
 	})
 	require.EqualError(t, err, "rpc error: code = Internal desc = account locked")
 }
 
-func TestPlugin_SignHash_UnknownAccount(t *testing.T) {
-	ctx := new(util.ITContext)
+func TestPlugin_Sign_UnknownAccount(t *testing.T) {
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -255,20 +249,20 @@ func TestPlugin_SignHash_UnknownAccount(t *testing.T) {
 
 	toSign := crypto.Keccak256([]byte("to sign"))
 
-	_, err := ctx.AccountManager.SignHash(context.Background(), &proto.SignHashRequest{
+	_, err := ctx.AccountManager.Sign(context.Background(), &proto.SignRequest{
 		Address: acctAddr,
-		Hash:    toSign,
+		ToSign:  toSign,
 	})
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
 }
 
-func TestPlugin_SignHashWithPassphrase_Locked(t *testing.T) {
-	ctx := new(util.ITContext)
+func TestPlugin_UnlockAndSign_Locked(t *testing.T) {
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -281,28 +275,28 @@ func TestPlugin_SignHashWithPassphrase_Locked(t *testing.T) {
 
 	toSign := crypto.Keccak256([]byte("to sign"))
 
-	resp, err := ctx.AccountManager.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
+	resp, err := ctx.AccountManager.UnlockAndSign(context.Background(), &proto.UnlockAndSignRequest{
 		Address: acctAddr,
-		Hash:    toSign,
+		ToSign:  toSign,
 	})
 	require.NoError(t, err)
 
 	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
 	want, _ := crypto.Sign(toSign, prv)
-	require.Equal(t, want, resp.Result)
+	require.Equal(t, want, resp.Sig)
 
 	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
 	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
 }
 
-func TestPlugin_SignHashWithPassphrase_AlreadyUnlocked(t *testing.T) {
-	ctx := new(util.ITContext)
+func TestPlugin_UnlockAndSign_AlreadyUnlocked(t *testing.T) {
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -320,28 +314,28 @@ func TestPlugin_SignHashWithPassphrase_AlreadyUnlocked(t *testing.T) {
 
 	toSign := crypto.Keccak256([]byte("to sign"))
 
-	resp, err := ctx.AccountManager.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
+	resp, err := ctx.AccountManager.UnlockAndSign(context.Background(), &proto.UnlockAndSignRequest{
 		Address: acctAddr,
-		Hash:    toSign,
+		ToSign:  toSign,
 	})
 	require.NoError(t, err)
 
 	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
 	want, _ := crypto.Sign(toSign, prv)
-	require.Equal(t, want, resp.Result)
+	require.Equal(t, want, resp.Sig)
 
 	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
 }
 
-func TestPlugin_SignHashWithPassphrase_UnknownAccount(t *testing.T) {
-	ctx := new(util.ITContext)
+func TestPlugin_UnlockAndSign_UnknownAccount(t *testing.T) {
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -350,584 +344,20 @@ func TestPlugin_SignHashWithPassphrase_UnknownAccount(t *testing.T) {
 
 	toSign := crypto.Keccak256([]byte("to sign"))
 
-	_, err := ctx.AccountManager.SignHashWithPassphrase(context.Background(), &proto.SignHashWithPassphraseRequest{
+	_, err := ctx.AccountManager.UnlockAndSign(context.Background(), &proto.UnlockAndSignRequest{
 		Address: acctAddr,
-		Hash:    toSign,
-	})
-	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
-}
-
-func TestPlugin_SignTx_Private(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
-
-	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  acctAddr,
-		Duration: 0,
-	})
-	require.NoError(t, err)
-
-	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
-	toSign.SetPrivate()
-	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	require.NoError(t, err)
-
-	resp, err := ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		Address: acctAddr,
-		RlpTx:   rlpToSign,
-		ChainID: big.NewInt(42).Bytes(),
-	})
-	require.NoError(t, err)
-
-	got := new(types.Transaction)
-	err = rlp.DecodeBytes(resp.RlpTx, got)
-	require.NoError(t, err)
-
-	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
-	signer := types.QuorumPrivateTxSigner{}
-	txSignerHash := signer.Hash(toSign)
-	txSignerSignature, err := crypto.Sign(txSignerHash[:], prv)
-	require.NoError(t, err)
-
-	want, err := toSign.WithSignature(signer, txSignerSignature)
-	require.NoError(t, err)
-	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.
-	// When the caller decodes it back to a tx, the size field of the tx is populated (see
-	// types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that
-	// we can compare the returned tx with want.  This is achieved by calling Size().
-	want.Size()
-
-	require.Equal(t, want, got)
-}
-
-func TestPlugin_SignTx_Homestead(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
-
-	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  acctAddr,
-		Duration: 0,
-	})
-	require.NoError(t, err)
-
-	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
-	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	require.NoError(t, err)
-
-	resp, err := ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		Address: acctAddr,
-		RlpTx:   rlpToSign,
-		ChainID: nil,
-	})
-	require.NoError(t, err)
-
-	got := new(types.Transaction)
-	err = rlp.DecodeBytes(resp.RlpTx, got)
-	require.NoError(t, err)
-
-	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
-	signer := types.HomesteadSigner{}
-	txSignerHash := signer.Hash(toSign)
-	txSignerSignature, err := crypto.Sign(txSignerHash[:], prv)
-	require.NoError(t, err)
-
-	want, err := toSign.WithSignature(signer, txSignerSignature)
-	require.NoError(t, err)
-	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.
-	// When the caller decodes it back to a tx, the size field of the tx is populated (see
-	// types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that
-	// we can compare the returned tx with want.  This is achieved by calling Size().
-	want.Size()
-
-	require.Equal(t, want, got)
-}
-
-func TestPlugin_SignTx_EIP155(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
-
-	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  acctAddr,
-		Duration: 0,
-	})
-	require.NoError(t, err)
-
-	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
-	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	require.NoError(t, err)
-
-	resp, err := ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		Address: acctAddr,
-		RlpTx:   rlpToSign,
-		ChainID: big.NewInt(42).Bytes(),
-	})
-	require.NoError(t, err)
-
-	got := new(types.Transaction)
-	err = rlp.DecodeBytes(resp.RlpTx, got)
-	require.NoError(t, err)
-
-	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
-	signer := types.NewEIP155Signer(big.NewInt(42))
-	txSignerHash := signer.Hash(toSign)
-	txSignerSignature, err := crypto.Sign(txSignerHash[:], prv)
-	require.NoError(t, err)
-
-	want, err := toSign.WithSignature(signer, txSignerSignature)
-	require.NoError(t, err)
-	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.
-	// When the caller decodes it back to a tx, the size field of the tx is populated (see
-	// types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that
-	// we can compare the returned tx with want.  This is achieved by calling Size().
-	want.Size()
-
-	require.Equal(t, want, got)
-}
-
-func TestPlugin_SignTx_Locked(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
-
-	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
-	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	require.NoError(t, err)
-
-	_, err = ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		Address: acctAddr,
-		RlpTx:   rlpToSign,
-		ChainID: big.NewInt(42).Bytes(),
-	})
-	require.EqualError(t, err, "rpc error: code = Internal desc = account locked")
-}
-
-func TestPlugin_SignTx_UnknownAccount(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// sign hash
-	acctAddr := common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
-
-	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
-	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	require.NoError(t, err)
-
-	_, err = ctx.AccountManager.SignTx(context.Background(), &proto.SignTxRequest{
-		Address: acctAddr,
-		RlpTx:   rlpToSign,
-		ChainID: big.NewInt(42).Bytes(),
-	})
-	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
-}
-
-func TestPlugin_SignTxWithPassphrase_Private_Locked(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
-
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
-
-	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
-	toSign.SetPrivate()
-	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	require.NoError(t, err)
-
-	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Address: acctAddr,
-		RlpTx:   rlpToSign,
-		ChainID: big.NewInt(42).Bytes(),
-	})
-	require.NoError(t, err)
-
-	got := new(types.Transaction)
-	err = rlp.DecodeBytes(resp.RlpTx, got)
-	require.NoError(t, err)
-
-	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
-	signer := types.QuorumPrivateTxSigner{}
-	txSignerHash := signer.Hash(toSign)
-	txSignerSignature, err := crypto.Sign(txSignerHash[:], prv)
-	require.NoError(t, err)
-
-	want, err := toSign.WithSignature(signer, txSignerSignature)
-	require.NoError(t, err)
-	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.
-	// When the caller decodes it back to a tx, the size field of the tx is populated (see
-	// types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that
-	// we can compare the returned tx with want.  This is achieved by calling Size().
-	want.Size()
-
-	require.Equal(t, want, got)
-
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
-}
-
-func TestPlugin_SignTxWithPassphrase_Private_AlreadyUnlocked(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
-
-	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  acctAddr,
-		Duration: 0,
-	})
-
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
-
-	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
-	toSign.SetPrivate()
-	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	require.NoError(t, err)
-
-	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Address: acctAddr,
-		RlpTx:   rlpToSign,
-		ChainID: big.NewInt(42).Bytes(),
-	})
-	require.NoError(t, err)
-
-	got := new(types.Transaction)
-	err = rlp.DecodeBytes(resp.RlpTx, got)
-	require.NoError(t, err)
-
-	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
-	signer := types.QuorumPrivateTxSigner{}
-	txSignerHash := signer.Hash(toSign)
-	txSignerSignature, err := crypto.Sign(txSignerHash[:], prv)
-	require.NoError(t, err)
-
-	want, err := toSign.WithSignature(signer, txSignerSignature)
-	require.NoError(t, err)
-	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.
-	// When the caller decodes it back to a tx, the size field of the tx is populated (see
-	// types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that
-	// we can compare the returned tx with want.  This is achieved by calling Size().
-	want.Size()
-
-	require.Equal(t, want, got)
-
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
-}
-
-func TestPlugin_SignTxWithPassphrase_Homestead_Locked(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
-
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
-
-	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
-	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	require.NoError(t, err)
-
-	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Address: acctAddr,
-		RlpTx:   rlpToSign,
-		ChainID: nil,
-	})
-	require.NoError(t, err)
-
-	got := new(types.Transaction)
-	err = rlp.DecodeBytes(resp.RlpTx, got)
-	require.NoError(t, err)
-
-	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
-	signer := types.HomesteadSigner{}
-	txSignerHash := signer.Hash(toSign)
-	txSignerSignature, err := crypto.Sign(txSignerHash[:], prv)
-	require.NoError(t, err)
-
-	want, err := toSign.WithSignature(signer, txSignerSignature)
-	require.NoError(t, err)
-	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.
-	// When the caller decodes it back to a tx, the size field of the tx is populated (see
-	// types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that
-	// we can compare the returned tx with want.  This is achieved by calling Size().
-	want.Size()
-
-	require.Equal(t, want, got)
-
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
-}
-
-func TestPlugin_SignTxWithPassphrase_Homestead_AlreadyUnlocked(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
-
-	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  acctAddr,
-		Duration: 0,
-	})
-
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
-
-	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
-	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	require.NoError(t, err)
-
-	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Address: acctAddr,
-		RlpTx:   rlpToSign,
-		ChainID: nil,
-	})
-	require.NoError(t, err)
-
-	got := new(types.Transaction)
-	err = rlp.DecodeBytes(resp.RlpTx, got)
-	require.NoError(t, err)
-
-	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
-	signer := types.HomesteadSigner{}
-	txSignerHash := signer.Hash(toSign)
-	txSignerSignature, err := crypto.Sign(txSignerHash[:], prv)
-	require.NoError(t, err)
-
-	want, err := toSign.WithSignature(signer, txSignerSignature)
-	require.NoError(t, err)
-	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.
-	// When the caller decodes it back to a tx, the size field of the tx is populated (see
-	// types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that
-	// we can compare the returned tx with want.  This is achieved by calling Size().
-	want.Size()
-
-	require.Equal(t, want, got)
-
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
-}
-
-func TestPlugin_SignTxWithPassphrase_EIP155_Locked(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
-
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
-
-	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
-	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	require.NoError(t, err)
-
-	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Address: acctAddr,
-		RlpTx:   rlpToSign,
-		ChainID: big.NewInt(42).Bytes(),
-	})
-	require.NoError(t, err)
-
-	got := new(types.Transaction)
-	err = rlp.DecodeBytes(resp.RlpTx, got)
-	require.NoError(t, err)
-
-	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
-	signer := types.NewEIP155Signer(big.NewInt(42))
-	txSignerHash := signer.Hash(toSign)
-	txSignerSignature, err := crypto.Sign(txSignerHash[:], prv)
-	require.NoError(t, err)
-
-	want, err := toSign.WithSignature(signer, txSignerSignature)
-	require.NoError(t, err)
-	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.
-	// When the caller decodes it back to a tx, the size field of the tx is populated (see
-	// types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that
-	// we can compare the returned tx with want.  This is achieved by calling Size().
-	want.Size()
-
-	require.Equal(t, want, got)
-
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
-}
-
-func TestPlugin_SignTxWithPassphrase_EIP155_AlreadyUnlocked(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
-
-	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  acctAddr,
-		Duration: 0,
-	})
-
-	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
-
-	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
-	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	require.NoError(t, err)
-
-	resp, err := ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Address: acctAddr,
-		RlpTx:   rlpToSign,
-		ChainID: big.NewInt(42).Bytes(),
-	})
-	require.NoError(t, err)
-
-	got := new(types.Transaction)
-	err = rlp.DecodeBytes(resp.RlpTx, got)
-	require.NoError(t, err)
-
-	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
-	signer := types.NewEIP155Signer(big.NewInt(42))
-	txSignerHash := signer.Hash(toSign)
-	txSignerSignature, err := crypto.Sign(txSignerHash[:], prv)
-	require.NoError(t, err)
-
-	want, err := toSign.WithSignature(signer, txSignerSignature)
-	require.NoError(t, err)
-	// The plugin account manager will send the signed tx to the caller in rlp-encoded form.
-	// When the caller decodes it back to a tx, the size field of the tx is populated (see
-	// types/transaction.go: *Transaction.DecodeRLP).  We must populate that field so that
-	// we can compare the returned tx with want.  This is achieved by calling Size().
-	want.Size()
-
-	require.Equal(t, want, got)
-
-	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
-	require.NoError(t, err)
-	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
-}
-
-func TestPlugin_SignTxWithPassphrase_UnknownAccount(t *testing.T) {
-	ctx := new(util.ITContext)
-	defer ctx.Cleanup()
-
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
-
-	setupPluginAndVaultAndFiles(t, ctx)
-
-	// sign hash
-	acctAddr := common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
-
-	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, []byte{})
-	rlpToSign, err := rlp.EncodeToBytes(toSign)
-	require.NoError(t, err)
-
-	_, err = ctx.AccountManager.SignTxWithPassphrase(context.Background(), &proto.SignTxWithPassphraseRequest{
-		Address: acctAddr,
-		RlpTx:   rlpToSign,
-		ChainID: big.NewInt(42).Bytes(),
+		ToSign:  toSign,
 	})
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
 }
 
 func TestPlugin_Unlock(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -954,12 +384,12 @@ func TestPlugin_Unlock(t *testing.T) {
 }
 
 func TestPlugin_TimedUnlock(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -986,12 +416,12 @@ func TestPlugin_TimedUnlock(t *testing.T) {
 }
 
 func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -1024,12 +454,12 @@ func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
 }
 
 func TestPlugin_TimedUnlock_Extend(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -1064,12 +494,12 @@ func TestPlugin_TimedUnlock_Extend(t *testing.T) {
 }
 
 func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -1102,12 +532,12 @@ func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
 }
 
 func TestPlugin_UnlockAtStartup(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx, map[string]string{"unlock": "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526,UnknownAcctShouldNotCauseError"})
 
@@ -1117,12 +547,12 @@ func TestPlugin_UnlockAtStartup(t *testing.T) {
 }
 
 func TestPlugin_Lock(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -1148,12 +578,12 @@ func TestPlugin_Lock(t *testing.T) {
 }
 
 func TestPlugin_Lock_MultipleTimes(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -1170,12 +600,12 @@ func TestPlugin_Lock_MultipleTimes(t *testing.T) {
 }
 
 func TestPlugin_Lock_CancelsTimedUnlock(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -1204,12 +634,12 @@ func TestPlugin_Lock_CancelsTimedUnlock(t *testing.T) {
 }
 
 func TestPlugin_Lock_UnknownAccount(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -1221,12 +651,12 @@ func TestPlugin_Lock_UnknownAccount(t *testing.T) {
 }
 
 func TestPlugin_NewAccount(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -1237,7 +667,7 @@ func TestPlugin_NewAccount(t *testing.T) {
 		"currentVersion": %v
 	}
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, CAS_VALUE)
 
 	files, _ := ioutil.ReadDir(ctx.AccountConfigDirectory)
 	require.Len(t, files, 1)
@@ -1245,7 +675,7 @@ func TestPlugin_NewAccount(t *testing.T) {
 	resp, err := ctx.AccountManager.NewAccount(context.Background(), &proto.NewAccountRequest{NewAccountConfig: []byte(newAcctConf)})
 	require.NoError(t, err)
 
-	wantUrl := fmt.Sprintf(ctx.Vault.URL+"/v1/engine/data/newAcct?version=%v", builders.CAS_VALUE+1)
+	wantUrl := fmt.Sprintf(ctx.Vault.URL+"/v1/engine/data/newAcct?version=%v", CAS_VALUE+1)
 
 	require.NotNil(t, resp)
 	require.Equal(t, wantUrl, resp.Account.Url)
@@ -1277,12 +707,12 @@ func TestPlugin_NewAccount(t *testing.T) {
 }
 
 func TestPlugin_NewAccount_IncorrectCASValue(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -1293,7 +723,7 @@ func TestPlugin_NewAccount_IncorrectCASValue(t *testing.T) {
 		"currentVersion": %v
 	}
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE+10)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, CAS_VALUE+10)
 
 	_, err := ctx.AccountManager.NewAccount(context.Background(), &proto.NewAccountRequest{NewAccountConfig: []byte(newAcctConf)})
 	require.Error(t, err)
@@ -1302,12 +732,12 @@ func TestPlugin_NewAccount_IncorrectCASValue(t *testing.T) {
 }
 
 func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -1318,7 +748,7 @@ func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 		"currentVersion": %v
 	}
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, CAS_VALUE)
 
 	newAccountResp, err := ctx.AccountManager.NewAccount(context.Background(), &proto.NewAccountRequest{NewAccountConfig: []byte(newAcctConf)})
 	require.NoError(t, err)
@@ -1333,12 +763,12 @@ func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 }
 
 func TestPlugin_ImportRawKey(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -1349,7 +779,7 @@ func TestPlugin_ImportRawKey(t *testing.T) {
 		"currentVersion": %v
 	}
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, CAS_VALUE)
 
 	files, _ := ioutil.ReadDir(ctx.AccountConfigDirectory)
 	require.Len(t, files, 1)
@@ -1362,7 +792,7 @@ func TestPlugin_ImportRawKey(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	wantUrl := fmt.Sprintf(ctx.Vault.URL+"/v1/engine/data/newAcct?version=%v", builders.CAS_VALUE+1)
+	wantUrl := fmt.Sprintf(ctx.Vault.URL+"/v1/engine/data/newAcct?version=%v", CAS_VALUE+1)
 
 	require.NotNil(t, resp)
 	require.Equal(t, wantUrl, resp.Account.Url)
@@ -1394,12 +824,12 @@ func TestPlugin_ImportRawKey(t *testing.T) {
 }
 
 func TestPlugin_ImportRawKey_IncorrectCASValue(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -1410,7 +840,7 @@ func TestPlugin_ImportRawKey_IncorrectCASValue(t *testing.T) {
 		"currentVersion": %v
 	}
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE+10)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, CAS_VALUE+10)
 
 	_, err := ctx.AccountManager.ImportRawKey(context.Background(),
 		&proto.ImportRawKeyRequest{
@@ -1424,12 +854,12 @@ func TestPlugin_ImportRawKey_IncorrectCASValue(t *testing.T) {
 }
 
 func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
-	ctx := new(util.ITContext)
+	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
-	env.SetRoleID()
-	env.SetSecretID()
-	defer env.UnsetAll()
+	SetRoleID()
+	SetSecretID()
+	defer UnsetAll()
 
 	setupPluginAndVaultAndFiles(t, ctx)
 
@@ -1440,7 +870,7 @@ func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 		"currentVersion": %v
 	}
 }`
-	newAcctConf := fmt.Sprintf(newAcctConfTemplate, builders.CAS_VALUE)
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, CAS_VALUE)
 
 	importResp, err := ctx.AccountManager.ImportRawKey(context.Background(),
 		&proto.ImportRawKeyRequest{
