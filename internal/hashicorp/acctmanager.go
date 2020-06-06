@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/big"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -17,9 +16,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hashicorp/vault/api"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
@@ -51,10 +48,6 @@ type AccountManager interface {
 	Contains(acctAddr common.Address) (bool, error)
 	Sign(acctAddr common.Address, toSign []byte) ([]byte, error)
 	UnlockAndSign(acctAddr common.Address, toSign []byte) ([]byte, error)
-	SignHash(acctAddr common.Address, hash []byte) ([]byte, error)
-	UnlockAndSignHash(acctAddr common.Address, hash []byte) ([]byte, error)
-	SignTx(acctAddr common.Address, tx *types.Transaction, chainID *big.Int) ([]byte, error)
-	UnlockAndSignTx(acctAddr common.Address, tx *types.Transaction, chainID *big.Int) ([]byte, error)
 	TimedUnlock(acctAddr common.Address, duration time.Duration) error
 	Lock(acctAddr common.Address)
 	NewAccount(conf config.NewAccount) (accounts.Account, error)
@@ -146,84 +139,6 @@ func (a *accountManager) UnlockAndSign(acctAddr common.Address, toSign []byte) (
 		lockable, _ = a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
 	}
 	return crypto.Sign(toSign, lockable.key)
-}
-
-func (a *accountManager) SignHash(acctAddr common.Address, hash []byte) ([]byte, error) {
-	if !a.client.hasAccount(acctAddr) {
-		return nil, errors.New("unknown account")
-	}
-	a.mu.Lock()
-	lockable, ok := a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
-	a.mu.Unlock()
-	if !ok {
-		return nil, errors.New("account locked")
-	}
-	return crypto.Sign(hash, lockable.key)
-}
-
-func (a *accountManager) UnlockAndSignHash(acctAddr common.Address, hash []byte) ([]byte, error) {
-	if !a.client.hasAccount(acctAddr) {
-		return nil, errors.New("unknown account")
-	}
-	a.mu.Lock()
-	lockable, unlocked := a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
-	a.mu.Unlock()
-	if !unlocked {
-		if err := a.TimedUnlock(acctAddr, 0); err != nil {
-			return nil, err
-		}
-		defer a.Lock(acctAddr)
-		lockable, _ = a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
-	}
-	return crypto.Sign(hash, lockable.key)
-}
-
-func (a *accountManager) SignTx(acctAddr common.Address, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
-	if !a.client.hasAccount(acctAddr) {
-		return nil, errors.New("unknown account")
-	}
-	a.mu.Lock()
-	lockable, ok := a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
-	a.mu.Unlock()
-	if !ok {
-		return nil, errors.New("account locked")
-	}
-	signedTx, err := a.signTx(tx, lockable.key, chainID)
-	if err != nil {
-		return nil, err
-	}
-	return rlp.EncodeToBytes(signedTx)
-}
-
-func (a *accountManager) UnlockAndSignTx(acctAddr common.Address, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
-	if !a.client.hasAccount(acctAddr) {
-		return nil, errors.New("unknown account")
-	}
-	a.mu.Lock()
-	lockable, unlocked := a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
-	a.mu.Unlock()
-	if !unlocked {
-		if err := a.TimedUnlock(acctAddr, 0); err != nil {
-			return nil, err
-		}
-		defer a.Lock(acctAddr)
-		lockable, _ = a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
-	}
-	signedTx, err := a.signTx(tx, lockable.key, chainID)
-	if err != nil {
-		return nil, err
-	}
-	return rlp.EncodeToBytes(signedTx)
-}
-
-func (a *accountManager) signTx(tx *types.Transaction, key *ecdsa.PrivateKey, chainID *big.Int) (*types.Transaction, error) {
-	if tx.IsPrivate() {
-		return types.SignTx(tx, types.QuorumPrivateTxSigner{}, key)
-	}
-	if chainID == nil {
-		return types.SignTx(tx, types.HomesteadSigner{}, key)
-	}
-	return types.SignTx(tx, types.NewEIP155Signer(chainID), key)
 }
 
 func (a *accountManager) TimedUnlock(acctAddr common.Address, duration time.Duration) error {

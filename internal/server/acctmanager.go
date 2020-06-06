@@ -3,13 +3,10 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/protoconv"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
@@ -89,74 +86,6 @@ func (p *HashicorpPlugin) UnlockAndSign(_ context.Context, req *proto.UnlockAndS
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &proto.SignResponse{Sig: result}, nil
-}
-
-func (p *HashicorpPlugin) SignHash(_ context.Context, req *proto.SignHashRequest) (*proto.SignHashResponse, error) {
-	if !p.isInitialized() {
-		return nil, status.Error(codes.Unavailable, "not configured")
-	}
-	result, err := p.acctManager.SignHash(common.BytesToAddress(req.Address), req.Hash)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	return &proto.SignHashResponse{Result: result}, nil
-}
-
-func (p *HashicorpPlugin) SignHashWithPassphrase(_ context.Context, req *proto.SignHashWithPassphraseRequest) (*proto.SignHashResponse, error) {
-	if !p.isInitialized() {
-		return nil, status.Error(codes.Unavailable, "not configured")
-	}
-	result, err := p.acctManager.UnlockAndSignHash(common.BytesToAddress(req.Address), req.Hash)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	return &proto.SignHashResponse{Result: result}, nil
-}
-
-func (p *HashicorpPlugin) SignTx(_ context.Context, req *proto.SignTxRequest) (*proto.SignTxResponse, error) {
-	if !p.isInitialized() {
-		return nil, status.Error(codes.Unavailable, "not configured")
-	}
-	tx := new(types.Transaction)
-	if err := rlp.DecodeBytes(req.RlpTx, tx); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
-	chainID := new(big.Int)
-	if len(req.ChainID) == 0 {
-		chainID = nil
-	} else {
-		chainID.SetBytes(req.ChainID)
-	}
-
-	result, err := p.acctManager.SignTx(common.BytesToAddress(req.Address), tx, chainID)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	return &proto.SignTxResponse{RlpTx: result}, nil
-}
-
-func (p *HashicorpPlugin) SignTxWithPassphrase(_ context.Context, req *proto.SignTxWithPassphraseRequest) (*proto.SignTxResponse, error) {
-	if !p.isInitialized() {
-		return nil, status.Error(codes.Unavailable, "not configured")
-	}
-	tx := new(types.Transaction)
-	if err := rlp.DecodeBytes(req.RlpTx, tx); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
-	chainID := new(big.Int)
-	if len(req.ChainID) == 0 {
-		chainID = nil
-	} else {
-		chainID.SetBytes(req.ChainID)
-	}
-
-	result, err := p.acctManager.UnlockAndSignTx(common.BytesToAddress(req.Address), tx, chainID)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	return &proto.SignTxResponse{RlpTx: result}, nil
 }
 
 func (p *HashicorpPlugin) TimedUnlock(_ context.Context, req *proto.TimedUnlockRequest) (*proto.TimedUnlockResponse, error) {
