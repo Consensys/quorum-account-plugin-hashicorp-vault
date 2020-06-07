@@ -2,9 +2,9 @@ package config
 
 import (
 	"encoding/json"
+	"net/url"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,10 +45,7 @@ func TestAccountFileJSON_AccountURL(t *testing.T) {
 
 	vaultUrl := "http://vault:1111"
 
-	want := accounts.URL{
-		Scheme: "http",
-		Path:   "vault:1111/v1/engine/data/path?version=10",
-	}
+	want, _ := url.Parse("http://vault:1111/v1/engine/data/path?version=10")
 
 	got, err := conf.AccountURL(vaultUrl, "engine")
 

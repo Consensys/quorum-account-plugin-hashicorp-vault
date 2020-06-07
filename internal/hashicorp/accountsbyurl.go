@@ -1,12 +1,13 @@
 package hashicorp
 
 import (
-	"github.com/ethereum/go-ethereum/accounts"
+	"net/url"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
 
-type accountsByURL map[accounts.URL]config.AccountFile
+type accountsByURL map[*url.URL]config.AccountFile
 
 func (m accountsByURL) HasAccountWithAddress(address common.Address) bool {
 	for _, file := range m {

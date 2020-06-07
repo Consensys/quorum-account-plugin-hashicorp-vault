@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/vault/api"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
@@ -101,8 +100,8 @@ func (c *vaultClient) authenticateWithApprole(conf config.VaultClientAuthenticat
 	return &renewable{Secret: resp}, nil
 }
 
-func (c *vaultClient) loadAccounts() (map[accounts.URL]config.AccountFile, error) {
-	result := make(map[accounts.URL]config.AccountFile)
+func (c *vaultClient) loadAccounts() (map[*url.URL]config.AccountFile, error) {
+	result := make(map[*url.URL]config.AccountFile)
 
 	walkFn := filepath.WalkFunc(func(path string, info os.FileInfo, err error) error {
 		if err != nil {

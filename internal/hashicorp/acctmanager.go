@@ -14,11 +14,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/vault/api"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/types"
 )
 
 func NewAccountManager(config config.VaultClient) (AccountManager, error) {
@@ -44,14 +44,14 @@ func NewAccountManager(config config.VaultClient) (AccountManager, error) {
 
 type AccountManager interface {
 	Status() (string, error)
-	Accounts() ([]accounts.Account, error)
+	Accounts() ([]types.Account, error)
 	Contains(acctAddr common.Address) (bool, error)
 	Sign(acctAddr common.Address, toSign []byte) ([]byte, error)
 	UnlockAndSign(acctAddr common.Address, toSign []byte) ([]byte, error)
 	TimedUnlock(acctAddr common.Address, duration time.Duration) error
 	Lock(acctAddr common.Address)
-	NewAccount(conf config.NewAccount) (accounts.Account, error)
-	ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error)
+	NewAccount(conf config.NewAccount) (types.Account, error)
+	ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (types.Account, error)
 }
 
 type accountManager struct {
@@ -91,14 +91,14 @@ func (a *accountManager) Status() (string, error) {
 	return status, nil
 }
 
-func (a *accountManager) Accounts() ([]accounts.Account, error) {
+func (a *accountManager) Accounts() ([]types.Account, error) {
 	var (
 		w     = a.client.accts
-		accts = make([]accounts.Account, 0, len(w))
-		acct  accounts.Account
+		accts = make([]types.Account, 0, len(w))
+		acct  types.Account
 	)
 	for url, conf := range w {
-		acct = accounts.Account{
+		acct = types.Account{
 			Address: common.HexToAddress(conf.Contents.Address),
 			URL:     url,
 		}
@@ -226,20 +226,20 @@ func (a *accountManager) Lock(acctAddr common.Address) {
 	}
 }
 
-func (a *accountManager) NewAccount(conf config.NewAccount) (accounts.Account, error) {
+func (a *accountManager) NewAccount(conf config.NewAccount) (types.Account, error) {
 	privateKeyECDSA, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	if err != nil {
-		return accounts.Account{}, err
+		return types.Account{}, err
 	}
 
 	return a.writeToVaultAndFile(privateKeyECDSA, conf)
 }
 
-func (a *accountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
+func (a *accountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (types.Account, error) {
 	return a.writeToVaultAndFile(privateKeyECDSA, conf)
 }
 
-func (a *accountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (accounts.Account, error) {
+func (a *accountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (types.Account, error) {
 	accountAddress := crypto.PubkeyToAddress(privateKeyECDSA.PublicKey)
 
 	log.Println("[DEBUG] Writing new account data to Vault...")
@@ -248,32 +248,32 @@ func (a *accountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, 
 
 	resp, err := a.writeToVault(addrHex, keyHex, conf)
 	if err != nil {
-		return accounts.Account{}, fmt.Errorf("unable to write secret to Vault: %v", err)
+		return types.Account{}, fmt.Errorf("unable to write secret to Vault: %v", err)
 	}
 	log.Println("[INFO] New account data written to Vault")
 
 	log.Println("[DEBUG] Writing new account data to file in account config directory...")
 	secretVersion, err := a.getVersionFromResponse(resp)
 	if err != nil {
-		return accounts.Account{}, fmt.Errorf("unable to write new account config file: %v", err)
+		return types.Account{}, fmt.Errorf("unable to write new account config file: %v", err)
 	}
 
 	fileData, err := a.writeToFile(addrHex, secretVersion, conf)
 	if err != nil {
-		return accounts.Account{}, fmt.Errorf("unable to write new account config file, err: %v", err)
+		return types.Account{}, fmt.Errorf("unable to write new account config file, err: %v", err)
 	}
 	log.Printf("[INFO] New account data written to %v", fileData.Path)
 
 	// prepare return value
 	accountURL, err := fileData.Contents.AccountURL(a.client.Address(), a.kvEngineName)
 	if err != nil {
-		return accounts.Account{}, err
+		return types.Account{}, err
 	}
 
 	// update the internal list of accts
 	a.client.accts[accountURL] = fileData
 
-	return accounts.Account{
+	return types.Account{
 		Address: accountAddress,
 		URL:     accountURL,
 	}, nil
