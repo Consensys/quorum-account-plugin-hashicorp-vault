@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/testutil"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
@@ -199,18 +198,15 @@ func TestPlugin_Sign(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	toSign := crypto.Keccak256([]byte("to sign"))
+	toSign := []byte{188, 76, 145, 93, 105, 137, 107, 25, 143, 2, 146, 167, 35, 115, 162, 189, 205, 13, 82, 188, 203, 252, 236, 17, 217, 200, 76, 15, 255, 113, 176, 188}
+	wantSig := []byte{21, 228, 169, 48, 162, 94, 71, 55, 85, 214, 104, 193, 92, 14, 27, 132, 111, 18, 108, 11, 194, 150, 169, 254, 177, 54, 67, 10, 14, 208, 100, 250, 123, 166, 26, 0, 44, 215, 237, 186, 32, 198, 241, 77, 206, 214, 249, 124, 212, 36, 249, 4, 171, 87, 68, 147, 238, 96, 8, 180, 122, 172, 175, 38, 1}
 
 	resp, err := ctx.AccountManager.Sign(context.Background(), &proto.SignRequest{
 		Address: acctAddr,
 		ToSign:  toSign,
 	})
 	require.NoError(t, err)
-
-	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
-	want, _ := crypto.Sign(toSign, prv)
-
-	require.Equal(t, want, resp.Sig)
+	require.Equal(t, wantSig, resp.Sig)
 }
 
 func TestPlugin_Sign_Locked(t *testing.T) {
@@ -226,7 +222,7 @@ func TestPlugin_Sign_Locked(t *testing.T) {
 	// sign hash
 	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
-	toSign := crypto.Keccak256([]byte("to sign"))
+	toSign := []byte{188, 76, 145, 93, 105, 137, 107, 25, 143, 2, 146, 167, 35, 115, 162, 189, 205, 13, 82, 188, 203, 252, 236, 17, 217, 200, 76, 15, 255, 113, 176, 188}
 
 	_, err := ctx.AccountManager.Sign(context.Background(), &proto.SignRequest{
 		Address: acctAddr,
@@ -248,7 +244,7 @@ func TestPlugin_Sign_UnknownAccount(t *testing.T) {
 	// sign hash
 	acctAddr := common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
 
-	toSign := crypto.Keccak256([]byte("to sign"))
+	toSign := []byte{188, 76, 145, 93, 105, 137, 107, 25, 143, 2, 146, 167, 35, 115, 162, 189, 205, 13, 82, 188, 203, 252, 236, 17, 217, 200, 76, 15, 255, 113, 176, 188}
 
 	_, err := ctx.AccountManager.Sign(context.Background(), &proto.SignRequest{
 		Address: acctAddr,
@@ -274,17 +270,15 @@ func TestPlugin_UnlockAndSign_Locked(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
 
-	toSign := crypto.Keccak256([]byte("to sign"))
+	toSign := []byte{188, 76, 145, 93, 105, 137, 107, 25, 143, 2, 146, 167, 35, 115, 162, 189, 205, 13, 82, 188, 203, 252, 236, 17, 217, 200, 76, 15, 255, 113, 176, 188}
+	wantSig := []byte{21, 228, 169, 48, 162, 94, 71, 55, 85, 214, 104, 193, 92, 14, 27, 132, 111, 18, 108, 11, 194, 150, 169, 254, 177, 54, 67, 10, 14, 208, 100, 250, 123, 166, 26, 0, 44, 215, 237, 186, 32, 198, 241, 77, 206, 214, 249, 124, 212, 36, 249, 4, 171, 87, 68, 147, 238, 96, 8, 180, 122, 172, 175, 38, 1}
 
 	resp, err := ctx.AccountManager.UnlockAndSign(context.Background(), &proto.UnlockAndSignRequest{
 		Address: acctAddr,
 		ToSign:  toSign,
 	})
 	require.NoError(t, err)
-
-	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
-	want, _ := crypto.Sign(toSign, prv)
-	require.Equal(t, want, resp.Sig)
+	require.Equal(t, wantSig, resp.Sig)
 
 	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
@@ -313,7 +307,8 @@ func TestPlugin_UnlockAndSign_AlreadyUnlocked(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
 
-	toSign := crypto.Keccak256([]byte("to sign"))
+	toSign := []byte{188, 76, 145, 93, 105, 137, 107, 25, 143, 2, 146, 167, 35, 115, 162, 189, 205, 13, 82, 188, 203, 252, 236, 17, 217, 200, 76, 15, 255, 113, 176, 188}
+	wantSig := []byte{21, 228, 169, 48, 162, 94, 71, 55, 85, 214, 104, 193, 92, 14, 27, 132, 111, 18, 108, 11, 194, 150, 169, 254, 177, 54, 67, 10, 14, 208, 100, 250, 123, 166, 26, 0, 44, 215, 237, 186, 32, 198, 241, 77, 206, 214, 249, 124, 212, 36, 249, 4, 171, 87, 68, 147, 238, 96, 8, 180, 122, 172, 175, 38, 1}
 
 	resp, err := ctx.AccountManager.UnlockAndSign(context.Background(), &proto.UnlockAndSignRequest{
 		Address: acctAddr,
@@ -321,9 +316,7 @@ func TestPlugin_UnlockAndSign_AlreadyUnlocked(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	prv, _ := crypto.ToECDSA(common.Hex2Bytes("7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"))
-	want, _ := crypto.Sign(toSign, prv)
-	require.Equal(t, want, resp.Sig)
+	require.Equal(t, wantSig, resp.Sig)
 
 	statusResp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
@@ -343,7 +336,7 @@ func TestPlugin_UnlockAndSign_UnknownAccount(t *testing.T) {
 	// sign hash
 	acctAddr := common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
 
-	toSign := crypto.Keccak256([]byte("to sign"))
+	toSign := []byte{188, 76, 145, 93, 105, 137, 107, 25, 143, 2, 146, 167, 35, 115, 162, 189, 205, 13, 82, 188, 203, 252, 236, 17, 217, 200, 76, 15, 255, 113, 176, 188}
 
 	_, err := ctx.AccountManager.UnlockAndSign(context.Background(), &proto.UnlockAndSignRequest{
 		Address: acctAddr,
