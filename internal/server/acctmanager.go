@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/protoconv"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/types"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -59,7 +59,11 @@ func (p *HashicorpPlugin) Contains(_ context.Context, req *proto.ContainsRequest
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	isContained, err := p.acctManager.Contains(common.BytesToAddress(req.Address))
+	addr, err := types.NewAddress(req.Address)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	isContained, err := p.acctManager.Contains(addr)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -70,7 +74,11 @@ func (p *HashicorpPlugin) Sign(_ context.Context, req *proto.SignRequest) (*prot
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	result, err := p.acctManager.Sign(common.BytesToAddress(req.Address), req.ToSign)
+	addr, err := types.NewAddress(req.Address)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	result, err := p.acctManager.Sign(addr, req.ToSign)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -81,7 +89,11 @@ func (p *HashicorpPlugin) UnlockAndSign(_ context.Context, req *proto.UnlockAndS
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	result, err := p.acctManager.UnlockAndSign(common.BytesToAddress(req.Address), req.ToSign)
+	addr, err := types.NewAddress(req.Address)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	result, err := p.acctManager.UnlockAndSign(addr, req.ToSign)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -92,7 +104,11 @@ func (p *HashicorpPlugin) TimedUnlock(_ context.Context, req *proto.TimedUnlockR
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	if err := p.acctManager.TimedUnlock(common.BytesToAddress(req.Address), time.Duration(req.Duration)); err != nil {
+	addr, err := types.NewAddress(req.Address)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if err := p.acctManager.TimedUnlock(addr, time.Duration(req.Duration)); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &proto.TimedUnlockResponse{}, nil
@@ -102,7 +118,11 @@ func (p *HashicorpPlugin) Lock(_ context.Context, req *proto.LockRequest) (*prot
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	p.acctManager.Lock(common.BytesToAddress(req.Address))
+	addr, err := types.NewAddress(req.Address)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	p.acctManager.Lock(addr)
 	return &proto.LockResponse{}, nil
 }
 
