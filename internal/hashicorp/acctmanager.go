@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -34,7 +35,11 @@ func NewAccountManager(config config.VaultClient) (AccountManager, error) {
 	}
 
 	for _, toUnlock := range config.Unlock {
-		if err := a.TimedUnlock(common.HexToAddress(toUnlock), 0); err != nil {
+		addr, err := types.NewAddressFromHexString(toUnlock)
+		if err != nil {
+			log.Printf("[INFO] unable to unlock %v, err = %v", toUnlock, err)
+		}
+		if err := a.TimedUnlock(addr, 0); err != nil {
 			log.Printf("[INFO] unable to unlock %v, err = %v", toUnlock, err)
 		}
 	}
@@ -45,11 +50,11 @@ func NewAccountManager(config config.VaultClient) (AccountManager, error) {
 type AccountManager interface {
 	Status() (string, error)
 	Accounts() ([]types.Account, error)
-	Contains(acctAddr common.Address) (bool, error)
-	Sign(acctAddr common.Address, toSign []byte) ([]byte, error)
-	UnlockAndSign(acctAddr common.Address, toSign []byte) ([]byte, error)
-	TimedUnlock(acctAddr common.Address, duration time.Duration) error
-	Lock(acctAddr common.Address)
+	Contains(acctAddr types.Address) (bool, error)
+	Sign(acctAddr types.Address, toSign []byte) ([]byte, error)
+	UnlockAndSign(acctAddr types.Address, toSign []byte) ([]byte, error)
+	TimedUnlock(acctAddr types.Address, duration time.Duration) error
+	Lock(acctAddr types.Address)
 	NewAccount(conf config.NewAccount) (types.Account, error)
 	ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (types.Account, error)
 }
@@ -98,8 +103,12 @@ func (a *accountManager) Accounts() ([]types.Account, error) {
 		acct  types.Account
 	)
 	for url, conf := range w {
+		addr, err := types.NewAddressFromHexString(conf.Contents.Address)
+		if err != nil {
+			return []types.Account{}, err
+		}
 		acct = types.Account{
-			Address: common.HexToAddress(conf.Contents.Address),
+			Address: addr,
 			URL:     url,
 		}
 		accts = append(accts, acct)
@@ -107,16 +116,16 @@ func (a *accountManager) Accounts() ([]types.Account, error) {
 	return accts, nil
 }
 
-func (a *accountManager) Contains(acctAddr common.Address) (bool, error) {
+func (a *accountManager) Contains(acctAddr types.Address) (bool, error) {
 	return a.client.hasAccount(acctAddr), nil
 }
 
-func (a *accountManager) Sign(acctAddr common.Address, toSign []byte) ([]byte, error) {
+func (a *accountManager) Sign(acctAddr types.Address, toSign []byte) ([]byte, error) {
 	if !a.client.hasAccount(acctAddr) {
 		return nil, errors.New("unknown account")
 	}
 	a.mu.Lock()
-	lockable, ok := a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
+	lockable, ok := a.unlocked[acctAddr.ToHexString()]
 	a.mu.Unlock()
 	if !ok {
 		return nil, errors.New("account locked")
@@ -124,24 +133,24 @@ func (a *accountManager) Sign(acctAddr common.Address, toSign []byte) ([]byte, e
 	return crypto.Sign(toSign, lockable.key)
 }
 
-func (a *accountManager) UnlockAndSign(acctAddr common.Address, toSign []byte) ([]byte, error) {
+func (a *accountManager) UnlockAndSign(acctAddr types.Address, toSign []byte) ([]byte, error) {
 	if !a.client.hasAccount(acctAddr) {
 		return nil, errors.New("unknown account")
 	}
 	a.mu.Lock()
-	lockable, unlocked := a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
+	lockable, unlocked := a.unlocked[acctAddr.ToHexString()]
 	a.mu.Unlock()
 	if !unlocked {
 		if err := a.TimedUnlock(acctAddr, 0); err != nil {
 			return nil, err
 		}
 		defer a.Lock(acctAddr)
-		lockable, _ = a.unlocked[common.Bytes2Hex(acctAddr.Bytes())]
+		lockable, _ = a.unlocked[acctAddr.ToHexString()]
 	}
 	return crypto.Sign(toSign, lockable.key)
 }
 
-func (a *accountManager) TimedUnlock(acctAddr common.Address, duration time.Duration) error {
+func (a *accountManager) TimedUnlock(acctAddr types.Address, duration time.Duration) error {
 	acctFile := a.client.getAccount(acctAddr)
 
 	if acctFile == (config.AccountFile{}) {
@@ -192,7 +201,8 @@ func (a *accountManager) TimedUnlock(acctAddr common.Address, duration time.Dura
 	}
 
 	a.mu.Lock()
-	a.unlocked[acctFile.Contents.Address] = lockableKey
+	addr := strings.TrimPrefix(acctFile.Contents.Address, "0x")
+	a.unlocked[addr] = lockableKey
 	a.mu.Unlock()
 
 	return nil
@@ -215,8 +225,8 @@ func (a *accountManager) lockAfter(addr string, key *lockableKey, duration time.
 	}
 }
 
-func (a *accountManager) Lock(acctAddr common.Address) {
-	addrHex := common.Bytes2Hex(acctAddr.Bytes())
+func (a *accountManager) Lock(acctAddr types.Address) {
+	addrHex := acctAddr.ToHexString()
 	a.mu.Lock()
 	lockable, ok := a.unlocked[addrHex]
 	a.mu.Unlock()

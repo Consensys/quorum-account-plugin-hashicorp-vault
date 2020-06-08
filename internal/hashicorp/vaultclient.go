@@ -3,6 +3,7 @@ package hashicorp
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/types"
 	"io/ioutil"
 	"log"
 	"net/url"
@@ -10,7 +11,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/vault/api"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
@@ -147,10 +147,10 @@ func (c *vaultClient) loadAccounts() (map[*url.URL]config.AccountFile, error) {
 	return result, nil
 }
 
-func (c *vaultClient) hasAccount(acctAddr common.Address) bool {
+func (c *vaultClient) hasAccount(acctAddr types.Address) bool {
 	return c.accts.HasAccountWithAddress(acctAddr)
 }
 
-func (c *vaultClient) getAccount(acctAddr common.Address) config.AccountFile {
+func (c *vaultClient) getAccount(acctAddr types.Address) config.AccountFile {
 	return c.accts.GetAccountWithAddress(acctAddr)
 }

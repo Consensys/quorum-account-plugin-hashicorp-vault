@@ -1,26 +1,26 @@
 package hashicorp
 
 import (
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/types"
 	"net/url"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
 
 type accountsByURL map[*url.URL]config.AccountFile
 
-func (m accountsByURL) HasAccountWithAddress(address common.Address) bool {
+func (m accountsByURL) HasAccountWithAddress(address types.Address) bool {
 	for _, file := range m {
-		if file.Contents.Address == common.Bytes2Hex(address.Bytes()) {
+		if file.Contents.Address == address.ToHexString() {
 			return true
 		}
 	}
 	return false
 }
 
-func (m accountsByURL) GetAccountWithAddress(address common.Address) config.AccountFile {
+func (m accountsByURL) GetAccountWithAddress(address types.Address) config.AccountFile {
 	for _, file := range m {
-		if file.Contents.Address == common.Bytes2Hex(address.Bytes()) {
+		if file.Contents.Address == address.ToHexString() {
 			return file
 		}
 	}

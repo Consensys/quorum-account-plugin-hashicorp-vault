@@ -1,10 +1,28 @@
 package types
 
 import (
+	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/require"
 	"math/rand"
+	"net/url"
 	"testing"
 )
+
+func TestAccount_ToProtoAccount(t *testing.T) {
+	u, _ := url.Parse("scheme://someurl")
+	acct := Account{
+		Address: Address([20]byte{218, 113, 240, 116, 70, 237, 30, 202, 48, 68, 133, 221, 0, 196, 130, 126, 208, 152, 73, 152}),
+		URL:     u,
+	}
+	got := acct.ToProtoAccount()
+
+	want := &proto.Account{
+		Address: []byte{218, 113, 240, 116, 70, 237, 30, 202, 48, 68, 133, 221, 0, 196, 130, 126, 208, 152, 73, 152},
+		Url:     "scheme://someurl",
+	}
+
+	require.Equal(t, want, got)
+}
 
 func TestNewAddress(t *testing.T) {
 	byt := make([]byte, 20)
@@ -28,18 +46,18 @@ func TestNewAddressFromHex(t *testing.T) {
 		err  error
 	)
 
-	got, err = NewAddressFromHex("0xda71f07446ed1eca304485dd00c4827ed0984998")
+	got, err = NewAddressFromHexString("0xda71f07446ed1eca304485dd00c4827ed0984998")
 	require.NoError(t, err)
 	require.Equal(t, want, got)
 
-	got, err = NewAddressFromHex("da71f07446ed1eca304485dd00c4827ed0984998")
+	got, err = NewAddressFromHexString("da71f07446ed1eca304485dd00c4827ed0984998")
 	require.NoError(t, err)
 	require.Equal(t, want, got)
 	require.Len(t, got, 20)
 }
 
 func TestNewAddressFromHex_InvalidHex(t *testing.T) {
-	_, err := NewAddressFromHex("contains-invalid-hex-characters")
+	_, err := NewAddressFromHexString("contains-invalid-hex-characters")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid hex address")
 }
@@ -47,9 +65,16 @@ func TestNewAddressFromHex_InvalidHex(t *testing.T) {
 func TestNewAddressFromHex_InvalidLength(t *testing.T) {
 	var err error
 
-	_, err = NewAddressFromHex("0xda71f0")
+	_, err = NewAddressFromHexString("0xda71f0")
 	require.EqualError(t, err, "account address must have length 20 bytes")
 
-	_, err = NewAddressFromHex("0xda71f07446ed1eca304485dd00c4827ed0984998da71f07446ed1eca304485dd00c4827ed0984998")
+	_, err = NewAddressFromHexString("0xda71f07446ed1eca304485dd00c4827ed0984998da71f07446ed1eca304485dd00c4827ed0984998")
 	require.EqualError(t, err, "account address must have length 20 bytes")
+}
+
+func TestAddress_ToHexString(t *testing.T) {
+	var addr = Address([20]byte{218, 113, 240, 116, 70, 237, 30, 202, 48, 68, 133, 221, 0, 196, 130, 126, 208, 152, 73, 152})
+	want := "da71f07446ed1eca304485dd00c4827ed0984998"
+	got := addr.ToHexString()
+	require.Equal(t, want, got)
 }

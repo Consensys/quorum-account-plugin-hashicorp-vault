@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/protoconv"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/types"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"google.golang.org/grpc/codes"
@@ -49,7 +48,7 @@ func (p *HashicorpPlugin) Accounts(_ context.Context, _ *proto.AccountsRequest) 
 	}
 	protoAccts := make([]*proto.Account, 0, len(accts))
 	for _, a := range accts {
-		protoAccts = append(protoAccts, protoconv.AcctToProto(a))
+		protoAccts = append(protoAccts, a.ToProtoAccount())
 	}
 
 	return &proto.AccountsResponse{Accounts: protoAccts}, nil
@@ -142,7 +141,7 @@ func (p *HashicorpPlugin) NewAccount(_ context.Context, req *proto.NewAccountReq
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 	return &proto.NewAccountResponse{
-		Account: protoconv.AcctToProto(acct),
+		Account: acct.ToProtoAccount(),
 	}, nil
 }
 
@@ -166,6 +165,6 @@ func (p *HashicorpPlugin) ImportRawKey(_ context.Context, req *proto.ImportRawKe
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 	return &proto.ImportRawKeyResponse{
-		Account: protoconv.AcctToProto(acct),
+		Account: acct.ToProtoAccount(),
 	}, nil
 }
