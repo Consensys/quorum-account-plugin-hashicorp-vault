@@ -352,11 +352,12 @@ func (a *accountManager) writeToFile(addrHex string, secretVersion int64, conf c
 }
 
 func sign(toSign []byte, key *secp256k1.PrivateKey) []byte {
-	signature := ecdsa.SignCompact(key, toSign, false)
-	// SignCompact returns v value at start of sig, geth expects it at the end
-	reordedSig := make([]byte, 0, len(signature))
-	reordedSig = append(reordedSig, signature[1:]...)
-	reordedSig = append(reordedSig, signature[0])
+	sig := ecdsa.SignCompact(key, toSign, false)
+	// SignCompact returns v value 27/28 at start of sig, geth expects it at the end and to be 0/1 at this stage
+	sig[0] -= 27
+	reordedSig := make([]byte, 0, len(sig))
+	reordedSig = append(reordedSig, sig[1:]...)
+	reordedSig = append(reordedSig, sig[0])
 	return reordedSig
 }
 
