@@ -1,8 +1,7 @@
 package hashicorp
 
 import (
-	"crypto/ecdsa"
-	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,11 +14,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/decred/dcrd/dcrec/secp256k1/v3"
+	"github.com/decred/dcrd/dcrec/secp256k1/v3/ecdsa"
 	"github.com/hashicorp/vault/api"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/types"
+	"golang.org/x/crypto/sha3"
 )
 
 func NewAccountManager(config config.VaultClient) (AccountManager, error) {
@@ -56,7 +56,7 @@ type AccountManager interface {
 	TimedUnlock(acctAddr types.Address, duration time.Duration) error
 	Lock(acctAddr types.Address)
 	NewAccount(conf config.NewAccount) (types.Account, error)
-	ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (types.Account, error)
+	ImportPrivateKey(privateKeyECDSA *secp256k1.PrivateKey, conf config.NewAccount) (types.Account, error)
 }
 
 type accountManager struct {
@@ -67,8 +67,21 @@ type accountManager struct {
 }
 
 type lockableKey struct {
-	key    *ecdsa.PrivateKey
+	key    *secp256k1.PrivateKey
 	cancel chan struct{}
+}
+
+func privateKeyToAddress(key *secp256k1.PrivateKey) (types.Address, error) {
+	pubBytes := key.PubKey().SerializeUncompressed()
+
+	d := sha3.NewLegacyKeccak256()
+	_, err := d.Write(pubBytes[1:])
+	if err != nil {
+		return types.Address{}, err
+	}
+	pubHash := d.Sum(nil)
+
+	return types.NewAddress(pubHash[12:])
 }
 
 type Account struct {
@@ -130,7 +143,7 @@ func (a *accountManager) Sign(acctAddr types.Address, toSign []byte) ([]byte, er
 	if !ok {
 		return nil, errors.New("account locked")
 	}
-	return crypto.Sign(toSign, lockable.key)
+	return a.sign(toSign, lockable.key), nil
 }
 
 func (a *accountManager) UnlockAndSign(acctAddr types.Address, toSign []byte) ([]byte, error) {
@@ -147,7 +160,7 @@ func (a *accountManager) UnlockAndSign(acctAddr types.Address, toSign []byte) ([
 		defer a.Lock(acctAddr)
 		lockable, _ = a.unlocked[acctAddr.ToHexString()]
 	}
-	return crypto.Sign(toSign, lockable.key)
+	return a.sign(toSign, lockable.key), nil
 }
 
 func (a *accountManager) TimedUnlock(acctAddr types.Address, duration time.Duration) error {
@@ -187,13 +200,14 @@ func (a *accountManager) TimedUnlock(acctAddr types.Address, duration time.Durat
 		return fmt.Errorf("response does not contain data for account address %v", acctFile.Contents.Address)
 	}
 
-	ecdsaKey, err := crypto.HexToECDSA(privKey.(string))
+	bytKey, err := hex.DecodeString(privKey.(string))
 	if err != nil {
 		return err
 	}
+	key := secp256k1.PrivKeyFromBytes(bytKey)
 
 	lockableKey := &lockableKey{
-		key: ecdsaKey,
+		key: key,
 	}
 
 	if duration > 0 {
@@ -237,24 +251,26 @@ func (a *accountManager) Lock(acctAddr types.Address) {
 }
 
 func (a *accountManager) NewAccount(conf config.NewAccount) (types.Account, error) {
-	privateKeyECDSA, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	key, err := secp256k1.GeneratePrivateKey()
+	if err != nil {
+		return types.Account{}, err
+	}
+	return a.writeToVaultAndFile(key, conf)
+}
+
+func (a *accountManager) ImportPrivateKey(key *secp256k1.PrivateKey, conf config.NewAccount) (types.Account, error) {
+	return a.writeToVaultAndFile(key, conf)
+}
+
+func (a *accountManager) writeToVaultAndFile(key *secp256k1.PrivateKey, conf config.NewAccount) (types.Account, error) {
+	addr, err := privateKeyToAddress(key)
 	if err != nil {
 		return types.Account{}, err
 	}
 
-	return a.writeToVaultAndFile(privateKeyECDSA, conf)
-}
-
-func (a *accountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (types.Account, error) {
-	return a.writeToVaultAndFile(privateKeyECDSA, conf)
-}
-
-func (a *accountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (types.Account, error) {
-	accountAddress := crypto.PubkeyToAddress(privateKeyECDSA.PublicKey)
-
 	log.Println("[DEBUG] Writing new account data to Vault...")
-	addrHex := common.Bytes2Hex(accountAddress.Bytes())
-	keyHex := common.Bytes2Hex(crypto.FromECDSA(privateKeyECDSA))
+	addrHex := addr.ToHexString()
+	keyHex := hex.EncodeToString(key.Serialize())
 
 	resp, err := a.writeToVault(addrHex, keyHex, conf)
 	if err != nil {
@@ -284,7 +300,7 @@ func (a *accountManager) writeToVaultAndFile(privateKeyECDSA *ecdsa.PrivateKey, 
 	a.client.accts[accountURL] = fileData
 
 	return types.Account{
-		Address: accountAddress,
+		Address: addr,
 		URL:     accountURL,
 	}, nil
 }
@@ -356,9 +372,15 @@ func (a *accountManager) writeToFile(addrHex string, secretVersion int64, conf c
 	return fileData, nil
 }
 
+func (a *accountManager) sign(toSign []byte, key *secp256k1.PrivateKey) []byte {
+	signature := ecdsa.SignCompact(key, toSign, false)
+	// SignCompact returns v value at start of sig, geth expects it at the end
+	reordedSig := make([]byte, 0, len(signature))
+	reordedSig = append(reordedSig, signature[1:]...)
+	reordedSig = append(reordedSig, signature[0])
+	return reordedSig
+}
+
 func zeroKey(lockableKey *lockableKey) {
-	b := lockableKey.key.D.Bits()
-	for i := range b {
-		b[i] = 0
-	}
+	lockableKey.key.Zero()
 }
