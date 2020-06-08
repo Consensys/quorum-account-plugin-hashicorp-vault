@@ -122,7 +122,7 @@ func (a *accountManager) Sign(acctAddr account.Address, toSign []byte) ([]byte, 
 	if !ok {
 		return nil, errors.New("account locked")
 	}
-	return a.sign(toSign, lockable.key), nil
+	return sign(toSign, lockable.key), nil
 }
 
 func (a *accountManager) UnlockAndSign(acctAddr account.Address, toSign []byte) ([]byte, error) {
@@ -139,7 +139,7 @@ func (a *accountManager) UnlockAndSign(acctAddr account.Address, toSign []byte) 
 		defer a.Lock(acctAddr)
 		lockable, _ = a.unlocked[acctAddr.ToHexString()]
 	}
-	return a.sign(toSign, lockable.key), nil
+	return sign(toSign, lockable.key), nil
 }
 
 func (a *accountManager) TimedUnlock(acctAddr account.Address, duration time.Duration) error {
@@ -351,7 +351,7 @@ func (a *accountManager) writeToFile(addrHex string, secretVersion int64, conf c
 	return fileData, nil
 }
 
-func (a *accountManager) sign(toSign []byte, key *secp256k1.PrivateKey) []byte {
+func sign(toSign []byte, key *secp256k1.PrivateKey) []byte {
 	signature := ecdsa.SignCompact(key, toSign, false)
 	// SignCompact returns v value at start of sig, geth expects it at the end
 	reordedSig := make([]byte, 0, len(signature))
