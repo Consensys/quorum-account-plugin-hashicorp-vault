@@ -1,24 +1,10 @@
-package types
+package account
 
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
-	"net/url"
 	"strings"
 )
-
-type Account struct {
-	Address Address
-	URL     *url.URL
-}
-
-func (a Account) ToProtoAccount() *proto.Account {
-	return &proto.Account{
-		Address: a.Address.ToBytes(),
-		Url:     a.URL.String(),
-	}
-}
 
 const addressLength = 20
 

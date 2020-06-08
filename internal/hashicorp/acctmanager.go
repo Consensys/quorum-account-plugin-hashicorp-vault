@@ -17,9 +17,8 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v3"
 	"github.com/decred/dcrd/dcrec/secp256k1/v3/ecdsa"
 	"github.com/hashicorp/vault/api"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/types"
-	"golang.org/x/crypto/sha3"
 )
 
 func NewAccountManager(config config.VaultClient) (AccountManager, error) {
@@ -35,7 +34,7 @@ func NewAccountManager(config config.VaultClient) (AccountManager, error) {
 	}
 
 	for _, toUnlock := range config.Unlock {
-		addr, err := types.NewAddressFromHexString(toUnlock)
+		addr, err := account.NewAddressFromHexString(toUnlock)
 		if err != nil {
 			log.Printf("[INFO] unable to unlock %v, err = %v", toUnlock, err)
 		}
@@ -49,14 +48,14 @@ func NewAccountManager(config config.VaultClient) (AccountManager, error) {
 
 type AccountManager interface {
 	Status() (string, error)
-	Accounts() ([]types.Account, error)
-	Contains(acctAddr types.Address) (bool, error)
-	Sign(acctAddr types.Address, toSign []byte) ([]byte, error)
-	UnlockAndSign(acctAddr types.Address, toSign []byte) ([]byte, error)
-	TimedUnlock(acctAddr types.Address, duration time.Duration) error
-	Lock(acctAddr types.Address)
-	NewAccount(conf config.NewAccount) (types.Account, error)
-	ImportPrivateKey(privateKeyECDSA *secp256k1.PrivateKey, conf config.NewAccount) (types.Account, error)
+	Accounts() ([]account.Account, error)
+	Contains(acctAddr account.Address) (bool, error)
+	Sign(acctAddr account.Address, toSign []byte) ([]byte, error)
+	UnlockAndSign(acctAddr account.Address, toSign []byte) ([]byte, error)
+	TimedUnlock(acctAddr account.Address, duration time.Duration) error
+	Lock(acctAddr account.Address)
+	NewAccount(conf config.NewAccount) (account.Account, error)
+	ImportPrivateKey(privateKeyECDSA *secp256k1.PrivateKey, conf config.NewAccount) (account.Account, error)
 }
 
 type accountManager struct {
@@ -70,26 +69,6 @@ type lockableKey struct {
 	key    *secp256k1.PrivateKey
 	cancel chan struct{}
 }
-
-func privateKeyToAddress(key *secp256k1.PrivateKey) (types.Address, error) {
-	pubBytes := key.PubKey().SerializeUncompressed()
-
-	d := sha3.NewLegacyKeccak256()
-	_, err := d.Write(pubBytes[1:])
-	if err != nil {
-		return types.Address{}, err
-	}
-	pubHash := d.Sum(nil)
-
-	return types.NewAddress(pubHash[12:])
-}
-
-type Account struct {
-	Address []byte
-	Url     string
-}
-
-type Transaction struct{}
 
 func (a *accountManager) Status() (string, error) {
 	a.mu.Lock()
@@ -109,18 +88,18 @@ func (a *accountManager) Status() (string, error) {
 	return status, nil
 }
 
-func (a *accountManager) Accounts() ([]types.Account, error) {
+func (a *accountManager) Accounts() ([]account.Account, error) {
 	var (
 		w     = a.client.accts
-		accts = make([]types.Account, 0, len(w))
-		acct  types.Account
+		accts = make([]account.Account, 0, len(w))
+		acct  account.Account
 	)
 	for url, conf := range w {
-		addr, err := types.NewAddressFromHexString(conf.Contents.Address)
+		addr, err := account.NewAddressFromHexString(conf.Contents.Address)
 		if err != nil {
-			return []types.Account{}, err
+			return []account.Account{}, err
 		}
-		acct = types.Account{
+		acct = account.Account{
 			Address: addr,
 			URL:     url,
 		}
@@ -129,11 +108,11 @@ func (a *accountManager) Accounts() ([]types.Account, error) {
 	return accts, nil
 }
 
-func (a *accountManager) Contains(acctAddr types.Address) (bool, error) {
+func (a *accountManager) Contains(acctAddr account.Address) (bool, error) {
 	return a.client.hasAccount(acctAddr), nil
 }
 
-func (a *accountManager) Sign(acctAddr types.Address, toSign []byte) ([]byte, error) {
+func (a *accountManager) Sign(acctAddr account.Address, toSign []byte) ([]byte, error) {
 	if !a.client.hasAccount(acctAddr) {
 		return nil, errors.New("unknown account")
 	}
@@ -146,7 +125,7 @@ func (a *accountManager) Sign(acctAddr types.Address, toSign []byte) ([]byte, er
 	return a.sign(toSign, lockable.key), nil
 }
 
-func (a *accountManager) UnlockAndSign(acctAddr types.Address, toSign []byte) ([]byte, error) {
+func (a *accountManager) UnlockAndSign(acctAddr account.Address, toSign []byte) ([]byte, error) {
 	if !a.client.hasAccount(acctAddr) {
 		return nil, errors.New("unknown account")
 	}
@@ -163,7 +142,7 @@ func (a *accountManager) UnlockAndSign(acctAddr types.Address, toSign []byte) ([
 	return a.sign(toSign, lockable.key), nil
 }
 
-func (a *accountManager) TimedUnlock(acctAddr types.Address, duration time.Duration) error {
+func (a *accountManager) TimedUnlock(acctAddr account.Address, duration time.Duration) error {
 	acctFile := a.client.getAccount(acctAddr)
 
 	if acctFile == (config.AccountFile{}) {
@@ -239,7 +218,7 @@ func (a *accountManager) lockAfter(addr string, key *lockableKey, duration time.
 	}
 }
 
-func (a *accountManager) Lock(acctAddr types.Address) {
+func (a *accountManager) Lock(acctAddr account.Address) {
 	addrHex := acctAddr.ToHexString()
 	a.mu.Lock()
 	lockable, ok := a.unlocked[addrHex]
@@ -250,22 +229,22 @@ func (a *accountManager) Lock(acctAddr types.Address) {
 	}
 }
 
-func (a *accountManager) NewAccount(conf config.NewAccount) (types.Account, error) {
+func (a *accountManager) NewAccount(conf config.NewAccount) (account.Account, error) {
 	key, err := secp256k1.GeneratePrivateKey()
 	if err != nil {
-		return types.Account{}, err
+		return account.Account{}, err
 	}
 	return a.writeToVaultAndFile(key, conf)
 }
 
-func (a *accountManager) ImportPrivateKey(key *secp256k1.PrivateKey, conf config.NewAccount) (types.Account, error) {
+func (a *accountManager) ImportPrivateKey(key *secp256k1.PrivateKey, conf config.NewAccount) (account.Account, error) {
 	return a.writeToVaultAndFile(key, conf)
 }
 
-func (a *accountManager) writeToVaultAndFile(key *secp256k1.PrivateKey, conf config.NewAccount) (types.Account, error) {
-	addr, err := privateKeyToAddress(key)
+func (a *accountManager) writeToVaultAndFile(key *secp256k1.PrivateKey, conf config.NewAccount) (account.Account, error) {
+	addr, err := account.PrivateKeyToAddress(key)
 	if err != nil {
-		return types.Account{}, err
+		return account.Account{}, err
 	}
 
 	log.Println("[DEBUG] Writing new account data to Vault...")
@@ -274,32 +253,32 @@ func (a *accountManager) writeToVaultAndFile(key *secp256k1.PrivateKey, conf con
 
 	resp, err := a.writeToVault(addrHex, keyHex, conf)
 	if err != nil {
-		return types.Account{}, fmt.Errorf("unable to write secret to Vault: %v", err)
+		return account.Account{}, fmt.Errorf("unable to write secret to Vault: %v", err)
 	}
 	log.Println("[INFO] New account data written to Vault")
 
 	log.Println("[DEBUG] Writing new account data to file in account config directory...")
 	secretVersion, err := a.getVersionFromResponse(resp)
 	if err != nil {
-		return types.Account{}, fmt.Errorf("unable to write new account config file: %v", err)
+		return account.Account{}, fmt.Errorf("unable to write new account config file: %v", err)
 	}
 
 	fileData, err := a.writeToFile(addrHex, secretVersion, conf)
 	if err != nil {
-		return types.Account{}, fmt.Errorf("unable to write new account config file, err: %v", err)
+		return account.Account{}, fmt.Errorf("unable to write new account config file, err: %v", err)
 	}
 	log.Printf("[INFO] New account data written to %v", fileData.Path)
 
 	// prepare return value
 	accountURL, err := fileData.Contents.AccountURL(a.client.Address(), a.kvEngineName)
 	if err != nil {
-		return types.Account{}, err
+		return account.Account{}, err
 	}
 
 	// update the internal list of accts
 	a.client.accts[accountURL] = fileData
 
-	return types.Account{
+	return account.Account{
 		Address: addr,
 		URL:     accountURL,
 	}, nil

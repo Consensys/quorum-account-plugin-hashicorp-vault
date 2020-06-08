@@ -1,10 +1,12 @@
-package types
+package account
 
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/decred/dcrd/dcrec/secp256k1/v3"
 	"strings"
+
+	"github.com/decred/dcrd/dcrec/secp256k1/v3"
+	"golang.org/x/crypto/sha3"
 )
 
 // NewKeyFromHexString creates a new PrivateKey from the provided hex string-representation.
@@ -19,4 +21,17 @@ func NewKeyFromHexString(key string) (*secp256k1.PrivateKey, error) {
 	}
 	prv := secp256k1.PrivKeyFromBytes(byt)
 	return prv, nil
+}
+
+func PrivateKeyToAddress(key *secp256k1.PrivateKey) (Address, error) {
+	pubBytes := key.PubKey().SerializeUncompressed()
+
+	d := sha3.NewLegacyKeccak256()
+	_, err := d.Write(pubBytes[1:])
+	if err != nil {
+		return Address{}, err
+	}
+	pubHash := d.Sum(nil)
+
+	return NewAddress(pubHash[12:])
 }
