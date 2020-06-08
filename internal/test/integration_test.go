@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/testutil"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
@@ -134,8 +134,9 @@ func TestPlugin_Accounts(t *testing.T) {
 	resp, err := ctx.AccountManager.Accounts(context.Background(), &proto.AccountsRequest{})
 	require.NoError(t, err)
 
+	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 	want := proto.Account{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address: addr,
 		Url:     fmt.Sprintf("%v/v1/%v/data/%v?version=%v", ctx.Vault.URL, "engine", "myAcct", 2),
 	}
 
@@ -154,7 +155,7 @@ func TestPlugin_Contains_IsContained(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// contains
-	toFind := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
+	toFind, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	resp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Address: toFind})
 	require.NoError(t, err)
@@ -172,7 +173,7 @@ func TestPlugin_Contains_IsNotContained(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// contains
-	toFind := common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
+	toFind, _ := hex.DecodeString("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
 
 	resp, err := ctx.AccountManager.Contains(context.Background(), &proto.ContainsRequest{Address: toFind})
 	require.NoError(t, err)
@@ -190,7 +191,7 @@ func TestPlugin_Sign(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
+	acctAddr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
 		Address:  acctAddr,
@@ -220,7 +221,7 @@ func TestPlugin_Sign_Locked(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
+	acctAddr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	toSign := []byte{188, 76, 145, 93, 105, 137, 107, 25, 143, 2, 146, 167, 35, 115, 162, 189, 205, 13, 82, 188, 203, 252, 236, 17, 217, 200, 76, 15, 255, 113, 176, 188}
 
@@ -242,7 +243,7 @@ func TestPlugin_Sign_UnknownAccount(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	acctAddr := common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
+	acctAddr, _ := hex.DecodeString("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
 
 	toSign := []byte{188, 76, 145, 93, 105, 137, 107, 25, 143, 2, 146, 167, 35, 115, 162, 189, 205, 13, 82, 188, 203, 252, 236, 17, 217, 200, 76, 15, 255, 113, 176, 188}
 
@@ -264,7 +265,7 @@ func TestPlugin_UnlockAndSign_Locked(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
+	acctAddr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	statusResp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
@@ -296,7 +297,7 @@ func TestPlugin_UnlockAndSign_AlreadyUnlocked(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	acctAddr := common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
+	acctAddr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
 		Address:  acctAddr,
@@ -334,7 +335,7 @@ func TestPlugin_UnlockAndSign_UnknownAccount(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// sign hash
-	acctAddr := common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
+	acctAddr, _ := hex.DecodeString("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
 
 	toSign := []byte{188, 76, 145, 93, 105, 137, 107, 25, 143, 2, 146, 167, 35, 115, 162, 189, 205, 13, 82, 188, 203, 252, 236, 17, 217, 200, 76, 15, 255, 113, 176, 188}
 
@@ -360,8 +361,9 @@ func TestPlugin_Unlock(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
+	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address:  addr,
 		Duration: 0,
 	})
 	require.NoError(t, err)
@@ -392,8 +394,9 @@ func TestPlugin_TimedUnlock(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
+	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address:  addr,
 		Duration: (1 * time.Second).Nanoseconds(),
 	})
 	require.NoError(t, err)
@@ -424,8 +427,9 @@ func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
+	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address:  addr,
 		Duration: (1 * time.Second).Nanoseconds(),
 	})
 	require.NoError(t, err)
@@ -435,7 +439,7 @@ func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address:  addr,
 		Duration: 0,
 	})
 	require.NoError(t, err)
@@ -462,14 +466,16 @@ func TestPlugin_TimedUnlock_Extend(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
+	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
+
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address:  addr,
 		Duration: (1 * time.Second).Nanoseconds(),
 	})
 	require.NoError(t, err)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address:  addr,
 		Duration: (2 * time.Second).Nanoseconds(),
 	})
 	require.NoError(t, err)
@@ -502,14 +508,16 @@ func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 
+	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
+
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address:  addr,
 		Duration: (2 * time.Second).Nanoseconds(),
 	})
 	require.NoError(t, err)
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address:  addr,
 		Duration: (1 * time.Second).Nanoseconds(),
 	})
 	require.NoError(t, err)
@@ -551,8 +559,9 @@ func TestPlugin_Lock(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// lock
+	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address:  addr,
 		Duration: 0,
 	})
 	require.NoError(t, err)
@@ -562,7 +571,7 @@ func TestPlugin_Lock(t *testing.T) {
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
 	_, err = ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address: addr,
 	})
 	require.NoError(t, err)
 
@@ -582,13 +591,14 @@ func TestPlugin_Lock_MultipleTimes(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// lock
+	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 	_, err := ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address: addr,
 	})
 	require.NoError(t, err)
 
 	_, err = ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address: addr,
 	})
 	require.NoError(t, err)
 }
@@ -604,8 +614,9 @@ func TestPlugin_Lock_CancelsTimedUnlock(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// lock
+	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
 	_, err := ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
-		Address:  common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address:  addr,
 		Duration: time.Second.Nanoseconds(),
 	})
 	require.NoError(t, err)
@@ -615,7 +626,7 @@ func TestPlugin_Lock_CancelsTimedUnlock(t *testing.T) {
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
 	_, err = ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
-		Address: common.Hex2Bytes("dc99ddec13457de6c0f6bb8e6cf3955c86f55526"),
+		Address: addr,
 	})
 	require.NoError(t, err)
 
@@ -638,8 +649,9 @@ func TestPlugin_Lock_UnknownAccount(t *testing.T) {
 	setupPluginAndVaultAndFiles(t, ctx)
 
 	// lock
+	addr, _ := hex.DecodeString("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
 	_, err := ctx.AccountManager.Lock(context.Background(), &proto.LockRequest{
-		Address: common.Hex2Bytes("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5"),
+		Address: addr,
 	})
 	require.NoError(t, err)
 }
