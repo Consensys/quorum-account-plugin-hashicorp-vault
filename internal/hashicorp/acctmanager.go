@@ -1,7 +1,8 @@
 package hashicorp
 
 import (
-	"encoding/hex"
+	"crypto/ecdsa"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,11 +15,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/decred/dcrd/dcrec/secp256k1/v3"
-	"github.com/decred/dcrd/dcrec/secp256k1/v3/ecdsa"
 	"github.com/hashicorp/vault/api"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/jpmorganchase/quorum/crypto/secp256k1"
 )
 
 func NewAccountManager(config config.VaultClient) (AccountManager, error) {
@@ -55,7 +55,7 @@ type AccountManager interface {
 	TimedUnlock(acctAddr account.Address, duration time.Duration) error
 	Lock(acctAddr account.Address)
 	NewAccount(conf config.NewAccount) (account.Account, error)
-	ImportPrivateKey(privateKeyECDSA *secp256k1.PrivateKey, conf config.NewAccount) (account.Account, error)
+	ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (account.Account, error)
 }
 
 type accountManager struct {
@@ -66,8 +66,12 @@ type accountManager struct {
 }
 
 type lockableKey struct {
-	key    *secp256k1.PrivateKey
+	key    *ecdsa.PrivateKey
 	cancel chan struct{}
+}
+
+func (k *lockableKey) zero() {
+	zeroKey(k.key)
 }
 
 func (a *accountManager) Status() (string, error) {
@@ -122,7 +126,7 @@ func (a *accountManager) Sign(acctAddr account.Address, toSign []byte) ([]byte, 
 	if !ok {
 		return nil, errors.New("account locked")
 	}
-	return sign(toSign, lockable.key), nil
+	return sign(toSign, lockable.key)
 }
 
 func (a *accountManager) UnlockAndSign(acctAddr account.Address, toSign []byte) ([]byte, error) {
@@ -139,7 +143,7 @@ func (a *accountManager) UnlockAndSign(acctAddr account.Address, toSign []byte) 
 		defer a.Lock(acctAddr)
 		lockable, _ = a.unlocked[acctAddr.ToHexString()]
 	}
-	return sign(toSign, lockable.key), nil
+	return sign(toSign, lockable.key)
 }
 
 func (a *accountManager) TimedUnlock(acctAddr account.Address, duration time.Duration) error {
@@ -179,11 +183,10 @@ func (a *accountManager) TimedUnlock(acctAddr account.Address, duration time.Dur
 		return fmt.Errorf("response does not contain data for account address %v", acctFile.Contents.Address)
 	}
 
-	bytKey, err := hex.DecodeString(privKey.(string))
+	key, err := account.NewKeyFromHexString(privKey.(string))
 	if err != nil {
 		return err
 	}
-	key := secp256k1.PrivKeyFromBytes(bytKey)
 
 	lockableKey := &lockableKey{
 		key: key,
@@ -211,7 +214,7 @@ func (a *accountManager) lockAfter(addr string, key *lockableKey, duration time.
 	case <-t.C:
 		if a.unlocked[addr] == key {
 			a.mu.Lock()
-			zeroKey(key)
+			key.zero()
 			delete(a.unlocked, addr)
 			a.mu.Unlock()
 		}
@@ -230,18 +233,21 @@ func (a *accountManager) Lock(acctAddr account.Address) {
 }
 
 func (a *accountManager) NewAccount(conf config.NewAccount) (account.Account, error) {
-	key, err := secp256k1.GeneratePrivateKey()
+	key, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
 	if err != nil {
 		return account.Account{}, err
 	}
+	defer zeroKey(key)
+
 	return a.writeToVaultAndFile(key, conf)
 }
 
-func (a *accountManager) ImportPrivateKey(key *secp256k1.PrivateKey, conf config.NewAccount) (account.Account, error) {
+func (a *accountManager) ImportPrivateKey(key *ecdsa.PrivateKey, conf config.NewAccount) (account.Account, error) {
+	defer zeroKey(key)
 	return a.writeToVaultAndFile(key, conf)
 }
 
-func (a *accountManager) writeToVaultAndFile(key *secp256k1.PrivateKey, conf config.NewAccount) (account.Account, error) {
+func (a *accountManager) writeToVaultAndFile(key *ecdsa.PrivateKey, conf config.NewAccount) (account.Account, error) {
 	addr, err := account.PrivateKeyToAddress(key)
 	if err != nil {
 		return account.Account{}, err
@@ -249,7 +255,10 @@ func (a *accountManager) writeToVaultAndFile(key *secp256k1.PrivateKey, conf con
 
 	log.Println("[DEBUG] Writing new account data to Vault...")
 	addrHex := addr.ToHexString()
-	keyHex := hex.EncodeToString(key.Serialize())
+	keyHex, err := account.PrivateKeyToHexString(key)
+	if err != nil {
+		return account.Account{}, err
+	}
 
 	resp, err := a.writeToVault(addrHex, keyHex, conf)
 	if err != nil {
@@ -351,16 +360,25 @@ func (a *accountManager) writeToFile(addrHex string, secretVersion int64, conf c
 	return fileData, nil
 }
 
-func sign(toSign []byte, key *secp256k1.PrivateKey) []byte {
-	sig := ecdsa.SignCompact(key, toSign, false)
-	// SignCompact returns v value 27/28 at start of sig, geth expects it at the end and to be 0/1 at this stage
-	sig[0] -= 27
-	reordedSig := make([]byte, 0, len(sig))
-	reordedSig = append(reordedSig, sig[1:]...)
-	reordedSig = append(reordedSig, sig[0])
-	return reordedSig
+func sign(toSign []byte, key *ecdsa.PrivateKey) ([]byte, error) {
+	keyByt, err := account.PrivateKeyToBytes(key)
+	if err != nil {
+		return nil, err
+	}
+	defer zero(keyByt)
+
+	return secp256k1.Sign(toSign, keyByt)
 }
 
-func zeroKey(lockableKey *lockableKey) {
-	lockableKey.key.Zero()
+func zeroKey(key *ecdsa.PrivateKey) {
+	b := key.D.Bits()
+	for i := range b {
+		b[i] = 0
+	}
+}
+
+func zero(byt []byte) {
+	for i := range byt {
+		byt[i] = 0
+	}
 }

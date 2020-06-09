@@ -7,7 +7,8 @@ VERSION := "1.0.0"
 LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
 -X main.Executable=${EXECUTABLE} -X main.Version=${VERSION} -X main.OutputDir=${OUTPUT_DIR}"
 XC_ARCH := amd64
-XC_OS := linux darwin
+XC_OS := darwin
+#XC_OS := linux darwin
 TARGET_DIRS := $(addsuffix -$(XC_ARCH), $(XC_OS))
 
 .PHONY: ${OUTPUT_DIR}
