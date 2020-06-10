@@ -512,7 +512,7 @@ func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
 
 	_, err = ctx.AccountManager.TimedUnlock(context.Background(), &proto.TimedUnlockRequest{
 		Address:  addr,
-		Duration: (2 * time.Second).Nanoseconds(),
+		Duration: (10 * time.Second).Nanoseconds(),
 	})
 	require.NoError(t, err)
 
@@ -526,7 +526,7 @@ func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	resp, err = ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)

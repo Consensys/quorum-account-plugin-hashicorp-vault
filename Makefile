@@ -6,6 +6,8 @@ OUTPUT_DIR := "$(shell pwd)/build"
 VERSION := "1.0.0"
 LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
 -X main.Executable=${EXECUTABLE} -X main.Version=${VERSION} -X main.OutputDir=${OUTPUT_DIR}"
+DOCKER_LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
+-X main.Executable=${EXECUTABLE} -X main.Version=${VERSION} -X main.OutputDir=/shared"
 
 .PHONY: ${OUTPUT_DIR}
 
@@ -28,18 +30,65 @@ dist:
 	@mkdir -p ${PLUGIN_DEST_PATH}
 	@cp ${OUTPUT_DIR}/$(shell go env GOOS)-$(shell go env GOARCH)/${EXECUTABLE}-${VERSION}.zip ${PLUGIN_DEST_PATH}/${EXECUTABLE}-${VERSION}.zip
 
-build: checkfmt $(local)
+build: checkfmt
 	@mkdir -p ${OUTPUT_DIR}/local
 	@echo Output to ${OUTPUT_DIR}/local
 	@CGO_ENABLED=0 go run -ldflags=${LD_FLAGS} ./internal/metadata/gen.go
 	@go build \
 		-ldflags="-s -w" \
-		-o "${OUTPUT_DIR}/local/${EXECUTABLE}-${VERSION}" \
+		-o "${OUTPUT_DIR}/local/${EXECUTABLE}" \
 		.
 
 zip: build
 	@zip -j -FS -q ${OUTPUT_DIR}/local/${EXECUTABLE}-${VERSION}.zip ${OUTPUT_DIR}/*.json ${OUTPUT_DIR}/local/*
 	@shasum -a 256 ${OUTPUT_DIR}/local/${EXECUTABLE}-${VERSION}.zip | awk '{print $$1}' > ${OUTPUT_DIR}/local/${EXECUTABLE}-${VERSION}.zip.sha256sum
+
+build-linux: checkfmt
+	@mkdir -p ${OUTPUT_DIR}/linux
+	@echo Output to ${OUTPUT_DIR}/linux
+
+	@docker run -it \
+		--mount type=bind,src=${OUTPUT_DIR},dst=/shared \
+		--mount type=bind,src=$(shell pwd),dst=/quorum-account-plugin-hashicorp-vault \
+		--mount type=bind,src=/Users/chrishounsom/go/src/github.com/jpmorganchase/quorum-account-plugin-sdk-go,dst=/Users/chrishounsom/go/src/github.com/jpmorganchase/quorum-account-plugin-sdk-go \
+		--mount type=bind,src=/Users/chrishounsom/go/src/github.com/ethereum/go-ethereum/crypto/secp256k1,dst=/Users/chrishounsom/go/src/github.com/ethereum/go-ethereum/crypto/secp256k1 \
+		-w /quorum-account-plugin-hashicorp-vault \
+		golang:1.13.12 make build-linux-docker
+
+build-linux-docker:
+	apt-get update
+	apt-get -y install zip
+
+	go test ./...
+	CGO_ENABLED=0 go run -ldflags=${DOCKER_LD_FLAGS} ./internal/metadata/gen.go
+	go build \
+		-ldflags="-s -w" \
+		-o "/shared/linux/${EXECUTABLE}" \
+		.
+	zip -j -FS -q /shared/linux/${EXECUTABLE}-${VERSION}.zip /shared/*.json /shared/linux/*
+	shasum -a 256 /shared/linux/${EXECUTABLE}-${VERSION}.zip | awk '{print $$1}' > /shared/linux/${EXECUTABLE}-${VERSION}.zip.sha256sum
+
+build-alpine: checkfmt
+	@mkdir -p ${OUTPUT_DIR}/linux
+	@echo Output to ${OUTPUT_DIR}/linux
+
+	@docker run -it \
+		--mount type=bind,src=${OUTPUT_DIR},dst=/shared \
+		--mount type=bind,src=$(shell pwd),dst=/quorum-account-plugin-hashicorp-vault \
+		--mount type=bind,src=/Users/chrishounsom/go/src/github.com/jpmorganchase/quorum-account-plugin-sdk-go,dst=/Users/chrishounsom/go/src/github.com/jpmorganchase/quorum-account-plugin-sdk-go \
+		--mount type=bind,src=/Users/chrishounsom/go/src/github.com/ethereum/go-ethereum/crypto/secp256k1,dst=/Users/chrishounsom/go/src/github.com/ethereum/go-ethereum/crypto/secp256k1 \
+		-w /quorum-account-plugin-hashicorp-vault \
+		golang:1.13.10-alpine3.11 /bin/sh ./linux-build.sh
+
+build-alpine-docker:
+	go test ./...
+	CGO_ENABLED=0 go run -ldflags=${DOCKER_LD_FLAGS} ./internal/metadata/gen.go
+	go build \
+		-ldflags="-s -w" \
+		-o "/shared/linux/${EXECUTABLE}" \
+		.
+	zip -j -FS -q /shared/linux/${EXECUTABLE}-${VERSION}.zip /shared/*.json /shared/linux/*
+	shasum -a 256 /shared/linux/${EXECUTABLE}-${VERSION}.zip | awk '{print $$1}' > /shared/linux/${EXECUTABLE}-${VERSION}.zip.sha256sum
 
 tools: goimports
 	@go mod download
