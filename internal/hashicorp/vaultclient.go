@@ -31,23 +31,9 @@ func newVaultClient(conf config.VaultClient) (*vaultClient, error) {
 	clientConf := api.DefaultConfig()
 	clientConf.Address = conf.Vault.String()
 
-	tlsConfig := &api.TLSConfig{}
+	tlsConfig := convertTLSConfig(conf.TLS)
 
-	caCert := conf.TLS.CaCert.Host + "/" + conf.TLS.CaCert.Path
-	clientCert := conf.TLS.ClientCert.Host + "/" + conf.TLS.ClientCert.Path
-	clientKey := conf.TLS.ClientKey.Host + "/" + conf.TLS.ClientKey.Path
-
-	if caCert != "/" {
-		tlsConfig.CACert = caCert
-	}
-	if clientCert != "/" {
-		tlsConfig.ClientCert = clientCert
-	}
-	if clientKey != "/" {
-		tlsConfig.ClientKey = clientKey
-	}
-
-	// it is okay to pass an empty api.TLSConfig here
+	// passing an empty api.TLSConfig here is equivalent to not adding TLS config
 	if err := clientConf.ConfigureTLS(tlsConfig); err != nil {
 		return nil, fmt.Errorf("error creating Hashicorp Vault client: %v", err)
 	}
@@ -74,6 +60,26 @@ func newVaultClient(conf config.VaultClient) (*vaultClient, error) {
 	vaultClient.accts = result
 
 	return vaultClient, nil
+}
+
+func convertTLSConfig(tls config.VaultClientTLS) *api.TLSConfig {
+	tlsConfig := &api.TLSConfig{}
+
+	caCert := tls.CaCert.Host + tls.CaCert.Path
+	clientCert := tls.ClientCert.Host + tls.ClientCert.Path
+	clientKey := tls.ClientKey.Host + tls.ClientKey.Path
+
+	if caCert != "/" {
+		tlsConfig.CACert = caCert
+	}
+	if clientCert != "/" {
+		tlsConfig.ClientCert = clientCert
+	}
+	if clientKey != "/" {
+		tlsConfig.ClientKey = clientKey
+	}
+
+	return tlsConfig
 }
 
 func (c *vaultClient) authenticate(conf config.VaultClientAuthentication) error {
