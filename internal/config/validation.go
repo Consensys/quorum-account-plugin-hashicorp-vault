@@ -52,13 +52,13 @@ func (c VaultClientAuthentication) validate() error {
 }
 
 func (c VaultClientTLS) validate() error {
-	if c.CaCert != nil && (c.CaCert.Scheme != "file" || (c.CaCert.Host == "" && c.CaCert.Path == "")) {
+	if c.CaCert.String() != "" && (c.CaCert.Scheme != "file" || (c.CaCert.Host == "" && c.CaCert.Path == "")) {
 		return errors.New(InvalidCaCert)
 	}
-	if c.ClientCert != nil && (c.ClientCert.Scheme != "file" || (c.ClientCert.Host == "" && c.ClientCert.Path == "")) {
+	if c.ClientCert.String() != "" && (c.ClientCert.Scheme != "file" || (c.ClientCert.Host == "" && c.ClientCert.Path == "")) {
 		return errors.New(InvalidClientCert)
 	}
-	if c.ClientKey != nil && (c.ClientKey.Scheme != "file" || (c.ClientKey.Host == "" && c.ClientKey.Path == "")) {
+	if c.ClientKey.String() != "" && (c.ClientKey.Scheme != "file" || (c.ClientKey.Host == "" && c.ClientKey.Path == "")) {
 		return errors.New(InvalidClientKey)
 	}
 	return nil

@@ -19,6 +19,7 @@ func minimumValidClientConfig(t *testing.T) VaultClient {
 	var token EnvironmentVariable
 	vault, _ := url.Parse("http://vault:1111")
 	accountDirectory, _ := url.Parse("file:///path/to/dir")
+	emptyUrl, _ := url.Parse("")
 
 	return VaultClient{
 		Vault:            vault,
@@ -29,6 +30,11 @@ func minimumValidClientConfig(t *testing.T) VaultClient {
 			RoleId:      envVar(t, "env://"+testutil.MY_ROLE_ID),
 			SecretId:    envVar(t, "env://"+testutil.MY_SECRET_ID),
 			ApprolePath: "myapprole",
+		},
+		TLS: VaultClientTLS{
+			CaCert:     emptyUrl,
+			ClientCert: emptyUrl,
+			ClientKey:  emptyUrl,
 		},
 	}
 }
@@ -355,20 +361,9 @@ func TestVaultClient_Validate_TLS_Valid(t *testing.T) {
 
 	for name, tt := range tls {
 		t.Run(name, func(t *testing.T) {
-			var (
-				caCert     *url.URL
-				clientCert *url.URL
-				clientKey  *url.URL
-			)
-			if tt.caCert != "" {
-				caCert, _ = url.Parse(tt.caCert)
-			}
-			if tt.clientCert != "" {
-				clientCert, _ = url.Parse(tt.clientCert)
-			}
-			if tt.clientKey != "" {
-				clientKey, _ = url.Parse(tt.clientKey)
-			}
+			caCert, _ := url.Parse(tt.caCert)
+			clientCert, _ := url.Parse(tt.clientCert)
+			clientKey, _ := url.Parse(tt.clientKey)
 
 			vaultClient := minimumValidClientConfig(t)
 
