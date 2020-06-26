@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestImportRawKey_ZeroKey(t *testing.T) {
+func TestImportPrivateKey_ZerosKeyAfterImport(t *testing.T) {
 	byt, _ := hex.DecodeString("1fe8f1ad4053326db20529257ac9401f2e6c769ef1d736b8c2f5aba5f787c72b")
 	// we only need to set the private component and verify that it gets zeroed, regardless of if importRawKey succeeds or not
 	privKey := &ecdsa.PrivateKey{

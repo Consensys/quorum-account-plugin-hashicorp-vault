@@ -49,7 +49,7 @@ func NewAccountManager(config config.VaultClient) (AccountManager, error) {
 type AccountManager interface {
 	Status() (string, error)
 	Accounts() ([]account.Account, error)
-	Contains(acctAddr account.Address) (bool, error)
+	Contains(acctAddr account.Address) bool
 	Sign(acctAddr account.Address, toSign []byte) ([]byte, error)
 	UnlockAndSign(acctAddr account.Address, toSign []byte) ([]byte, error)
 	TimedUnlock(acctAddr account.Address, duration time.Duration) error
@@ -112,8 +112,8 @@ func (a *accountManager) Accounts() ([]account.Account, error) {
 	return accts, nil
 }
 
-func (a *accountManager) Contains(acctAddr account.Address) (bool, error) {
-	return a.client.hasAccount(acctAddr), nil
+func (a *accountManager) Contains(acctAddr account.Address) bool {
+	return a.client.hasAccount(acctAddr)
 }
 
 func (a *accountManager) Sign(acctAddr account.Address, toSign []byte) ([]byte, error) {
@@ -251,6 +251,10 @@ func (a *accountManager) writeToVaultAndFile(key *ecdsa.PrivateKey, conf config.
 	addr, err := account.PrivateKeyToAddress(key)
 	if err != nil {
 		return account.Account{}, err
+	}
+
+	if a.Contains(addr) {
+		return account.Account{}, errors.New("account already exists")
 	}
 
 	log.Println("[DEBUG] Writing new account data to Vault...")

@@ -61,10 +61,8 @@ func (p *HashicorpPlugin) Contains(_ context.Context, req *proto.ContainsRequest
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	isContained, err := p.acctManager.Contains(addr)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	isContained := p.acctManager.Contains(addr)
+
 	return &proto.ContainsResponse{IsContained: isContained}, nil
 }
 

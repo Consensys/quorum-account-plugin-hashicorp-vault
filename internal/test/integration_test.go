@@ -895,3 +895,38 @@ func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, containsResp.IsContained)
 }
+
+func TestPlugin_ImportRawKey_ErrorIfAccountExists(t *testing.T) {
+	ctx := new(ITContext)
+	defer ctx.Cleanup()
+
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
+
+	setupPluginAndVaultAndFiles(t, ctx)
+
+	// new account
+	newAcctConfTemplate := `{
+	"secretName": "newAcct",
+	"overwriteProtection": {
+		"currentVersion": %v
+	}
+}`
+	newAcctConf := fmt.Sprintf(newAcctConfTemplate, CAS_VALUE)
+
+	files, _ := ioutil.ReadDir(ctx.AccountConfigDirectory)
+	require.Len(t, files, 1)
+
+	_, err := ctx.AccountManager.ImportRawKey(context.Background(),
+		&proto.ImportRawKeyRequest{
+			RawKey:           "7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28",
+			NewAccountConfig: []byte(newAcctConf),
+		},
+	)
+	require.EqualError(t, err, "rpc error: code = Internal desc = account already exists")
+
+	// ensure no new files were created
+	files, _ = ioutil.ReadDir(ctx.AccountConfigDirectory)
+	require.Len(t, files, 1)
+}
