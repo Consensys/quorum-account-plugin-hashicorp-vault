@@ -257,7 +257,7 @@ func (a *accountManager) writeToVaultAndFile(key *ecdsa.PrivateKey, conf config.
 		return account.Account{}, errors.New("account already exists")
 	}
 
-	log.Println("[DEBUG] Writing new account data to Vault...")
+	log.Println("[DEBUG] Writing new account data to Vault")
 	addrHex := addr.ToHexString()
 	keyHex, err := account.PrivateKeyToHexString(key)
 	if err != nil {
@@ -270,12 +270,14 @@ func (a *accountManager) writeToVaultAndFile(key *ecdsa.PrivateKey, conf config.
 	}
 	log.Println("[INFO] New account data written to Vault")
 
-	log.Println("[DEBUG] Writing new account data to file in account config directory...")
+	log.Println("[DEBUG] Getting new secret version number from response")
 	secretVersion, err := a.getVersionFromResponse(resp)
 	if err != nil {
 		return account.Account{}, fmt.Errorf("unable to write new account config file: %v", err)
 	}
+	log.Printf("[DEBUG] New secret version number = %v", secretVersion)
 
+	log.Println("[DEBUG] Writing new account data to file in account config directory")
 	fileData, err := a.writeToFile(addrHex, secretVersion, conf)
 	if err != nil {
 		return account.Account{}, fmt.Errorf("unable to write new account config file, err: %v", err)
@@ -339,15 +341,20 @@ func (a *accountManager) writeToFile(addrHex string, secretVersion int64, conf c
 	if err != nil {
 		return config.AccountFile{}, err
 	}
+	filePath := fullpath.Host + "/" + fullpath.Path
+	log.Printf("[DEBUG] writing to file %v", filePath)
 
 	fileData := conf.AccountFile(fullpath.String(), addrHex, secretVersion)
 
+	log.Printf("[DEBUG] marshalling file contents: %v", fileData)
 	contents, err := json.Marshal(fileData.Contents)
 	if err != nil {
 		return config.AccountFile{}, err
 	}
+	log.Printf("[DEBUG] marshalled file contents: %v", contents)
 
-	f, err := ioutil.TempFile(filepath.Dir(fullpath.Host+"/"+fullpath.Path), fmt.Sprintf(".%v*.tmp", filepath.Base(fullpath.String())))
+	log.Printf("[DEBUG] Creating temp file %v/%v", filepath.Dir(filePath), fmt.Sprintf(".%v*.tmp", filepath.Base(fullpath.String())))
+	f, err := ioutil.TempFile(filepath.Dir(filePath), fmt.Sprintf(".%v*.tmp", filepath.Base(fullpath.String())))
 	if err != nil {
 		return config.AccountFile{}, err
 	}
@@ -358,7 +365,8 @@ func (a *accountManager) writeToFile(addrHex string, secretVersion int64, conf c
 	}
 	f.Close()
 
-	if err := os.Rename(f.Name(), fullpath.Host+"/"+fullpath.Path); err != nil {
+	log.Println("[DEBUG] Renaming temp file")
+	if err := os.Rename(f.Name(), filePath); err != nil {
 		return config.AccountFile{}, err
 	}
 	return fileData, nil

@@ -139,7 +139,7 @@ func (c *vaultClient) loadAccounts() (map[*url.URL]config.AccountFile, error) {
 
 		acctURL, err := conf.AccountURL(c.Address(), c.kvEngineName)
 		if err != nil {
-			return fmt.Errorf("unable to parse account URL for %v, err %v", path, err)
+			return fmt.Errorf("unable to parse account URL for %v, err: %v", path, err)
 		}
 
 		result[acctURL] = config.AccountFile{Path: path, Contents: *conf}
@@ -150,7 +150,7 @@ func (c *vaultClient) loadAccounts() (map[*url.URL]config.AccountFile, error) {
 
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		log.Printf("[DEBUG] Creating empty directory at %v", root)
-		if err := os.Mkdir(root, os.ModeDir); err != nil {
+		if err := os.Mkdir(root, os.ModeDir+0755); err != nil {
 			return nil, err
 		}
 		return result, nil
