@@ -1,6 +1,7 @@
 package hashicorp
 
 import (
+	"errors"
 	"net/url"
 
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
@@ -18,11 +19,28 @@ func (m accountsByURL) HasAccountWithAddress(address account.Address) bool {
 	return false
 }
 
-func (m accountsByURL) GetAccountWithAddress(address account.Address) config.AccountFile {
+var (
+	unknownAccountErr   = errors.New("unknown account")
+	ambiguousAccountErr = errors.New("multiple accounts with same address")
+)
+
+func (m accountsByURL) GetAccountWithAddress(address account.Address) (config.AccountFile, error) {
+	var (
+		isMatched bool
+		acct      config.AccountFile
+	)
+
 	for _, file := range m {
 		if file.Contents.Address == address.ToHexString() {
-			return file
+			if isMatched {
+				return config.AccountFile{}, ambiguousAccountErr
+			}
+			isMatched = true
+			acct = file
 		}
 	}
-	return config.AccountFile{}
+	if !isMatched {
+		return config.AccountFile{}, unknownAccountErr
+	}
+	return acct, nil
 }

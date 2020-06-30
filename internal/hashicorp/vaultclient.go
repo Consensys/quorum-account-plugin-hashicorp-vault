@@ -168,6 +168,6 @@ func (c *vaultClient) hasAccount(acctAddr account.Address) bool {
 	return c.accts.HasAccountWithAddress(acctAddr)
 }
 
-func (c *vaultClient) getAccount(acctAddr account.Address) config.AccountFile {
+func (c *vaultClient) getAccount(acctAddr account.Address) (config.AccountFile, error) {
 	return c.accts.GetAccountWithAddress(acctAddr)
 }

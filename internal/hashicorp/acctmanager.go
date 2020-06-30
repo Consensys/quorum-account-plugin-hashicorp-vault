@@ -117,8 +117,8 @@ func (a *accountManager) Contains(acctAddr account.Address) bool {
 }
 
 func (a *accountManager) Sign(acctAddr account.Address, toSign []byte) ([]byte, error) {
-	if !a.client.hasAccount(acctAddr) {
-		return nil, errors.New("unknown account")
+	if _, err := a.client.getAccount(acctAddr); err != nil {
+		return nil, err
 	}
 	a.mu.Lock()
 	lockable, ok := a.unlocked[acctAddr.ToHexString()]
@@ -130,8 +130,8 @@ func (a *accountManager) Sign(acctAddr account.Address, toSign []byte) ([]byte, 
 }
 
 func (a *accountManager) UnlockAndSign(acctAddr account.Address, toSign []byte) ([]byte, error) {
-	if !a.client.hasAccount(acctAddr) {
-		return nil, errors.New("unknown account")
+	if _, err := a.client.getAccount(acctAddr); err != nil {
+		return nil, err
 	}
 	a.mu.Lock()
 	lockable, unlocked := a.unlocked[acctAddr.ToHexString()]
@@ -147,10 +147,9 @@ func (a *accountManager) UnlockAndSign(acctAddr account.Address, toSign []byte) 
 }
 
 func (a *accountManager) TimedUnlock(acctAddr account.Address, duration time.Duration) error {
-	acctFile := a.client.getAccount(acctAddr)
-
-	if acctFile == (config.AccountFile{}) {
-		return errors.New("unknown account")
+	acctFile, err := a.client.getAccount(acctAddr)
+	if err != nil {
+		return err
 	}
 
 	conf := acctFile.Contents.VaultAccount
