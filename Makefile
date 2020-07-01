@@ -68,6 +68,7 @@ build-linux-docker:
 	zip -j -FS -q /shared/linux/${EXECUTABLE}-${VERSION}.zip /shared/*.json /shared/linux/*
 	shasum -a 256 /shared/linux/${EXECUTABLE}-${VERSION}.zip | awk '{print $$1}' > /shared/linux/${EXECUTABLE}-${VERSION}.zip.sha256sum
 
+# use this to build for the acceptance-tests
 build-alpine: checkfmt
 	@mkdir -p ${OUTPUT_DIR}/linux
 	@echo Output to ${OUTPUT_DIR}/linux
@@ -78,7 +79,7 @@ build-alpine: checkfmt
 		--mount type=bind,src=/Users/chrishounsom/go/src/github.com/jpmorganchase/quorum-account-plugin-sdk-go,dst=/Users/chrishounsom/go/src/github.com/jpmorganchase/quorum-account-plugin-sdk-go \
 		--mount type=bind,src=/Users/chrishounsom/go/src/github.com/ethereum/go-ethereum/crypto/secp256k1,dst=/Users/chrishounsom/go/src/github.com/ethereum/go-ethereum/crypto/secp256k1 \
 		-w /quorum-account-plugin-hashicorp-vault \
-		golang:1.13.10-alpine3.11 /bin/sh ./linux-build.sh
+		golang:1.13.10-alpine3.11 /bin/sh ./alpine-build.sh
 
 build-alpine-docker:
 	go test ./...

@@ -2,11 +2,12 @@ package hashicorp
 
 import (
 	"encoding/hex"
+	"net/url"
+	"testing"
+
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/stretchr/testify/require"
-	"net/url"
-	"testing"
 )
 
 func TestAccountsByURL_HasAccountWithAddress_True(t *testing.T) {
