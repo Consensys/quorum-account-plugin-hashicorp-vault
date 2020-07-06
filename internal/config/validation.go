@@ -2,16 +2,17 @@ package config
 
 import (
 	"errors"
+	"net/url"
 )
 
 const (
 	InvalidVaultUrl            = "vault must be a valid HTTP/HTTPS url"
 	InvalidKVEngineName        = "kvEngineName must be set"
-	InvalidAccountDirectory    = "accountDirectory must be a valid file url"
+	InvalidAccountDirectory    = "accountDirectory must be a valid absolute file url"
 	InvalidAuthentication      = "authentication must contain roleId, secretId and approlePath OR only token, and the given environment variables must be set"
-	InvalidCaCert              = "caCert must be a valid file url"
-	InvalidClientCert          = "clientCert must be a valid file url"
-	InvalidClientKey           = "clientKey must be a valid file url"
+	InvalidCaCert              = "caCert must be a valid absolute file url"
+	InvalidClientCert          = "clientCert must be a valid absolute file url"
+	InvalidClientKey           = "clientKey must be a valid absolute file url"
 	InvalidSecretName          = "secretName must be set"
 	InvalidOverwriteProtection = "currentVersion and insecureDisable cannot both be set"
 )
@@ -23,7 +24,7 @@ func (c VaultClient) Validate() error {
 	if c.KVEngineName == "" {
 		return errors.New(InvalidKVEngineName)
 	}
-	if c.AccountDirectory == nil || c.AccountDirectory.Scheme != "file" || (c.AccountDirectory.Host == "" && c.AccountDirectory.Path == "") {
+	if c.AccountDirectory == nil || !isValidAbsFileUrl(c.AccountDirectory) {
 		return errors.New(InvalidAccountDirectory)
 	}
 	if err := c.Authentication.validate(); err != nil {
@@ -52,13 +53,13 @@ func (c VaultClientAuthentication) validate() error {
 }
 
 func (c VaultClientTLS) validate() error {
-	if c.CaCert.String() != "" && (c.CaCert.Scheme != "file" || (c.CaCert.Host == "" && c.CaCert.Path == "")) {
+	if c.CaCert == nil || (c.CaCert.String() != "" && !isValidAbsFileUrl(c.CaCert)) {
 		return errors.New(InvalidCaCert)
 	}
-	if c.ClientCert.String() != "" && (c.ClientCert.Scheme != "file" || (c.ClientCert.Host == "" && c.ClientCert.Path == "")) {
+	if c.ClientCert == nil || (c.ClientCert.String() != "" && !isValidAbsFileUrl(c.ClientCert)) {
 		return errors.New(InvalidClientCert)
 	}
-	if c.ClientKey.String() != "" && (c.ClientKey.Scheme != "file" || (c.ClientKey.Host == "" && c.ClientKey.Path == "")) {
+	if c.ClientKey == nil || (c.ClientKey.String() != "" && !isValidAbsFileUrl(c.ClientKey)) {
 		return errors.New(InvalidClientKey)
 	}
 	return nil
@@ -79,4 +80,8 @@ func (c OverwriteProtection) validate() error {
 		return errors.New(InvalidOverwriteProtection)
 	}
 	return nil
+}
+
+func isValidAbsFileUrl(u *url.URL) bool {
+	return u.Scheme == "file" && u.Host == "" && u.Path != ""
 }

@@ -75,7 +75,7 @@ func TestVaultClient_Validate_VaultUrl_Valid(t *testing.T) {
 }
 
 func TestVaultClient_Validate_VaultUrl_Invalid(t *testing.T) {
-	wantErrMsg := InvalidVaultUrl
+	wantErrMsg := "vault must be a valid HTTP/HTTPS url"
 
 	vaultUrls := []string{
 		"",
@@ -96,7 +96,7 @@ func TestVaultClient_Validate_VaultUrl_Invalid(t *testing.T) {
 }
 
 func TestVaultClient_Validate_KVEngineName_Invalid(t *testing.T) {
-	wantErrMsg := InvalidKVEngineName
+	wantErrMsg := "kvEngineName must be set"
 
 	vaultClient := minimumValidClientConfig(t)
 	vaultClient.KVEngineName = ""
@@ -110,31 +110,24 @@ func TestVaultClient_Validate_AccountDirectory_Valid(t *testing.T) {
 	testutil.SetRoleID()
 	testutil.SetSecretID()
 
-	acctDirUrls := []string{
-		"file:///absolute/path/to/dir",
-		"file://../relative/path/to/dir",
-		"file://Withhost/path",
-		"file://nopath",
-	}
-	for _, u := range acctDirUrls {
-		t.Run(u, func(t *testing.T) {
-			vaultClient := minimumValidClientConfig(t)
+	vaultClient := minimumValidClientConfig(t)
 
-			acctDir, err := url.Parse(u)
-			require.NoError(t, err)
-			vaultClient.AccountDirectory = acctDir
+	acctDir, err := url.Parse("file:///absolute/path/to/dir")
+	require.NoError(t, err)
+	vaultClient.AccountDirectory = acctDir
 
-			gotErr := vaultClient.Validate()
-			require.NoError(t, gotErr)
-		})
-	}
+	gotErr := vaultClient.Validate()
+	require.NoError(t, gotErr)
 }
 
 func TestVaultClient_Validate_AccountDirectory_Invalid(t *testing.T) {
-	wantErrMsg := InvalidAccountDirectory
+	wantErrMsg := "accountDirectory must be a valid absolute file url"
 
 	acctDirUrls := []string{
 		"",
+		"file://../relative/path/to/dir",
+		"file://Withhost/path",
+		"file://nopath",
 		"relative/no/scheme",
 		"/absolute/no/scheme",
 		"http://notfilescheme",
@@ -151,6 +144,16 @@ func TestVaultClient_Validate_AccountDirectory_Invalid(t *testing.T) {
 			require.EqualError(t, gotErr, wantErrMsg)
 		})
 	}
+}
+
+func TestVaultClient_Validate_AccountDirectory_NilInvalid(t *testing.T) {
+	wantErrMsg := "accountDirectory must be a valid absolute file url"
+
+	vaultClient := minimumValidClientConfig(t)
+	vaultClient.AccountDirectory = nil
+
+	gotErr := vaultClient.Validate()
+	require.EqualError(t, gotErr, wantErrMsg)
 }
 
 func TestVaultClient_Validate_Authentication_Valid(t *testing.T) {
@@ -214,7 +217,7 @@ func TestVaultClient_Validate_Authentication_Valid(t *testing.T) {
 }
 
 func TestVaultClient_Validate_Authentication_Invalid(t *testing.T) {
-	wantErrMsg := InvalidAuthentication
+	wantErrMsg := "authentication must contain roleId, secretId and approlePath OR only token, and the given environment variables must be set"
 
 	var auths = map[string]struct {
 		tokenUrl    string
@@ -333,7 +336,7 @@ func TestVaultClient_Validate_TLS_Valid(t *testing.T) {
 			clientKey:  "",
 		},
 		"1-way": {
-			caCert:     "file://../ca.cert",
+			caCert:     "file:///path/to/ca.cert",
 			clientCert: "",
 			clientKey:  "",
 		},
@@ -341,21 +344,6 @@ func TestVaultClient_Validate_TLS_Valid(t *testing.T) {
 			caCert:     "file:///path/to/ca.cert",
 			clientCert: "file:///path/to/client.cert",
 			clientKey:  "file:///path/to/client.key",
-		},
-		"relative": {
-			caCert:     "file://ca.cert",
-			clientCert: "file://client.cert",
-			clientKey:  "file://client.key",
-		},
-		"relative_dir": {
-			caCert:     "file://path/to/ca.cert",
-			clientCert: "file://path/to/client.cert",
-			clientKey:  "file://path/to/client.key",
-		},
-		"relative_up": {
-			caCert:     "file://../ca.cert",
-			clientCert: "file://../client.cert",
-			clientKey:  "file://../client.key",
 		},
 	}
 
@@ -388,41 +376,59 @@ func TestVaultClient_Validate_TLS_Invalid(t *testing.T) {
 		clientKey  string
 		wantErr    string
 	}{
+		"caCert_relative": {
+			caCert:     "file://ca.cert",
+			clientCert: "file:///path/to/client.cert",
+			clientKey:  "file:///path/to/client.key",
+			wantErr:    "caCert must be a valid absolute file url",
+		},
 		"caCert_scheme": {
 			caCert:     "path/to/ca.cert",
 			clientCert: "file:///path/to/client.cert",
 			clientKey:  "file:///path/to/client.key",
-			wantErr:    InvalidCaCert,
+			wantErr:    "caCert must be a valid absolute file url",
 		},
 		"caCert_empty": {
 			caCert:     "file://",
 			clientCert: "file:///path/to/client.cert",
 			clientKey:  "file:///path/to/client.key",
-			wantErr:    InvalidCaCert,
+			wantErr:    "caCert must be a valid absolute file url",
+		},
+		"clientCert_relative": {
+			caCert:     "file:///path/to/ca.cert",
+			clientCert: "file://client.cert",
+			clientKey:  "file:///path/to/client.key",
+			wantErr:    "clientCert must be a valid absolute file url",
 		},
 		"clientCert_scheme": {
 			caCert:     "file:///path/to/ca.cert",
 			clientCert: "path/to/client.cert",
 			clientKey:  "file:///path/to/client.key",
-			wantErr:    InvalidClientCert,
+			wantErr:    "clientCert must be a valid absolute file url",
 		},
 		"clientCert_empty": {
 			caCert:     "file:///path/to/ca.cert",
 			clientCert: "file://",
 			clientKey:  "file:///path/to/client.key",
-			wantErr:    InvalidClientCert,
+			wantErr:    "clientCert must be a valid absolute file url",
+		},
+		"clientKey_relative": {
+			caCert:     "file:///path/to/ca.cert",
+			clientCert: "file:///path/to/client.cert",
+			clientKey:  "file://client.key",
+			wantErr:    "clientKey must be a valid absolute file url",
 		},
 		"clientKey_scheme": {
 			caCert:     "file:///path/to/ca.cert",
 			clientCert: "file:///path/to/client.cert",
 			clientKey:  "path/to/client.key",
-			wantErr:    InvalidClientKey,
+			wantErr:    "clientKey must be a valid absolute file url",
 		},
 		"clientKey_empty": {
 			caCert:     "file:///path/to/ca.cert",
 			clientCert: "file:///path/to/client.cert",
 			clientKey:  "file://",
-			wantErr:    InvalidClientKey,
+			wantErr:    "clientKey must be a valid absolute file url",
 		},
 	}
 

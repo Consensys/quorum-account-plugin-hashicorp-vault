@@ -54,17 +54,19 @@ func setupPluginAndVaultAndFiles(t *testing.T, ctx *ITContext, args ...map[strin
 		WithServerKey(SERVER_KEY)
 	ctx.StartTLSVaultServer(t, vaultBuilder)
 
+	wd, err := os.Getwd()
+	require.NoError(t, err)
 	vaultClientBuilder := &VaultClientBuilder{}
 	vaultClientBuilder.
 		WithVaultUrl(ctx.Vault.URL).
 		WithKVEngineName("engine").
-		WithAccountDirectory("file://" + ctx.AccountConfigDirectory).
+		WithAccountDirectory(fmt.Sprintf("file://%v/%v", wd, ctx.AccountConfigDirectory)).
 		WithRoleIdUrl("env://" + testutil.MY_ROLE_ID).
 		WithSecretIdUrl("env://" + testutil.MY_SECRET_ID).
 		WithApprolePath("myapprole").
-		WithCaCertUrl("file://" + CA_CERT).
-		WithClientCertUrl("file://" + CLIENT_CERT).
-		WithClientKeyUrl("file://" + CLIENT_KEY)
+		WithCaCertUrl(fmt.Sprintf("file://%v/%v", wd, CA_CERT)).
+		WithClientCertUrl(fmt.Sprintf("file://%v/%v", wd, CLIENT_CERT)).
+		WithClientKeyUrl(fmt.Sprintf("file://%v/%v", wd, CLIENT_KEY))
 
 	if args != nil {
 		if unlock, ok := args[0]["unlock"]; ok {
