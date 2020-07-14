@@ -2,15 +2,13 @@ module github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault
 
 go 1.13
 
-replace github.com/jpmorganchase/quorum-account-plugin-sdk-go => /Users/chrishounsom/go/src/github.com/jpmorganchase/quorum-account-plugin-sdk-go
-
 require (
 	github.com/frankban/quicktest v1.7.2 // indirect
 	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/hashicorp/go-plugin v1.0.1
 	github.com/hashicorp/vault/api v1.0.4
 	github.com/hashicorp/vault/sdk v0.1.13
-	github.com/jpmorganchase/quorum-account-plugin-sdk-go v0.0.0
+	github.com/jpmorganchase/quorum-account-plugin-sdk-go v0.0.0-20200714170608-df1d0bda16e0
 	github.com/jpmorganchase/quorum/crypto/secp256k1 v0.0.0-20200714153126-36cff89fd85a
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/pierrec/lz4 v2.4.1+incompatible // indirect
