@@ -7,6 +7,15 @@ Can be used with Quorum or [`clef`](https://docs.goquorum.com/en/latest/Account-
 ## Quickstart 
 * [Quickstart](https://docs.goquorum.com/en/latest/Account-Key-Management/Quorum/account-Plugins/Hashicorp-Vault/Quickstart/)
 
+## Building
+Quorum will automatically download the plugin from bintray at startup.  
+
+Alternatively, the plugin can be built manually and added to the [`baseDir`](https://docs.goquorum.com/en/latest/PluggableArchitecture/Settings/):
+```shell
+make
+cp build/dist/quorum-account-plugin-hashicorp-vault-<version>.zip /path/to/baseDir
+```
+
 ## Usage
 * [Configuration & additional info](https://docs.goquorum.com/en/latest/Account-Key-Management/Quorum/account-Plugins/Hashicorp-Vault/Overview/)
 
