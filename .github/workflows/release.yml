@@ -4,8 +4,8 @@ on:
     tags:
       - 'v*'
 jobs:
-  build:
-    name: Build
+  prepare:
+    name: Prepare for builds
     runs-on: ubuntu-latest
     steps:
       - name: Extract version metadata
@@ -13,22 +13,31 @@ jobs:
         run: |
           echo "::set-output name=version::${GITHUB_REF##*/}"
           echo "::set-output name=version_short::${GITHUB_REF##*/v}"
+  build:
+    name: Build on ${{ matrix.os }}
+    needs:
+      - prepare
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "macos-latest"]
+    runs-on: ${{ matrix.os }}
+    steps:
       - name: Setup Go 1.13
         uses: actions/setup-go@v1
         with:
           go-version: 1.13
       - name: Check out project files
         uses: actions/checkout@v2
-      - name: Build
+      - name: Create dist
         id: build
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
           make dist VERSION=${{ steps.meta.outputs.version_short }}
       - name: Upload artifacts
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         if: success()
         with:
-          name: artifacts
+          name: ${{ matrix.os }}-artifacts
           path: build
   deploy:
     name: Deploy ${{ matrix.arch }} dist to Bintray
@@ -37,18 +46,25 @@ jobs:
       - build
     strategy:
       matrix:
-        arch: ["linux-amd64", "darwin-amd64"]
+        os: ["ubuntu-latest", "macos-latest"]
+        include:
+          # include variables for the corresponding arch - used when uploading to bintray
+          - os: "ubuntu-latest"
+            arch: "linux-amd64"
+          - os: "macos-latest"
+            arch: "darwin-amd64"
     steps:
       - name: Setup jfrog CLI
         uses: jfrog/setup-jfrog-cli@v1
-      - name: Download artifacts
-        uses: actions/download-artifact@v1
+      - name: Download linux artifacts
+        uses: actions/download-artifact@v2
         with:
-          name: artifacts
+          name: ${{ matrix.os }}-artifacts
+          path: ${{ matrix.os }}-artifacts
       - name: Extract metadata
         id: meta
         run: |
-          echo "::set-output name=package::$(cat artifacts/plugin-meta.json | jq -r .name)"
+          echo "::set-output name=package::$(cat ${{ matrix.os }}-artifacts/plugin-meta.json | jq -r .name)"
           echo "::set-output name=version::${GITHUB_REF##*/}"
           echo "::set-output name=version_short::${GITHUB_REF##*/v}"
       - name: Prepare ${{ steps.meta.outputs.package }}@${{ steps.meta.outputs.version }} in Bintray
@@ -69,7 +85,7 @@ jobs:
       - name: Upload to Bintray
         run: |
           jfrog bt upload --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} --publish --override \
-                "artifacts/${{ matrix.arch }}/${{ steps.meta.outputs.package }}-${{ steps.meta.outputs.version_short }}.*" \
+                "${{ matrix.os }}-artifacts/dist/${{ steps.meta.outputs.package }}-${{ steps.meta.outputs.version_short }}.*" \
                 ${{ secrets.BINTRAY_ORGANIZATION }}/${{ secrets.BINTRAY_REPOSITORY }}/${{ steps.meta.outputs.package }}/${{ steps.meta.outputs.version }} \
                 ${{ steps.meta.outputs.package }}/${{ steps.meta.outputs.version }}/${{ matrix.arch }}/
   notify:
