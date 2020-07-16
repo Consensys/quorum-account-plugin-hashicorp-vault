@@ -29,7 +29,7 @@ test: tools
 dist-local: clean build zip
 	@[ "${PLUGIN_DEST_PATH}" ] || ( echo "Please provide PLUGIN_DEST_PATH env variable" ; exit 1)
 	@mkdir -p ${PLUGIN_DEST_PATH}
-	@cp ${OUTPUT_DIR}/$(shell go env GOOS)-$(shell go env GOARCH)/${PACKAGE}-${VERSION}.zip ${PLUGIN_DEST_PATH}/${PACKAGE}-${VERSION}.zip
+	@cp ${OUTPUT_DIR}/dist/${PACKAGE}-${VERSION}.zip ${PLUGIN_DEST_PATH}/${PACKAGE}-${VERSION}.zip
 
 dist: clean build zip
 	@echo Done!
@@ -37,17 +37,17 @@ dist: clean build zip
 	@ls ${OUTPUT_DIR}/*
 
 build: checkfmt
-	@mkdir -p ${OUTPUT_DIR}/local
-	@echo Output to ${OUTPUT_DIR}/local
+	@mkdir -p ${OUTPUT_DIR}/dist
+	@echo Output to ${OUTPUT_DIR}/dist
 	@CGO_ENABLED=0 GOFLAGS="-mod=readonly" go run -ldflags=${LD_FLAGS} ./internal/metadata/gen.go
 	@GOFLAGS="-mod=readonly" go build \
 		-ldflags="-s -w" \
-		-o "${OUTPUT_DIR}/local/${EXECUTABLE}" \
+		-o "${OUTPUT_DIR}/dist/${EXECUTABLE}" \
 		.
 
 zip: build
-	@zip -j -FS -q ${OUTPUT_DIR}/local/${PACKAGE}-${VERSION}.zip ${OUTPUT_DIR}/*.json ${OUTPUT_DIR}/local/*
-	@shasum -a 256 ${OUTPUT_DIR}/local/${PACKAGE}-${VERSION}.zip | awk '{print $$1}' > ${OUTPUT_DIR}/local/${EXECUTABLE}-${VERSION}.zip.sha256sum
+	@zip -j -FS -q ${OUTPUT_DIR}/dist/${PACKAGE}-${VERSION}.zip ${OUTPUT_DIR}/*.json ${OUTPUT_DIR}/dist/*
+	@shasum -a 256 ${OUTPUT_DIR}/dist/${PACKAGE}-${VERSION}.zip | awk '{print $$1}' > ${OUTPUT_DIR}/dist/${EXECUTABLE}-${VERSION}.zip.sha256sum
 
 # use this to build an alpine linux dist - for locally running dev changes in the acceptance tests
 build-alpine: checkfmt
