@@ -4,15 +4,6 @@ on:
     tags:
       - 'v*'
 jobs:
-  prepare:
-    name: Prepare for builds
-    runs-on: ubuntu-latest
-    steps:
-      - name: Extract version metadata
-        id: meta
-        run: |
-          echo "::set-output name=version::${GITHUB_REF##*/}"
-          echo "::set-output name=version_short::${GITHUB_REF##*/v}"
   build:
     name: Build on ${{ matrix.os }}
     needs:
@@ -28,6 +19,11 @@ jobs:
           go-version: 1.13
       - name: Check out project files
         uses: actions/checkout@v2
+      - name: Extract version metadata
+          id: meta
+          run: |
+            echo "::set-output name=version::${GITHUB_REF##*/}"
+            echo "::set-output name=version_short::${GITHUB_REF##*/v}"
       - name: Create dist
         id: build
         run: |
