@@ -39,32 +39,23 @@ jobs:
         with:
           name: ${{ matrix.os }}-artifacts
           path: build
-  deploy:
-    name: Deploy ${{ matrix.arch }} dist to Bintray
+  create:
+    name: Create a new version in Bintray
     runs-on: ubuntu-latest
     needs:
       - build
-    strategy:
-      matrix:
-        os: ["ubuntu-latest", "macos-latest"]
-        include:
-          # include variables for the corresponding arch - used when uploading to bintray
-          - os: "ubuntu-latest"
-            arch: "linux-amd64"
-          - os: "macos-latest"
-            arch: "darwin-amd64"
     steps:
       - name: Setup jfrog CLI
         uses: jfrog/setup-jfrog-cli@v1
       - name: Download linux artifacts
         uses: actions/download-artifact@v2
         with:
-          name: ${{ matrix.os }}-artifacts
-          path: ${{ matrix.os }}-artifacts
+          name: ubuntu-latest-artifacts
+          path: ubuntu-latest-artifacts
       - name: Extract metadata
         id: meta
         run: |
-          echo "::set-output name=package::$(cat ${{ matrix.os }}-artifacts/plugin-meta.json | jq -r .name)"
+          echo "::set-output name=package::$(cat ubuntu-latest-artifacts/plugin-meta.json | jq -r .name)"
           echo "::set-output name=version::${GITHUB_REF##*/}"
           echo "::set-output name=version_short::${GITHUB_REF##*/v}"
       - name: Prepare ${{ steps.meta.outputs.package }}@${{ steps.meta.outputs.version }} in Bintray
@@ -82,7 +73,35 @@ jobs:
                   --vcs-tag ${{ steps.meta.outputs.version }} --released $(date -u +"%Y-%m-%dT%H:%M:%SZ") \
                   $CHECK_VERSION
           fi
-      - name: Upload to Bintray
+  deploy:
+    name: Deploy ${{ matrix.arch }} dist to Bintray
+    runs-on: ubuntu-latest
+    needs:
+      - create
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "macos-latest"]
+        include:
+          # include variables for the corresponding arch - used when uploading to bintray
+          - os: "ubuntu-latest"
+            arch: "linux-amd64"
+          - os: "macos-latest"
+            arch: "darwin-amd64"
+    steps:
+      - name: Setup jfrog CLI
+        uses: jfrog/setup-jfrog-cli@v1
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.os }}-artifacts
+          path: ${{ matrix.os }}-artifacts
+      - name: Extract metadata
+        id: meta
+        run: |
+          echo "::set-output name=package::$(cat ${{ matrix.os }}-artifacts/plugin-meta.json | jq -r .name)"
+          echo "::set-output name=version::${GITHUB_REF##*/}"
+          echo "::set-output name=version_short::${GITHUB_REF##*/v}"
+      - name: Upload artifacts to Bintray
         run: |
           jfrog bt upload --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} --publish --override \
                 "${{ matrix.os }}-artifacts/dist/${{ steps.meta.outputs.package }}-${{ steps.meta.outputs.version_short }}.*" \
