@@ -20,10 +20,10 @@ jobs:
       - name: Check out project files
         uses: actions/checkout@v2
       - name: Extract version metadata
-          id: meta
-          run: |
-            echo "::set-output name=version::${GITHUB_REF##*/}"
-            echo "::set-output name=version_short::${GITHUB_REF##*/v}"
+        id: meta
+        run: |
+          echo "::set-output name=version::${GITHUB_REF##*/}"
+          echo "::set-output name=version_short::${GITHUB_REF##*/v}"
       - name: Create dist
         id: build
         run: |
