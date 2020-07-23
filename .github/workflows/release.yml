@@ -6,8 +6,6 @@ on:
 jobs:
   build:
     name: Build on ${{ matrix.os }}
-    needs:
-      - prepare
     strategy:
       matrix:
         os: ["ubuntu-latest", "macos-latest"]
