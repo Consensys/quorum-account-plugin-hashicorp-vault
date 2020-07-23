@@ -32,7 +32,7 @@ jobs:
         id: build
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
-          make dist VERSION=${{ steps.meta.outputs.version_short }}
+          make VERSION=${{ steps.meta.outputs.version_short }}
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         if: success()
