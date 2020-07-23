@@ -57,7 +57,11 @@ jobs:
           CHECK_PACKAGE="${{ secrets.BINTRAY_ORGANIZATION }}/${{ secrets.BINTRAY_REPOSITORY }}/${{ steps.meta.outputs.package }}"
           CHECK_VERSION="$CHECK_PACKAGE/${{ steps.meta.outputs.version }}"
           echo "Checking $CHECK_PACKAGE"
-          jfrog bt package-show --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} $CHECK_PACKAGE
+#          jfrog bt package-show --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} $CHECK_PACKAGE
+          jfrog bt package-show --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} $CHECK_PACKAGE && y=0 || y=1
+          if [ $y -eq 1 ]; then
+            jfrog bt package-create --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} $CHECK_PACKAGE
+          fi
           echo "Checking $CHECK_VERSION"
           jfrog bt version-show --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} $CHECK_VERSION && x=0 || x=1
           if [ $x -eq 0 ]; then
