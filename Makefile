@@ -5,9 +5,10 @@ EXECUTABLE := "quorum-account-plugin-hashicorp-vault"
 PACKAGE ?= quorum-account-plugin-hashicorp-vault
 OUTPUT_DIR := "$(shell pwd)/build"
 VERSION := "0.0.1"
-LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
+GEN_LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
 -X main.Executable=${EXECUTABLE} -X main.Version=${VERSION} -X main.OutputDir=${OUTPUT_DIR}"
-DOCKER_LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
+BUILD_LD_FLAGS=-s -w $(extraldflags)
+DOCKER_GEN_LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
 -X main.Executable=${EXECUTABLE} -X main.Version=${VERSION} -X main.OutputDir=/shared"
 
 .PHONY: ${OUTPUT_DIR}
@@ -39,9 +40,9 @@ dist: clean build zip
 build: checkfmt
 	@mkdir -p ${OUTPUT_DIR}/dist
 	@echo Output to ${OUTPUT_DIR}/dist
-	@CGO_ENABLED=0 GOFLAGS="-mod=readonly" go run -ldflags=${LD_FLAGS} ./internal/metadata/gen.go
+	@CGO_ENABLED=0 GOFLAGS="-mod=readonly" go run -ldflags=${GEN_LD_FLAGS} ./internal/metadata/gen.go
 	@GOFLAGS="-mod=readonly" go build \
-		-ldflags="-s -w" \
+		-ldflags='$(BUILD_LD_FLAGS)' \
 		-o "${OUTPUT_DIR}/dist/${EXECUTABLE}" \
 		.
 
@@ -64,9 +65,9 @@ build-alpine: checkfmt
 
 build-alpine-docker:
 	go test ./...
-	CGO_ENABLED=0 go run -ldflags=${DOCKER_LD_FLAGS} ./internal/metadata/gen.go
+	CGO_ENABLED=0 go run -ldflags=${DOCKER_GEN_LD_FLAGS} ./internal/metadata/gen.go
 	go build \
-		-ldflags="-s -w" \
+		-ldflags='$(BUILD_LD_FLAGS)' \
 		-o "/shared/linux/${EXECUTABLE}" \
 		.
 	zip -j -FS -q /shared/linux/${EXECUTABLE}-${VERSION}.zip /shared/*.json /shared/linux/*
