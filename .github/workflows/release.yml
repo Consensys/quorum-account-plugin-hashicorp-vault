@@ -22,11 +22,16 @@ jobs:
         run: |
           echo "::set-output name=version::${GITHUB_REF##*/}"
           echo "::set-output name=version_short::${GITHUB_REF##*/v}"
-      - name: Create dist
-        id: build
+      - name: Create macos dist
+        if: ${{ matrix.os == 'macos-latest' }}
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
           make VERSION=${{ steps.meta.outputs.version_short }}
+      - name: Create portable linux dist
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
+          make VERSION=${{ steps.meta.outputs.version_short }} extraldflags='-linkmode external -extldflags "-static"'
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         if: success()
