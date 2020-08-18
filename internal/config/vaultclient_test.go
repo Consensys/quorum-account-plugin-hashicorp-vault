@@ -31,7 +31,7 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 	}`)
 
 	want := VaultClient{
-		vaultClientBase: vaultClientBase{
+		VaultClientBase: VaultClientBase{
 			Vault: &url.URL{
 				Scheme: "http",
 				Host:   "vault:1111",
@@ -109,7 +109,7 @@ func TestVaultClient_UnmarshalJSON_AddsTrailingSlashToAcctDir(t *testing.T) {
 	}`)
 
 	want := VaultClient{
-		vaultClientBase: vaultClientBase{
+		VaultClientBase: VaultClientBase{
 			Vault: &url.URL{
 				Scheme: "http",
 				Host:   "vault:1111",

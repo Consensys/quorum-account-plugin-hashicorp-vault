@@ -18,7 +18,7 @@ const (
 	InvalidOverwriteProtection = "currentVersion and insecureDisable cannot both be set"
 )
 
-func (c vaultClientBase) Validate() error {
+func (c VaultClientBase) Validate() error {
 	if c.Vault == nil || c.Vault.Scheme == "" {
 		return errors.New(InvalidVaultUrl)
 	}
@@ -35,7 +35,7 @@ func (c vaultClientBase) Validate() error {
 }
 
 func (c VaultClient) Validate() error {
-	if err := c.vaultClientBase.Validate(); err != nil {
+	if err := c.VaultClientBase.Validate(); err != nil {
 		return err
 	}
 	if c.KVEngineName == "" && c.QuorumSignerEngineName == "" {

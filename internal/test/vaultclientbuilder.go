@@ -132,20 +132,22 @@ func (b *VaultClientBuilder) Build(t *testing.T) config.VaultClient {
 	}
 
 	return config.VaultClient{
-		Vault:            vault,
-		KVEngineName:     b.kvEngineName,
-		AccountDirectory: acctDir,
-		Unlock:           b.unlock,
-		Authentication: config.VaultClientAuthentication{
-			Token:       &tokenEnv,
-			RoleId:      &roleIdEnv,
-			SecretId:    &secretIdEnv,
-			ApprolePath: b.approlePath,
+		VaultClientBase: config.VaultClientBase{
+			Vault:            vault,
+			AccountDirectory: acctDir,
+			Authentication: config.VaultClientAuthentication{
+				Token:       &tokenEnv,
+				RoleId:      &roleIdEnv,
+				SecretId:    &secretIdEnv,
+				ApprolePath: b.approlePath,
+			},
+			TLS: config.VaultClientTLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
 		},
-		TLS: config.VaultClientTLS{
-			CaCert:     caCert,
-			ClientCert: clientCert,
-			ClientKey:  clientKey,
-		},
+		KVEngineName: b.kvEngineName,
+		Unlock:       b.unlock,
 	}
 }

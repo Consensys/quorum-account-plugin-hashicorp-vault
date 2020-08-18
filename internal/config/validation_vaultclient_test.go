@@ -15,13 +15,13 @@ func envVar(t *testing.T, envVarURL string) *EnvironmentVariable {
 	return &env
 }
 
-func validVaultClientBaseConfig(t *testing.T) vaultClientBase {
+func validVaultClientBaseConfig(t *testing.T) VaultClientBase {
 	var token EnvironmentVariable
 	vault, _ := url.Parse("http://vault:1111")
 	accountDirectory, _ := url.Parse("file:///path/to/dir")
 	emptyUrl, _ := url.Parse("")
 
-	return vaultClientBase{
+	return VaultClientBase{
 		Vault:            vault,
 		AccountDirectory: accountDirectory,
 		Authentication: VaultClientAuthentication{
@@ -456,7 +456,7 @@ func TestVaultClient_Validate_UsesVaultClientBase(t *testing.T) {
 	wantErrMsg := "vault must be a valid HTTP/HTTPS url"
 
 	vaultClient := VaultClient{
-		vaultClientBase: validVaultClientBaseConfig(t),
+		VaultClientBase: validVaultClientBaseConfig(t),
 		KVEngineName:    "engine",
 	}
 
@@ -475,7 +475,7 @@ func TestVaultClient_Validate_NoEngineName_Invalid(t *testing.T) {
 	wantErrMsg := "either kvEngineName or quorumSignerEngineName must be set"
 
 	vaultClient := VaultClient{
-		vaultClientBase:        validVaultClientBaseConfig(t),
+		VaultClientBase:        validVaultClientBaseConfig(t),
 		KVEngineName:           "",
 		QuorumSignerEngineName: "",
 	}
@@ -493,7 +493,7 @@ func TestVaultClient_Validate_MoreThanOneEngineName_Invalid(t *testing.T) {
 	wantErrMsg := "either kvEngineName or quorumSignerEngineName must be set"
 
 	vaultClient := VaultClient{
-		vaultClientBase:        validVaultClientBaseConfig(t),
+		VaultClientBase:        validVaultClientBaseConfig(t),
 		KVEngineName:           "engine",
 		QuorumSignerEngineName: "engine",
 	}
@@ -510,7 +510,7 @@ func TestVaultClient_Validate_QuorumSignerEngineName_UnlockInvalid(t *testing.T)
 	wantErrMsg := "unlock is not supported when using quorumSignerEngine"
 
 	vaultClient := VaultClient{
-		vaultClientBase:        validVaultClientBaseConfig(t),
+		VaultClientBase:        validVaultClientBaseConfig(t),
 		QuorumSignerEngineName: "engine",
 	}
 	vaultClient.Unlock = []string{"acct1"}

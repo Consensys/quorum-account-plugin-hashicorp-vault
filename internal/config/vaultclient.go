@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// vaultClientBase encapsulates common config fields between the kv and quorum-signer vault clients to simplify validation
-type vaultClientBase struct {
+// VaultClientBase encapsulates common config fields between the kv and quorum-signer vault clients to simplify validation
+type VaultClientBase struct {
 	Vault            *url.URL
 	AccountDirectory *url.URL
 	Authentication   VaultClientAuthentication
@@ -16,7 +16,7 @@ type vaultClientBase struct {
 }
 
 type VaultClient struct {
-	vaultClientBase
+	VaultClientBase
 	KVEngineName           string // the path of the K/V v2 secret engine.  May be nil. Use SecretEngineName() to get the configured secret engine.
 	QuorumSignerEngineName string // the path of the quorum-signer secret engine. May be nil.  Use SecretEngineName() to get the configured secret engine.
 	Unlock                 []string
@@ -133,7 +133,7 @@ func (c vaultClientJSON) vaultClient() (VaultClient, error) {
 	}
 
 	return VaultClient{
-		vaultClientBase: vaultClientBase{
+		VaultClientBase: VaultClientBase{
 			Vault:            vault,
 			AccountDirectory: accountDirectory,
 			Authentication:   authentication,
