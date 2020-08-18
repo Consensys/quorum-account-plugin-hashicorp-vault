@@ -19,7 +19,7 @@ const reauthRetryInterval = 5 * time.Second
 
 type vaultClient struct {
 	*api.Client
-	kvEngineName     string
+	secretEngineName string
 	accountDirectory *url.URL
 	accts            accountsByURL
 }
@@ -45,7 +45,7 @@ func newVaultClient(conf config.VaultClient) (*vaultClient, error) {
 
 	vaultClient := &vaultClient{
 		Client:           c,
-		kvEngineName:     conf.KVEngineName,
+		secretEngineName: conf.SecretEngineName(),
 		accountDirectory: conf.AccountDirectory,
 	}
 
@@ -137,7 +137,7 @@ func (c *vaultClient) loadAccounts() (map[*url.URL]config.AccountFile, error) {
 			return fmt.Errorf("unable to unmarshal contents of %v, err: %v", path, err)
 		}
 
-		acctURL, err := conf.AccountURL(c.Address(), c.kvEngineName)
+		acctURL, err := conf.AccountURL(c.Address(), c.secretEngineName)
 		if err != nil {
 			return fmt.Errorf("unable to parse account URL for %v, err: %v", path, err)
 		}

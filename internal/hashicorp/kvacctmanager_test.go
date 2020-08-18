@@ -17,7 +17,7 @@ func TestImportPrivateKey_ZerosKeyAfterImport(t *testing.T) {
 	privKey := &ecdsa.PrivateKey{
 		D: new(big.Int).SetBytes(byt),
 	}
-	a := accountManager{}
+	a := kvAccountManager{}
 
 	require.NotEmpty(t, privKey.D.Bytes())
 	_, _ = a.ImportPrivateKey(privKey, config.NewAccount{})

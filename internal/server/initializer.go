@@ -29,7 +29,16 @@ func (p *HashicorpPlugin) Init(_ context.Context, req *proto_common.PluginInitia
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	am, err := hashicorp.NewAccountManager(*conf)
+	var (
+		am  hashicorp.AccountManager
+		err error
+	)
+
+	if conf.KVEngineName != "" {
+		am, err = hashicorp.NewKVAccountManager(*conf)
+	} else {
+		am, err = hashicorp.NewSignerAccountManager(*conf)
+	}
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}

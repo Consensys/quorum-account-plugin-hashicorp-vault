@@ -17,9 +17,17 @@ type vaultClientBase struct {
 
 type VaultClient struct {
 	vaultClientBase
-	KVEngineName           string // the path of the K/V v2 secret engine
-	QuorumSignerEngineName string // the path of the quorum-signer secret engine
+	KVEngineName           string // the path of the K/V v2 secret engine.  May be nil. Use SecretEngineName() to get the configured secret engine.
+	QuorumSignerEngineName string // the path of the quorum-signer secret engine. May be nil.  Use SecretEngineName() to get the configured secret engine.
 	Unlock                 []string
+}
+
+// SecretEngineName returns the name of the configured secret engine
+func (c VaultClient) SecretEngineName() string {
+	if c.KVEngineName != "" {
+		return c.KVEngineName
+	}
+	return c.QuorumSignerEngineName
 }
 
 type EnvironmentVariable url.URL
