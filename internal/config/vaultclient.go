@@ -7,13 +7,19 @@ import (
 	"strings"
 )
 
-type VaultClient struct {
+// vaultClientBase encapsulates common config fields between the kv and quorum-signer vault clients to simplify validation
+type vaultClientBase struct {
 	Vault            *url.URL
-	KVEngineName     string // the path of the K/V v2 secret engine
 	AccountDirectory *url.URL
-	Unlock           []string
 	Authentication   VaultClientAuthentication
 	TLS              VaultClientTLS
+}
+
+type VaultClient struct {
+	vaultClientBase
+	KVEngineName           string // the path of the K/V v2 secret engine
+	QuorumSignerEngineName string // the path of the quorum-signer secret engine
+	Unlock                 []string
 }
 
 type EnvironmentVariable url.URL
@@ -51,12 +57,13 @@ type VaultClientTLS struct {
 }
 
 type vaultClientJSON struct {
-	Vault            string
-	KVEngineName     string
-	AccountDirectory string
-	Unlock           []string
-	Authentication   vaultClientAuthenticationJSON
-	Tls              vaultClientTLSJSON
+	Vault                  string
+	KVEngineName           string
+	QuorumSignerEngineName string
+	AccountDirectory       string
+	Unlock                 []string
+	Authentication         vaultClientAuthenticationJSON
+	Tls                    vaultClientTLSJSON
 }
 
 type vaultClientAuthenticationJSON struct {
@@ -118,12 +125,15 @@ func (c vaultClientJSON) vaultClient() (VaultClient, error) {
 	}
 
 	return VaultClient{
-		Vault:            vault,
-		KVEngineName:     c.KVEngineName,
-		AccountDirectory: accountDirectory,
-		Unlock:           c.Unlock,
-		Authentication:   authentication,
-		TLS:              tls,
+		vaultClientBase: vaultClientBase{
+			Vault:            vault,
+			AccountDirectory: accountDirectory,
+			Authentication:   authentication,
+			TLS:              tls,
+		},
+		KVEngineName:           c.KVEngineName,
+		QuorumSignerEngineName: c.QuorumSignerEngineName,
+		Unlock:                 c.Unlock,
 	}, nil
 }
 
@@ -182,12 +192,13 @@ func (c vaultClientTLSJSON) vaultClientTls() (VaultClientTLS, error) {
 
 func (c VaultClient) vaultClientJSON() (vaultClientJSON, error) {
 	return vaultClientJSON{
-		Vault:            c.Vault.String(),
-		KVEngineName:     c.KVEngineName,
-		AccountDirectory: c.AccountDirectory.String(),
-		Unlock:           c.Unlock,
-		Authentication:   c.Authentication.vaultClientAuthenticationJSON(),
-		Tls:              c.TLS.vaultClientTLSJSON(),
+		Vault:                  c.Vault.String(),
+		KVEngineName:           c.KVEngineName,
+		QuorumSignerEngineName: c.QuorumSignerEngineName,
+		AccountDirectory:       c.AccountDirectory.String(),
+		Unlock:                 c.Unlock,
+		Authentication:         c.Authentication.vaultClientAuthenticationJSON(),
+		Tls:                    c.TLS.vaultClientTLSJSON(),
 	}, nil
 }
 

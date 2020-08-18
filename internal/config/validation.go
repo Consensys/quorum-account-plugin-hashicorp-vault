@@ -7,7 +7,8 @@ import (
 
 const (
 	InvalidVaultUrl            = "vault must be a valid HTTP/HTTPS url"
-	InvalidKVEngineName        = "kvEngineName must be set"
+	InvalidSecretEngine        = "either kvEngineName or quorumSignerEngineName must be set"
+	UnlockNotSupported         = "unlock is not supported when using quorumSignerEngine"
 	InvalidAccountDirectory    = "accountDirectory must be a valid absolute file url"
 	InvalidAuthentication      = "authentication must contain roleId, secretId and approlePath OR only token, and the given environment variables must be set"
 	InvalidCaCert              = "caCert must be a valid absolute file url"
@@ -17,12 +18,9 @@ const (
 	InvalidOverwriteProtection = "currentVersion and insecureDisable cannot both be set"
 )
 
-func (c VaultClient) Validate() error {
+func (c vaultClientBase) Validate() error {
 	if c.Vault == nil || c.Vault.Scheme == "" {
 		return errors.New(InvalidVaultUrl)
-	}
-	if c.KVEngineName == "" {
-		return errors.New(InvalidKVEngineName)
 	}
 	if c.AccountDirectory == nil || !isValidAbsFileUrl(c.AccountDirectory) {
 		return errors.New(InvalidAccountDirectory)
@@ -32,6 +30,22 @@ func (c VaultClient) Validate() error {
 	}
 	if err := c.TLS.validate(); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (c VaultClient) Validate() error {
+	if err := c.vaultClientBase.Validate(); err != nil {
+		return err
+	}
+	if c.KVEngineName == "" && c.QuorumSignerEngineName == "" {
+		return errors.New(InvalidSecretEngine)
+	}
+	if c.KVEngineName != "" && c.QuorumSignerEngineName != "" {
+		return errors.New(InvalidSecretEngine)
+	}
+	if c.QuorumSignerEngineName != "" && len(c.Unlock) != 0 {
+		return errors.New(UnlockNotSupported)
 	}
 	return nil
 }
