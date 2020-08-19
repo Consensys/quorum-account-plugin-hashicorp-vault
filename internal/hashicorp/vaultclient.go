@@ -20,6 +20,7 @@ const reauthRetryInterval = 5 * time.Second
 type vaultClient struct {
 	*api.Client
 	secretEngineName string
+	readEndpoint     string // the secret engine endpoint used to read/GET accounts - used when constructing the account URL
 	accountDirectory *url.URL
 	accts            accountsByURL
 }
@@ -46,6 +47,7 @@ func newVaultClient(conf config.VaultClient) (*vaultClient, error) {
 	vaultClient := &vaultClient{
 		Client:           c,
 		secretEngineName: conf.SecretEngineName(),
+		readEndpoint:     conf.ReadEndpoint(),
 		accountDirectory: conf.AccountDirectory,
 	}
 
@@ -137,7 +139,7 @@ func (c *vaultClient) loadAccounts() (map[*url.URL]config.AccountFile, error) {
 			return fmt.Errorf("unable to unmarshal contents of %v, err: %v", path, err)
 		}
 
-		acctURL, err := conf.AccountURL(c.Address(), c.secretEngineName)
+		acctURL, err := conf.AccountURL(c.Address(), c.secretEngineName, c.readEndpoint)
 		if err != nil {
 			return fmt.Errorf("unable to parse account URL for %v, err: %v", path, err)
 		}

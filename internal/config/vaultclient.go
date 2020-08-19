@@ -30,6 +30,14 @@ func (c VaultClient) SecretEngineName() string {
 	return c.QuorumSignerEngineName
 }
 
+// ReadEndpoint returns the endpoint used to read/GET accounts for the configured secret engine
+func (c VaultClient) ReadEndpoint() string {
+	if c.KVEngineName != "" {
+		return "data"
+	}
+	return "accounts"
+}
+
 type EnvironmentVariable url.URL
 
 func (e EnvironmentVariable) Get() string {

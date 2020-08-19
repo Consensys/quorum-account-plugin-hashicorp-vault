@@ -2,10 +2,11 @@ package config
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"net/url"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestVaultClient_UnmarshalJSON(t *testing.T) {

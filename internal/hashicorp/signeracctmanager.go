@@ -5,10 +5,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 	"log"
 	"time"
+
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
 
 var unsupportedErr = errors.New("not supported when using quorum-signer secret engine")

@@ -4,7 +4,7 @@ GIT_REPO := $(shell git ls-remote --get-url)
 EXECUTABLE := "quorum-account-plugin-hashicorp-vault"
 PACKAGE ?= quorum-account-plugin-hashicorp-vault
 OUTPUT_DIR := "$(shell pwd)/build"
-VERSION := "0.2.0-alpha.1"
+VERSION := "0.2.0-SNAPSHOT"
 GEN_LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
 -X main.Executable=${EXECUTABLE} -X main.Version=${VERSION} -X main.OutputDir=${OUTPUT_DIR}"
 BUILD_LD_FLAGS=-s -w $(extraldflags)
