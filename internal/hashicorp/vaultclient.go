@@ -168,6 +168,26 @@ func (c *vaultClient) hasAccount(acctAddr account.Address) bool {
 	return c.accts.HasAccountWithAddress(acctAddr)
 }
 
-func (c *vaultClient) getAccount(acctAddr account.Address) (config.AccountFile, error) {
+func (c *vaultClient) getAccountFile(acctAddr account.Address) (config.AccountFile, error) {
 	return c.accts.GetAccountWithAddress(acctAddr)
+}
+
+func (c *vaultClient) getAccounts() ([]account.Account, error) {
+	var (
+		w     = c.accts
+		accts = make([]account.Account, 0, len(w))
+		acct  account.Account
+	)
+	for url, conf := range w {
+		addr, err := account.NewAddressFromHexString(conf.Contents.Address)
+		if err != nil {
+			return []account.Account{}, err
+		}
+		acct = account.Account{
+			Address: addr,
+			URL:     url,
+		}
+		accts = append(accts, acct)
+	}
+	return accts, nil
 }

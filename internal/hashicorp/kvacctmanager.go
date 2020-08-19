@@ -6,10 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/vault/api"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
-	"github.com/jpmorganchase/quorum/crypto/secp256k1"
 	"io/ioutil"
 	"log"
 	"os"
@@ -18,6 +14,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/vault/api"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/jpmorganchase/quorum/crypto/secp256k1"
 )
 
 func NewKVAccountManager(config config.VaultClient) (*kvAccountManager, error) {
@@ -80,23 +81,7 @@ func (a *kvAccountManager) Status() (string, error) {
 }
 
 func (a *kvAccountManager) Accounts() ([]account.Account, error) {
-	var (
-		w     = a.client.accts
-		accts = make([]account.Account, 0, len(w))
-		acct  account.Account
-	)
-	for url, conf := range w {
-		addr, err := account.NewAddressFromHexString(conf.Contents.Address)
-		if err != nil {
-			return []account.Account{}, err
-		}
-		acct = account.Account{
-			Address: addr,
-			URL:     url,
-		}
-		accts = append(accts, acct)
-	}
-	return accts, nil
+	return a.client.getAccounts()
 }
 
 func (a *kvAccountManager) Contains(acctAddr account.Address) bool {
@@ -104,7 +89,7 @@ func (a *kvAccountManager) Contains(acctAddr account.Address) bool {
 }
 
 func (a *kvAccountManager) Sign(acctAddr account.Address, toSign []byte) ([]byte, error) {
-	if _, err := a.client.getAccount(acctAddr); err != nil {
+	if _, err := a.client.getAccountFile(acctAddr); err != nil {
 		return nil, err
 	}
 	a.mu.Lock()
@@ -117,7 +102,7 @@ func (a *kvAccountManager) Sign(acctAddr account.Address, toSign []byte) ([]byte
 }
 
 func (a *kvAccountManager) UnlockAndSign(acctAddr account.Address, toSign []byte) ([]byte, error) {
-	if _, err := a.client.getAccount(acctAddr); err != nil {
+	if _, err := a.client.getAccountFile(acctAddr); err != nil {
 		return nil, err
 	}
 	a.mu.Lock()
@@ -134,7 +119,7 @@ func (a *kvAccountManager) UnlockAndSign(acctAddr account.Address, toSign []byte
 }
 
 func (a *kvAccountManager) TimedUnlock(acctAddr account.Address, duration time.Duration) error {
-	acctFile, err := a.client.getAccount(acctAddr)
+	acctFile, err := a.client.getAccountFile(acctAddr)
 	if err != nil {
 		return err
 	}
