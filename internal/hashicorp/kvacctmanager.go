@@ -6,10 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -256,7 +253,7 @@ func (a *kvAccountManager) writeToVaultAndFile(key *ecdsa.PrivateKey, conf confi
 	log.Printf("[INFO] New account data written to %v", fileData.Path)
 
 	// prepare return value
-	accountURL, err := fileData.Contents.AccountURL(a.client.Address(), a.kvEngineName)
+	accountURL, err := fileData.Contents.AccountURL(a.client.Address(), a.kvEngineName, "data")
 	if err != nil {
 		return account.Account{}, err
 	}
@@ -308,38 +305,19 @@ func (a *kvAccountManager) writeToFile(addrHex string, secretVersion int64, conf
 	nowISO8601 := now.Format("2006-01-02T15-04-05.000000000Z")
 	filename := fmt.Sprintf("UTC--%v--%v", nowISO8601, addrHex)
 
-	fullpath, err := a.client.accountDirectory.Parse(filename)
+	fileURL, err := a.client.accountDirectory.Parse(filename)
 	if err != nil {
 		return config.AccountFile{}, err
 	}
-	filePath := fullpath.Host + "/" + fullpath.Path
+	filePath := fileURL.Path
 	log.Printf("[DEBUG] writing to file %v", filePath)
 
-	fileData := conf.AccountFile(fullpath.String(), addrHex, secretVersion)
+	fileData := conf.AccountFile(fileURL.String(), addrHex, secretVersion)
 
-	log.Printf("[DEBUG] marshalling file contents: %v", fileData)
-	contents, err := json.Marshal(fileData.Contents)
-	if err != nil {
+	if err := writeAccountFile(filePath, fileData); err != nil {
 		return config.AccountFile{}, err
 	}
-	log.Printf("[DEBUG] marshalled file contents: %v", contents)
 
-	log.Printf("[DEBUG] Creating temp file %v/%v", filepath.Dir(filePath), fmt.Sprintf(".%v*.tmp", filepath.Base(fullpath.String())))
-	f, err := ioutil.TempFile(filepath.Dir(filePath), fmt.Sprintf(".%v*.tmp", filepath.Base(fullpath.String())))
-	if err != nil {
-		return config.AccountFile{}, err
-	}
-	if _, err := f.Write(contents); err != nil {
-		f.Close()
-		os.Remove(f.Name())
-		return config.AccountFile{}, err
-	}
-	f.Close()
-
-	log.Println("[DEBUG] Renaming temp file")
-	if err := os.Rename(f.Name(), filePath); err != nil {
-		return config.AccountFile{}, err
-	}
 	return fileData, nil
 }
 
