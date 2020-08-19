@@ -2,6 +2,7 @@ package hashicorp
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
@@ -44,7 +45,38 @@ func (a *signerAccountManager) Contains(acctAddr account.Address) bool {
 }
 
 func (a *signerAccountManager) Sign(acctAddr account.Address, toSign []byte) ([]byte, error) {
-	panic("implement me")
+	acctFile, err := a.client.getAccountFile(acctAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	conf := acctFile.Contents.VaultAccount
+
+	vaultLocation := fmt.Sprintf("%v/sign/%v", a.signerEngineName, conf.SecretName)
+
+	reqData := make(map[string][]string)
+	toSignHex := hex.EncodeToString(toSign)
+	reqData["sign"] = []string{toSignHex}
+
+	resp, err := a.client.Logical().ReadWithData(vaultLocation, reqData)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, errors.New("empty response from Vault")
+	}
+
+	sigHex, ok := resp.Data["sig"].(string)
+	if !ok {
+		return nil, errors.New("no/invalid signature returned from Vault")
+	}
+
+	sig, err := hex.DecodeString(sigHex)
+	if err != nil {
+		return nil, err
+	}
+
+	return sig, nil
 }
 
 func (a *signerAccountManager) UnlockAndSign(_ account.Address, _ []byte) ([]byte, error) {

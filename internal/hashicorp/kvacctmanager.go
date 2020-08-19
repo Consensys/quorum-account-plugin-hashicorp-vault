@@ -145,7 +145,6 @@ func (a *kvAccountManager) TimedUnlock(acctAddr account.Address, duration time.D
 		return errors.New("only one key/value pair is allowed in each Hashicorp Vault secret")
 	}
 
-	// get value regardless of key in map
 	privKey, ok := respData[acctFile.Contents.Address]
 	if !ok {
 		return fmt.Errorf("response does not contain data for account address %v", acctFile.Contents.Address)
