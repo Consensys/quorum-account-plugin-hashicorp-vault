@@ -64,9 +64,28 @@ func (a *signerAccountManager) Lock(_ account.Address) {
 func (a *signerAccountManager) NewAccount(conf config.NewAccount) (account.Account, error) {
 	log.Print("[DEBUG] Sending request to Vault to create new account")
 
-	// create in vault
+	return a.createInVaultAndWriteToFile(conf, nil)
+}
+
+func (a *signerAccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (account.Account, error) {
+	defer zeroKey(privateKeyECDSA)
+	log.Print("[DEBUG] Sending request to Vault to import existing account")
+
+	hexKey, err := account.PrivateKeyToHexString(privateKeyECDSA)
+	if err != nil {
+		return account.Account{}, err
+	}
+
+	reqData := map[string]interface{}{
+		"import": hexKey,
+	}
+
+	return a.createInVaultAndWriteToFile(conf, reqData)
+}
+
+func (a *signerAccountManager) createInVaultAndWriteToFile(conf config.NewAccount, reqData map[string]interface{}) (account.Account, error) {
 	apiPath := fmt.Sprintf("%v/accounts/%v", a.signerEngineName, conf.SecretName)
-	resp, err := a.client.Logical().Write(apiPath, nil)
+	resp, err := a.client.Logical().Write(apiPath, reqData)
 	if err != nil {
 		return account.Account{}, fmt.Errorf("unable to create new account in Vault, err: %v", err)
 	}
@@ -129,8 +148,4 @@ func (a *signerAccountManager) writeToFile(addrHex string, conf config.NewAccoun
 	}
 
 	return fileData, nil
-}
-
-func (a *signerAccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (account.Account, error) {
-	panic("implement me")
 }
