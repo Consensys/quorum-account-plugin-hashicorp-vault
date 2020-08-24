@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupPluginAndVaultAndFiles(t *testing.T, ctx *ITContext, args ...map[string]string) {
+func setupPluginKVAndVaultAndFiles(t *testing.T, ctx *ITContext, args ...map[string]string) {
 	err := ctx.StartPlugin(t)
 	require.NoError(t, err)
 
@@ -92,7 +92,7 @@ func TestPlugin_KV_Status_AccountLockedByDefault(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// status
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
@@ -109,7 +109,7 @@ func TestPlugin_KV_Accounts(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// accounts
 	resp, err := ctx.AccountManager.Accounts(context.Background(), &proto.AccountsRequest{})
@@ -133,7 +133,7 @@ func TestPlugin_KV_Contains_IsContained(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// contains
 	toFind, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -151,7 +151,7 @@ func TestPlugin_KV_Contains_IsNotContained(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// contains
 	toFind, _ := hex.DecodeString("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
@@ -169,7 +169,7 @@ func TestPlugin_KV_Sign(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// sign hash
 	acctAddr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -199,7 +199,7 @@ func TestPlugin_KV_Sign_Locked(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// sign hash
 	acctAddr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -221,7 +221,7 @@ func TestPlugin_KV_Sign_UnknownAccount(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// sign hash
 	acctAddr, _ := hex.DecodeString("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
@@ -243,7 +243,7 @@ func TestPlugin_KV_UnlockAndSign_Locked(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// sign hash
 	acctAddr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -275,7 +275,7 @@ func TestPlugin_KV_UnlockAndSign_AlreadyUnlocked(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// sign hash
 	acctAddr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -313,7 +313,7 @@ func TestPlugin_KV_UnlockAndSign_UnknownAccount(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// sign hash
 	acctAddr, _ := hex.DecodeString("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
@@ -335,7 +335,7 @@ func TestPlugin_KV_Unlock(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// timed unlock
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
@@ -368,7 +368,7 @@ func TestPlugin_KV_TimedUnlock(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// timed unlock
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
@@ -401,7 +401,7 @@ func TestPlugin_KV_TimedUnlock_Cancel(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// timed unlock
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
@@ -440,7 +440,7 @@ func TestPlugin_KV_TimedUnlock_Extend(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// timed unlock
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
@@ -482,7 +482,7 @@ func TestPlugin_KV_TimedUnlock_Shorten(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// timed unlock
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
@@ -522,7 +522,7 @@ func TestPlugin_KV_UnlockAtStartup(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx, map[string]string{"unlock": "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526,UnknownAcctShouldNotCauseError"})
+	setupPluginKVAndVaultAndFiles(t, ctx, map[string]string{"unlock": "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526,UnknownAcctShouldNotCauseError"})
 
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
@@ -537,7 +537,7 @@ func TestPlugin_KV_Lock(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// lock
 	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -569,7 +569,7 @@ func TestPlugin_KV_Lock_MultipleTimes(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// lock
 	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -592,7 +592,7 @@ func TestPlugin_KV_Lock_CancelsTimedUnlock(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// lock
 	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -627,7 +627,7 @@ func TestPlugin_KV_Lock_UnknownAccount(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// lock
 	addr, _ := hex.DecodeString("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
@@ -645,7 +645,7 @@ func TestPlugin_KV_NewAccount(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
@@ -701,7 +701,7 @@ func TestPlugin_KV_NewAccount_IncorrectCASValue(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
@@ -726,7 +726,7 @@ func TestPlugin_KV_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
@@ -757,7 +757,7 @@ func TestPlugin_KV_ImportRawKey(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
@@ -818,7 +818,7 @@ func TestPlugin_KV_ImportRawKey_IncorrectCASValue(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
@@ -848,7 +848,7 @@ func TestPlugin_KV_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
@@ -885,7 +885,7 @@ func TestPlugin_KV_ImportRawKey_ErrorIfAccountExists(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
