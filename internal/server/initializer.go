@@ -19,9 +19,9 @@ func (p *HashicorpPlugin) Init(_ context.Context, req *proto_common.PluginInitia
 		log.Println("[INFO] plugin initialization took", time.Now().Sub(startTime).Round(time.Microsecond))
 	}()
 
-	conf := new(config.VaultClient)
+	var conf config.VaultClient
 
-	if err := json.Unmarshal(req.GetRawConfiguration(), conf); err != nil {
+	if err := json.Unmarshal(req.GetRawConfiguration(), &conf); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "unable to unmarshal account plugin config: if provided as a file, ensure file:// scheme is included in path:  err = %v", err.Error())
 	}
 
@@ -34,11 +34,7 @@ func (p *HashicorpPlugin) Init(_ context.Context, req *proto_common.PluginInitia
 		err error
 	)
 
-	if conf.KVEngineName != "" {
-		am, err = hashicorp.NewKVAccountManager(*conf)
-	} else {
-		am, err = hashicorp.NewSignerAccountManager(*conf)
-	}
+	am, err = hashicorp.NewAccountManager(conf)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}

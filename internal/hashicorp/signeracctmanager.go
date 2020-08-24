@@ -14,7 +14,7 @@ import (
 
 var unsupportedErr = errors.New("not supported when using quorum-signer secret engine")
 
-func NewSignerAccountManager(config config.VaultClient) (*signerAccountManager, error) {
+func newSignerAccountManager(config config.VaultClient) (*signerAccountManager, error) {
 	client, err := newVaultClient(config)
 	if err != nil {
 		return nil, err

@@ -26,6 +26,14 @@ type AccountManager interface {
 	ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (account.Account, error)
 }
 
+// NewAccountManager creates a new AccountManager.  The implementation created is determined by the config provided.
+func NewAccountManager(config config.VaultClient) (AccountManager, error) {
+	if config.KVEngineName != "" {
+		return newKVAccountManager(config)
+	}
+	return newSignerAccountManager(config)
+}
+
 func writeAccountFile(path string, data config.AccountFile) error {
 	log.Printf("[DEBUG] marshalling file contents: %v", data)
 	contents, err := json.Marshal(data.Contents)

@@ -18,7 +18,7 @@ import (
 	"github.com/jpmorganchase/quorum/crypto/secp256k1"
 )
 
-func NewKVAccountManager(config config.VaultClient) (*kvAccountManager, error) {
+func newKVAccountManager(config config.VaultClient) (*kvAccountManager, error) {
 	client, err := newVaultClient(config)
 	if err != nil {
 		return nil, err
