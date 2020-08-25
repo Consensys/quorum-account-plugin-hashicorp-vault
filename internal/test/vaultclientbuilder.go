@@ -9,17 +9,18 @@ import (
 )
 
 type VaultClientBuilder struct {
-	vaultUrl      string
-	kvEngineName  string
-	acctDir       string
-	unlock        []string
-	tokenUrl      string
-	roleIdUrl     string
-	secretIdUrl   string
-	approlePath   string
-	caCertUrl     string
-	clientCertUrl string
-	clientKeyUrl  string
+	vaultUrl         string
+	kvEngineName     string
+	signerEngineName string
+	acctDir          string
+	unlock           []string
+	tokenUrl         string
+	roleIdUrl        string
+	secretIdUrl      string
+	approlePath      string
+	caCertUrl        string
+	clientCertUrl    string
+	clientKeyUrl     string
 }
 
 func (b *VaultClientBuilder) WithVaultUrl(s string) *VaultClientBuilder {
@@ -29,6 +30,11 @@ func (b *VaultClientBuilder) WithVaultUrl(s string) *VaultClientBuilder {
 
 func (b *VaultClientBuilder) WithKVEngineName(s string) *VaultClientBuilder {
 	b.kvEngineName = s
+	return b
+}
+
+func (b *VaultClientBuilder) WithSignerEngineName(s string) *VaultClientBuilder {
+	b.signerEngineName = s
 	return b
 }
 
@@ -147,7 +153,8 @@ func (b *VaultClientBuilder) Build(t *testing.T) config.VaultClient {
 				ClientKey:  clientKey,
 			},
 		},
-		KVEngineName: b.kvEngineName,
-		Unlock:       b.unlock,
+		KVEngineName:           b.kvEngineName,
+		QuorumSignerEngineName: b.signerEngineName,
+		Unlock:                 b.unlock,
 	}
 }

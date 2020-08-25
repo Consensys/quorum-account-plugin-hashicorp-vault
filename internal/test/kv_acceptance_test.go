@@ -38,14 +38,14 @@ func setupPluginKVAndVaultAndFiles(t *testing.T, ctx *ITContext, args ...map[str
 	var vaultBuilder VaultBuilder
 	vaultBuilder.
 		WithLoginHandler("myapprole").
-		WithHandler(t, HandlerData{
+		WithKVHandler(t, HandlerData{
 			SecretEnginePath: "engine",
 			SecretPath:       "myAcct",
 			SecretVersion:    2,
 			AcctAddrResponse: "dc99ddec13457de6c0f6bb8e6cf3955c86f55526",
 			PrivKeyResponse:  "7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28",
 		}).
-		WithAccountCreationHandler(t, HandlerData{
+		WithKVAccountCreationHandler(t, HandlerData{
 			SecretEnginePath: "engine",
 			SecretPath:       "newAcct",
 		}).
