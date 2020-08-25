@@ -102,6 +102,16 @@ func (a *signerAccountManager) NewAccount(conf config.NewAccount) (account.Accou
 
 func (a *signerAccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (account.Account, error) {
 	defer zeroKey(privateKeyECDSA)
+
+	addr, err := account.PrivateKeyToAddress(privateKeyECDSA)
+	if err != nil {
+		return account.Account{}, err
+	}
+
+	if a.Contains(addr) {
+		return account.Account{}, errors.New("account already exists")
+	}
+
 	log.Print("[DEBUG] Sending request to Vault to import existing account")
 
 	hexKey, err := account.PrivateKeyToHexString(privateKeyECDSA)
