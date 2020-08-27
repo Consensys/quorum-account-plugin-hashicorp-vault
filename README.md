@@ -19,6 +19,14 @@ cp build/dist/quorum-account-plugin-hashicorp-vault-<version>.zip /path/to/baseD
 ## Usage
 * [Configuration & additional info](https://docs.goquorum.com/en/latest/Account-Key-Management/Quorum/account-Plugins/Hashicorp-Vault/Overview/)
 
+## Run tests
+```shell
+go test ./...
+
+# run integration tests
+go test github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags integration
+```
+
 ## Further reading
 * [Quorum `account` plugins](https://docs.goquorum.com/en/latest/Account-Key-Management/Quorum/account-Plugins/Overview/)
 * [Quorum key management](https://docs.goquorum.com/en/latest/Account-Key-Management/Quorum/Overview)
