@@ -8,7 +8,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
+	util "github.com/consensys/quorum-go-utils/account"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
 
@@ -37,15 +37,15 @@ func (a *signerAccountManager) Status() (string, error) {
 	return "ok", nil
 }
 
-func (a *signerAccountManager) Accounts() ([]account.Account, error) {
+func (a *signerAccountManager) Accounts() ([]util.Account, error) {
 	return a.client.getAccounts()
 }
 
-func (a *signerAccountManager) Contains(acctAddr account.Address) bool {
+func (a *signerAccountManager) Contains(acctAddr util.Address) bool {
 	return a.client.hasAccount(acctAddr)
 }
 
-func (a *signerAccountManager) Sign(acctAddr account.Address, toSign []byte) ([]byte, error) {
+func (a *signerAccountManager) Sign(acctAddr util.Address, toSign []byte) ([]byte, error) {
 	acctFile, err := a.client.getAccountFile(acctAddr)
 	if err != nil {
 		return nil, err
@@ -80,43 +80,43 @@ func (a *signerAccountManager) Sign(acctAddr account.Address, toSign []byte) ([]
 	return sig, nil
 }
 
-func (a *signerAccountManager) UnlockAndSign(_ account.Address, _ []byte) ([]byte, error) {
+func (a *signerAccountManager) UnlockAndSign(_ util.Address, _ []byte) ([]byte, error) {
 	log.Print("[DEBUG] unsupported account manager operation: UnlockAndSign")
 	return nil, unsupportedErr
 }
 
-func (a *signerAccountManager) TimedUnlock(_ account.Address, _ time.Duration) error {
+func (a *signerAccountManager) TimedUnlock(_ util.Address, _ time.Duration) error {
 	log.Print("[DEBUG] unsupported account manager operation: TimedUnlock")
 	return unsupportedErr
 }
 
-func (a *signerAccountManager) Lock(_ account.Address) {
+func (a *signerAccountManager) Lock(_ util.Address) {
 	log.Print("[DEBUG] unsupported account manager operation: UnlockAndSign")
 }
 
-func (a *signerAccountManager) NewAccount(conf config.NewAccount) (account.Account, error) {
+func (a *signerAccountManager) NewAccount(conf config.NewAccount) (util.Account, error) {
 	log.Print("[DEBUG] Sending request to Vault to create new account")
 
 	return a.createInVaultAndWriteToFile(conf, nil)
 }
 
-func (a *signerAccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (account.Account, error) {
+func (a *signerAccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (util.Account, error) {
 	defer zeroKey(privateKeyECDSA)
 
-	addr, err := account.PrivateKeyToAddress(privateKeyECDSA)
+	addr, err := util.PrivateKeyToAddress(privateKeyECDSA)
 	if err != nil {
-		return account.Account{}, err
+		return util.Account{}, err
 	}
 
 	if a.Contains(addr) {
-		return account.Account{}, errors.New("account already exists")
+		return util.Account{}, errors.New("account already exists")
 	}
 
 	log.Print("[DEBUG] Sending request to Vault to import existing account")
 
-	hexKey, err := account.PrivateKeyToHexString(privateKeyECDSA)
+	hexKey, err := util.PrivateKeyToHexString(privateKeyECDSA)
 	if err != nil {
-		return account.Account{}, err
+		return util.Account{}, err
 	}
 
 	reqData := map[string]interface{}{
@@ -126,23 +126,23 @@ func (a *signerAccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKe
 	return a.createInVaultAndWriteToFile(conf, reqData)
 }
 
-func (a *signerAccountManager) createInVaultAndWriteToFile(conf config.NewAccount, reqData map[string]interface{}) (account.Account, error) {
+func (a *signerAccountManager) createInVaultAndWriteToFile(conf config.NewAccount, reqData map[string]interface{}) (util.Account, error) {
 	apiPath := fmt.Sprintf("%v/accounts/%v", a.signerEngineName, conf.SecretName)
 	resp, err := a.client.Logical().Write(apiPath, reqData)
 	if err != nil {
-		return account.Account{}, fmt.Errorf("unable to create new account in Vault, err: %v", err)
+		return util.Account{}, fmt.Errorf("unable to create new account in Vault, err: %v", err)
 	}
 	respAddr, ok := resp.Data["addr"]
 	if !ok {
-		return account.Account{}, errors.New("no addr")
+		return util.Account{}, errors.New("no addr")
 	}
 	addrHex, ok := respAddr.(string)
 	if !ok {
-		return account.Account{}, errors.New("invalid address returned from Vault, err: not string")
+		return util.Account{}, errors.New("invalid address returned from Vault, err: not string")
 	}
-	addr, err := account.NewAddressFromHexString(addrHex)
+	addr, err := util.NewAddressFromHexString(addrHex)
 	if err != nil {
-		return account.Account{}, fmt.Errorf("invalid address returned from vault, err: %v", err)
+		return util.Account{}, fmt.Errorf("invalid address returned from vault, err: %v", err)
 	}
 	log.Print("[INFO] New account created in Vault")
 
@@ -151,20 +151,20 @@ func (a *signerAccountManager) createInVaultAndWriteToFile(conf config.NewAccoun
 
 	fileData, err := a.writeToFile(addrHex, conf)
 	if err != nil {
-		return account.Account{}, fmt.Errorf("unable to write new account config file, err: %v", err)
+		return util.Account{}, fmt.Errorf("unable to write new account config file, err: %v", err)
 	}
 	log.Printf("[INFO] New account data written to %v", fileData.Path)
 
 	// prepare return value
 	accountURL, err := fileData.Contents.AccountURL(a.client.Address(), a.signerEngineName, "accounts")
 	if err != nil {
-		return account.Account{}, err
+		return util.Account{}, err
 	}
 
 	// update the internal list of accts
 	a.client.accts[accountURL] = fileData
 
-	return account.Account{
+	return util.Account{
 		Address: addr,
 		URL:     accountURL,
 	}, nil

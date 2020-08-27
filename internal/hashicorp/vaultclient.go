@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
+	util "github.com/consensys/quorum-go-utils/account"
 	"github.com/hashicorp/vault/api"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
 
@@ -166,26 +166,26 @@ func (c *vaultClient) loadAccounts() (map[*url.URL]config.AccountFile, error) {
 	return result, nil
 }
 
-func (c *vaultClient) hasAccount(acctAddr account.Address) bool {
+func (c *vaultClient) hasAccount(acctAddr util.Address) bool {
 	return c.accts.HasAccountWithAddress(acctAddr)
 }
 
-func (c *vaultClient) getAccountFile(acctAddr account.Address) (config.AccountFile, error) {
+func (c *vaultClient) getAccountFile(acctAddr util.Address) (config.AccountFile, error) {
 	return c.accts.GetAccountWithAddress(acctAddr)
 }
 
-func (c *vaultClient) getAccounts() ([]account.Account, error) {
+func (c *vaultClient) getAccounts() ([]util.Account, error) {
 	var (
 		w     = c.accts
-		accts = make([]account.Account, 0, len(w))
-		acct  account.Account
+		accts = make([]util.Account, 0, len(w))
+		acct  util.Account
 	)
 	for url, conf := range w {
-		addr, err := account.NewAddressFromHexString(conf.Contents.Address)
+		addr, err := util.NewAddressFromHexString(conf.Contents.Address)
 		if err != nil {
-			return []account.Account{}, err
+			return []util.Account{}, err
 		}
-		acct = account.Account{
+		acct = util.Account{
 			Address: addr,
 			URL:     url,
 		}

@@ -10,20 +10,20 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
+	util "github.com/consensys/quorum-go-utils/account"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
 
 type AccountManager interface {
 	Status() (string, error)
-	Accounts() ([]account.Account, error)
-	Contains(acctAddr account.Address) bool
-	Sign(acctAddr account.Address, toSign []byte) ([]byte, error)
-	UnlockAndSign(acctAddr account.Address, toSign []byte) ([]byte, error)
-	TimedUnlock(acctAddr account.Address, duration time.Duration) error
-	Lock(acctAddr account.Address)
-	NewAccount(conf config.NewAccount) (account.Account, error)
-	ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (account.Account, error)
+	Accounts() ([]util.Account, error)
+	Contains(acctAddr util.Address) bool
+	Sign(acctAddr util.Address, toSign []byte) ([]byte, error)
+	UnlockAndSign(acctAddr util.Address, toSign []byte) ([]byte, error)
+	TimedUnlock(acctAddr util.Address, duration time.Duration) error
+	Lock(acctAddr util.Address)
+	NewAccount(conf config.NewAccount) (util.Account, error)
+	ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (util.Account, error)
 }
 
 // NewAccountManager creates a new AccountManager.  The implementation created is determined by the config provided.

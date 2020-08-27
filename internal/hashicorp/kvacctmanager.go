@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
+	util "github.com/consensys/quorum-go-utils/account"
 	"github.com/hashicorp/vault/api"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/jpmorganchase/quorum/crypto/secp256k1"
 )
@@ -31,7 +31,7 @@ func newKVAccountManager(config config.VaultClient) (*kvAccountManager, error) {
 	}
 
 	for _, toUnlock := range config.Unlock {
-		addr, err := account.NewAddressFromHexString(toUnlock)
+		addr, err := util.NewAddressFromHexString(toUnlock)
 		if err != nil {
 			log.Printf("[INFO] unable to unlock %v, err = %v", toUnlock, err)
 		}
@@ -77,15 +77,15 @@ func (a *kvAccountManager) Status() (string, error) {
 	return status, nil
 }
 
-func (a *kvAccountManager) Accounts() ([]account.Account, error) {
+func (a *kvAccountManager) Accounts() ([]util.Account, error) {
 	return a.client.getAccounts()
 }
 
-func (a *kvAccountManager) Contains(acctAddr account.Address) bool {
+func (a *kvAccountManager) Contains(acctAddr util.Address) bool {
 	return a.client.hasAccount(acctAddr)
 }
 
-func (a *kvAccountManager) Sign(acctAddr account.Address, toSign []byte) ([]byte, error) {
+func (a *kvAccountManager) Sign(acctAddr util.Address, toSign []byte) ([]byte, error) {
 	if _, err := a.client.getAccountFile(acctAddr); err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (a *kvAccountManager) Sign(acctAddr account.Address, toSign []byte) ([]byte
 	return sign(toSign, lockable.key)
 }
 
-func (a *kvAccountManager) UnlockAndSign(acctAddr account.Address, toSign []byte) ([]byte, error) {
+func (a *kvAccountManager) UnlockAndSign(acctAddr util.Address, toSign []byte) ([]byte, error) {
 	if _, err := a.client.getAccountFile(acctAddr); err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (a *kvAccountManager) UnlockAndSign(acctAddr account.Address, toSign []byte
 	return sign(toSign, lockable.key)
 }
 
-func (a *kvAccountManager) TimedUnlock(acctAddr account.Address, duration time.Duration) error {
+func (a *kvAccountManager) TimedUnlock(acctAddr util.Address, duration time.Duration) error {
 	acctFile, err := a.client.getAccountFile(acctAddr)
 	if err != nil {
 		return err
@@ -150,7 +150,7 @@ func (a *kvAccountManager) TimedUnlock(acctAddr account.Address, duration time.D
 		return fmt.Errorf("response does not contain data for account address %v", acctFile.Contents.Address)
 	}
 
-	key, err := account.NewKeyFromHexString(privKey.(string))
+	key, err := util.NewKeyFromHexString(privKey.(string))
 	if err != nil {
 		return err
 	}
@@ -188,7 +188,7 @@ func (a *kvAccountManager) lockAfter(addr string, key *lockableKey, duration tim
 	}
 }
 
-func (a *kvAccountManager) Lock(acctAddr account.Address) {
+func (a *kvAccountManager) Lock(acctAddr util.Address) {
 	addrHex := acctAddr.ToHexString()
 	a.mu.Lock()
 	lockable, ok := a.unlocked[addrHex]
@@ -199,68 +199,68 @@ func (a *kvAccountManager) Lock(acctAddr account.Address) {
 	}
 }
 
-func (a *kvAccountManager) NewAccount(conf config.NewAccount) (account.Account, error) {
+func (a *kvAccountManager) NewAccount(conf config.NewAccount) (util.Account, error) {
 	key, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
 	if err != nil {
-		return account.Account{}, err
+		return util.Account{}, err
 	}
 	defer zeroKey(key)
 
 	return a.writeToVaultAndFile(key, conf)
 }
 
-func (a *kvAccountManager) ImportPrivateKey(key *ecdsa.PrivateKey, conf config.NewAccount) (account.Account, error) {
+func (a *kvAccountManager) ImportPrivateKey(key *ecdsa.PrivateKey, conf config.NewAccount) (util.Account, error) {
 	defer zeroKey(key)
 	return a.writeToVaultAndFile(key, conf)
 }
 
-func (a *kvAccountManager) writeToVaultAndFile(key *ecdsa.PrivateKey, conf config.NewAccount) (account.Account, error) {
-	addr, err := account.PrivateKeyToAddress(key)
+func (a *kvAccountManager) writeToVaultAndFile(key *ecdsa.PrivateKey, conf config.NewAccount) (util.Account, error) {
+	addr, err := util.PrivateKeyToAddress(key)
 	if err != nil {
-		return account.Account{}, err
+		return util.Account{}, err
 	}
 
 	if a.Contains(addr) {
-		return account.Account{}, errors.New("account already exists")
+		return util.Account{}, errors.New("account already exists")
 	}
 
 	log.Println("[DEBUG] Writing new account data to Vault")
 	addrHex := addr.ToHexString()
-	keyHex, err := account.PrivateKeyToHexString(key)
+	keyHex, err := util.PrivateKeyToHexString(key)
 	if err != nil {
-		return account.Account{}, err
+		return util.Account{}, err
 	}
 
 	resp, err := a.writeToVault(addrHex, keyHex, conf)
 	if err != nil {
-		return account.Account{}, fmt.Errorf("unable to write secret to Vault: %v", err)
+		return util.Account{}, fmt.Errorf("unable to write secret to Vault: %v", err)
 	}
 	log.Println("[INFO] New account data written to Vault")
 
 	log.Println("[DEBUG] Getting new secret version number from response")
 	secretVersion, err := a.getVersionFromResponse(resp)
 	if err != nil {
-		return account.Account{}, fmt.Errorf("unable to write new account config file: %v", err)
+		return util.Account{}, fmt.Errorf("unable to write new account config file: %v", err)
 	}
 	log.Printf("[DEBUG] New secret version number = %v", secretVersion)
 
 	log.Println("[DEBUG] Writing new account data to file in account config directory")
 	fileData, err := a.writeToFile(addrHex, secretVersion, conf)
 	if err != nil {
-		return account.Account{}, fmt.Errorf("unable to write new account config file, err: %v", err)
+		return util.Account{}, fmt.Errorf("unable to write new account config file, err: %v", err)
 	}
 	log.Printf("[INFO] New account data written to %v", fileData.Path)
 
 	// prepare return value
 	accountURL, err := fileData.Contents.AccountURL(a.client.Address(), a.kvEngineName, "data")
 	if err != nil {
-		return account.Account{}, err
+		return util.Account{}, err
 	}
 
 	// update the internal list of accts
 	a.client.accts[accountURL] = fileData
 
-	return account.Account{
+	return util.Account{
 		Address: addr,
 		URL:     accountURL,
 	}, nil
@@ -321,7 +321,7 @@ func (a *kvAccountManager) writeToFile(addrHex string, secretVersion int64, conf
 }
 
 func sign(toSign []byte, key *ecdsa.PrivateKey) ([]byte, error) {
-	keyByt, err := account.PrivateKeyToBytes(key)
+	keyByt, err := util.PrivateKeyToBytes(key)
 	if err != nil {
 		return nil, err
 	}
