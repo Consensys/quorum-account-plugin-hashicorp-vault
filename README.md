@@ -16,7 +16,6 @@ cp build/dist/quorum-account-plugin-hashicorp-vault-<version>.zip /path/to/baseD
 ## Quickstart 
 * [Quickstart](https://docs.goquorum.com/en/latest/Account-Key-Management/Quorum/account-Plugins/Hashicorp-Vault/Quickstart/)
 
-
 ## Usage
 * [Configuration & additional info](https://docs.goquorum.com/en/latest/Account-Key-Management/Quorum/account-Plugins/Hashicorp-Vault/Overview/)
 
