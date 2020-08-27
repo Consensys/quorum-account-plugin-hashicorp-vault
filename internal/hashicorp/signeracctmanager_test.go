@@ -3,10 +3,11 @@ package hashicorp
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
-	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
+
+	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSignerAccountManager_ImportPrivateKey_ZerosKeyAfterImport(t *testing.T) {

@@ -5,15 +5,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"strings"
+	"testing"
+
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/testutil"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto_common"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
-	"os"
-	"strings"
-	"testing"
 )
 
 const mockedSig = "f68df2227e39c9ba87baea5966f0c502b038031b10a39e96a721cd270700362d54bae75dcf035a180c17a3a8cf760bfa91a0a41969c0a1630ba6d20e06aa1a8501"

@@ -2,9 +2,10 @@ package test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto_common"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestPlugin_Init_InvalidPluginConfig(t *testing.T) {
