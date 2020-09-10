@@ -1,5 +1,4 @@
-!!! info
-    `account` plugins are currently in beta
+# Quickstart example
 
 This quickstart guide will demonstrate how to:
 
@@ -8,15 +7,13 @@ This quickstart guide will demonstrate how to:
 1. Create new accounts in `vault`
 1. Use an account to sign some data
 
-!!! warning 
-    This quickstart uses the `vault` dev server.  The dev server is quick and easy to set up but should not be used for production.
-    
-    The dev server does **not**:
-    
-    * persist data between restarts
-    * encrypt HTTP communications with TLS  
-    
-    For more advanced Vault topics (such as configuring storage, TLS, and approle token renewal) see the [Vault docs](https://www.vaultproject.io/docs).
+> This quickstart uses the `vault` dev server.  The dev server is quick and easy to set up but should not be used for production.
+>   
+> The dev server does **not**:
+>    * persist data between restarts
+>    * encrypt HTTP communications with TLS  
+>    
+>    For more advanced Vault topics (such as configuring storage, TLS, and approle token renewal) see the [Vault docs](https://www.vaultproject.io/docs).
 
 ### Setting up a vault dev server
 
@@ -40,7 +37,7 @@ This quickstart guide will demonstrate how to:
     
     Development mode should NOT be used in production installations!
     ```
-1. Setup the `vault` CLI using the values printed when starting the dev server:
+1. Setup the `vault` CLI using the values printed during start up:
     ```shell
     export VAULT_ADDR=http://127.0.0.1:8200
     export VAULT_TOKEN=s.btAGUcTLteyfQuriH840JIzG
@@ -54,8 +51,7 @@ This quickstart guide will demonstrate how to:
     secret/   kv       map[version:2]   key/value secret storage  
     ```
     
-    !!! note 
-        Older versions of Vault come configured with a kv v1 secret engine by default. If the value of `Options` is not `map[version:2]`, upgrade to version 2 with `vault kv enable-versioning secret/`
+    > Older versions of Vault come configured with a kv v1 secret engine by default. If the value of `Options` is not `map[version:2]`, upgrade to version 2 with `vault kv enable-versioning secret/`
         
 1. Setup basic access control using approle:
   
@@ -98,13 +94,12 @@ This quickstart guide will demonstrate how to:
         secret_id_accessor    93f3fdc5-e878-4955-e557-d7a25afef6ef
         ```
         
-        !!! warning
-            The `secret_id` and `secret_id_accessor` should **never be shared**
+        > The `secret_id` and `secret_id_accessor` should **never be shared**
     
     1. Make a note of the `role_id` and `secret_id`.  Quorum/the plugin will need these to authenticate with Vault
 
 ### Using the plugin
-1. Create [Quorum's plugin config](../../../../../../PluggableArchitecture/Settings), `quorum.json`:
+1. Create [Quorum's plugin config](configuration.md#quorum-configuration), `quorum.json`:
     ```shell
     $ cat <<EOF >quorum.json
     {
@@ -119,7 +114,7 @@ This quickstart guide will demonstrate how to:
     }
     EOF
     ``` 
-1. Create the [Hashicorp Vault plugin's config](../Overview#configuration), `plugin.json`:
+1. Create the [Hashicorp Vault plugin's config](configuration.md#plugin-configuration), `plugin.json`:
     ```shell
     $ cat <<EOF >plugin.json 
     {

@@ -2,7 +2,7 @@
 
 The Hashicorp Vault plugin enables the storage of Quorum account private keys in a [Hashicorp Vault KV v2 secret engine](https://www.vaultproject.io/docs/secrets/kv/kv-v2/).  
 
-Can be used with Quorum or [`clef`](https://docs.goquorum.consensys.net/en/latest/HowTo/ManageKeys/clef/#extending-with-account-plugins). 
+It can be used with Quorum or [`clef`](https://docs.goquorum.consensys.net/en/latest/HowTo/ManageKeys/clef/#extending-with-account-plugins). 
 
 Using the Hashicorp Vault plugin offers several benefits:
 
@@ -13,7 +13,7 @@ Using the Hashicorp Vault plugin offers several benefits:
 ## Building
 Quorum will automatically download the plugin from bintray at startup.  
 
-Alternatively, the plugin can be downloaded or built manually and added to the [`baseDir`](https://docs.goquorum.com/en/latest/PluggableArchitecture/Settings/):
+Alternatively, the plugin can be downloaded or built manually and added to the [`baseDir`](https://docs.goquorum.consensys.net/en/latest/HowTo/Configure/Plugins/):
 ```shell
 make
 cp build/dist/quorum-account-plugin-hashicorp-vault-<version>.zip /path/to/baseDir
@@ -32,5 +32,4 @@ See [docs/creating-accounts](docs/creating-accounts.md) for details on creating 
 See [docs/faq](docs/faq.md) for additional info on various items. 
 
 ## Further reading
-* [Quorum `account` plugins](https://docs.goquorum.com/en/latest/Account-Key-Management/Quorum/account-Plugins/Overview/)
-* [Quorum key management](https://docs.goquorum.com/en/latest/Account-Key-Management/Quorum/Overview)
+* [Quorum key management](https://docs.goquorum.consensys.net/en/latest/HowTo/ManageKeys/ManagingKeys/)
