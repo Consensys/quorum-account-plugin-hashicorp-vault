@@ -1,6 +1,8 @@
 # Configuration
 
-Add the following `providers` config to the [`--plugins` file](../../../../../PluggableArchitecture/Settings):
+## Quorum configuration
+
+Add the following `providers` config to the [`--plugins` file](https://docs.goquorum.consensys.net/en/latest/HowTo/Configure/Plugins/#configure-plugins):
 ```json
 {
     "providers": {
@@ -13,12 +15,12 @@ Add the following `providers` config to the [`--plugins` file](../../../../../Pl
 }
 ```
 
-Based on this config, Quorum will look for [`quorum-account-plugin-hashicorp-vault-0.0.1.zip` in the default `baseDir`](../../../../../PluggableArchitecture/Internals#discovery).
+where `<config>` is the [plugin configuration](#plugin-configuration).
 
-`<config>` is the Hashicorp Vault plugin configuration:
+Based on this config, Quorum will look for [`quorum-account-plugin-hashicorp-vault-0.0.1.zip` in the default `baseDir`](https://docs.goquorum.consensys.net/en/latest/Concepts/Plugins/PluginsArchitecture/#discovery).
 
-!!! info   
-    This config can be provided in [several ways](../../../../../PluggableArchitecture/Settings#plugindefinition)
+## Plugin configuration
+> This config can be provided in [several ways](https://docs.goquorum.consensys.net/en/latest/HowTo/Configure/Plugins/#plugindefinition)
 
 ```json
 {
@@ -49,9 +51,9 @@ Based on this config, Quorum will look for [`quorum-account-plugin-hashicorp-vau
 | `tls` | (Optional) See [tls](#tls) |
 
 ### accountDirectory
-The `accountDirectory` contains config files for each account managed by the plugin.  These files are similar to [keystore files](../../../Keystore-Files), except they do not contain any private data.
+The `accountDirectory` contains config files for each account managed by the plugin.  These files are similar to `keystore` files, except they do not contain any private data.
 
-Typically these files do not have to be created or edited manually.  See [Creating accounts](#creating-accounts).
+Typically these files do not have to be created or edited manually.  See [Creating accounts](creating-accounts.md).
 
 #### Example account file contents
 ```json
@@ -65,15 +67,12 @@ Typically these files do not have to be created or edited manually.  See [Creati
 }
 ```
 
-
 ### authentication
 
 The plugin can authenticate with Vault using [approle](https://www.vaultproject.io/docs/auth/approle) or [token](https://www.vaultproject.io/docs/auth/token) Vault authentication methods.
 
-
 #### approle
-!!! warning 
-    approle is recommended in production
+> approle is recommended in production
     
 | Field | Description |
 | --- | --- |
@@ -87,9 +86,7 @@ The plugin can authenticate with Vault using [approle](https://www.vaultproject.
 | `token` | Vault token env URL (e.g. `env://VAR` will use the value of the `VAR` env variable) |
 
 ### tls
-
-!!! warning 
-    TLS is recommended in production
+> TLS is recommended in production
 
 | Field | Description |
 | --- | --- |
