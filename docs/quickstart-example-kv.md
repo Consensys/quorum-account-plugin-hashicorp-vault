@@ -1,8 +1,8 @@
-# Quickstart example
+# Quickstart example: kv secret engine
 
 This quickstart guide will demonstrate how to:
 
-1. Start a `vault` dev server and configure a basic approle access control
+1. Start a `vault` dev server and configure a `kv` v2 secret engine with basic approle access control
 1. Configure Quorum to use the `vault` for account management by using the Hashicorp Vault `account` plugin
 1. Create new accounts in `vault`
 1. Use an account to sign some data
@@ -20,7 +20,7 @@ This quickstart guide will demonstrate how to:
 1. [Download `vault`](https://www.vaultproject.io/downloads)
 1. Start the dev server:
     ```shell
-    $ vault server -dev
+    $ vault server -dev -dev-root-token-id=root
     WARNING! dev mode is enabled! In this mode, Vault runs entirely in-memory
     and starts unsealed with a single unseal key. The root token is already
     authenticated to the CLI, so you can immediately begin using Vault.
@@ -33,16 +33,16 @@ This quickstart guide will demonstrate how to:
     seal/unseal the Vault or re-authenticate.
     
     Unseal Key: 89TmuvV1EWRWSLCPXf7Ei7XfQ4MMfEs8DQ1pUKZz6J4=
-    Root Token: s.btAGUcTLteyfQuriH840JIzG
+    Root Token: root
     
     Development mode should NOT be used in production installations!
     ```
 1. Setup the `vault` CLI using the values printed during start up:
     ```shell
-    export VAULT_ADDR=http://127.0.0.1:8200
-    export VAULT_TOKEN=s.btAGUcTLteyfQuriH840JIzG
+    $ export VAULT_ADDR=http://127.0.0.1:8200
+    $ export VAULT_TOKEN=root
     ```
-1. The Hashicorp Vault `account` plugin requires the Vault server to be configured with a kv v2 secret engine.  The dev server has one pre-configured (with name `secret`):
+1. The dev Vault server has a `kv` v2 secret engine pre-configured (with name `secret`):
     ```shell
     $ vault secrets list -detailed
     Path      Plugin   Options          Description               
@@ -51,7 +51,7 @@ This quickstart guide will demonstrate how to:
     secret/   kv       map[version:2]   key/value secret storage  
     ```
     
-    > Older versions of Vault come configured with a kv v1 secret engine by default. If the value of `Options` is not `map[version:2]`, upgrade to version 2 with `vault kv enable-versioning secret/`
+    > Older versions of Vault come configured with a `kv` v1 secret engine by default. If the value of `Options` is not `map[version:2]`, upgrade to version 2 with `vault kv enable-versioning secret/`
         
 1. Setup basic access control using approle:
   
@@ -99,7 +99,7 @@ This quickstart guide will demonstrate how to:
     1. Make a note of the `role_id` and `secret_id`.  Quorum/the plugin will need these to authenticate with Vault
 
 ### Using the plugin
-1. Create [Quorum's plugin config](configuration.md#quorum-configuration), `quorum.json`:
+1. Create the [config file that defines the plugins used by Quorum](configuration.md#quorum-configuration), `quorum.json`:
     ```shell
     $ cat <<EOF >quorum.json
     {
@@ -107,20 +107,20 @@ This quickstart guide will demonstrate how to:
         "providers": {
             "account": {
                 "name": "quorum-account-plugin-hashicorp-vault",
-                "version": "0.0.1",
+                "version": "0.2.0",
                 "config": "file:///path/to/plugin.json"
             }
         }
     }
     EOF
-    ``` 
-1. Create the [Hashicorp Vault plugin's config](configuration.md#plugin-configuration), `plugin.json`:
+    ```
+1. Create the [config file used by the Hashicorp Vault account plugin](configuration.md#plugin-configuration), `plugin.json`:
     ```shell
     $ cat <<EOF >plugin.json 
     {
         "vault": "http://localhost:8200",
         "kvEngineName": "secret",
-        "accountDirectory": "file:///path/to/accts",
+        "accountDirectory": "file:///path/to/kv-accts",
         "authentication": {
             "roleId": "env://HASHICORP_ROLE_ID",
             "secretId": "env://HASHICORP_SECRET_ID",
@@ -154,11 +154,11 @@ This quickstart guide will demonstrate how to:
     ```
 1. The `accountDirectory` will contain a new account file:
     ```shell
-    $ ls accts
+    $ ls kv-accts
     UTC--2020-06-29T19-57-11.071220000Z--88133acaf18fb9db5a79066e0db5208cd9491cc9
     ```
     ```shell
-    $ cat accts/UTC--2020-06-29T19-57-11.071220000Z--88133acaf18fb9db5a79066e0db5208cd9491cc9
+    $ cat kv-accts/UTC--2020-06-29T19-57-11.071220000Z--88133acaf18fb9db5a79066e0db5208cd9491cc9
     {"Address":"88133acaf18fb9db5a79066e0db5208cd9491cc9","VaultAccount":{"SecretName":"demoacct","SecretVersion":1},"Version":1}
     ```
 1. Vault will contain the new account address and private key:

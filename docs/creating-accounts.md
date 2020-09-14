@@ -22,6 +22,8 @@ A json config must be provided to the API/CLI when creating accounts.  Example:
 
 ## overwriteProtection
 
+### kv secret engine
+
 Typical usage will be to create separate Vault secrets for each account.  However, KV v2 secret engines also support secret versioning. 
 
 The plugin uses [KV v2's Check-And-Set (CAS) feature](https://www.vaultproject.io/api-docs/secret/kv/kv-v2#create-update-secret) to protect against accidentally creating a new version of an existing secret.
@@ -39,3 +41,12 @@ The CAS check can be skipped by setting `"insecureDisable": "true"`.
 > ``` bash
 > vault kv metadata put -max-versions <num> <kvEngineName>/<secretName>
 > ```
+
+### quorum-signer secret engine
+
+The `quorum-signer` secret-engine does not support automatic versioning of secrets.  
+
+Therefore, when using `quorum-signer` secret-engines:
+
+* Attempting to create a new account with the same `secretName` as an existing account will result in an error.  This prevents accidentally overwriting existing accounts.
+* The `overwriteProtection` section of the new account config does not need to be defined

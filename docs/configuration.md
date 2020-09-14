@@ -8,7 +8,7 @@ Add the following `providers` config to the [`--plugins` file](https://docs.goqu
     "providers": {
         "account": {
             "name": "quorum-account-plugin-hashicorp-vault",
-            "version": "0.0.1",
+            "version": "0.x.0",
             "config": "<config>"
         }
     }
@@ -17,7 +17,7 @@ Add the following `providers` config to the [`--plugins` file](https://docs.goqu
 
 where `<config>` is the [plugin configuration](#plugin-configuration).
 
-Based on this config, Quorum will look for [`quorum-account-plugin-hashicorp-vault-0.0.1.zip` in the default `baseDir`](https://docs.goquorum.consensys.net/en/latest/Concepts/Plugins/PluginsArchitecture/#discovery).
+Based on this config, Quorum will look for [`quorum-account-plugin-hashicorp-vault-0.x.0.zip` in the default `baseDir`](https://docs.goquorum.consensys.net/en/latest/Concepts/Plugins/PluginsArchitecture/#discovery).
 
 ## Plugin configuration
 > This config can be provided in [several ways](https://docs.goquorum.consensys.net/en/latest/HowTo/Configure/Plugins/#plugindefinition)
@@ -26,6 +26,7 @@ Based on this config, Quorum will look for [`quorum-account-plugin-hashicorp-vau
 {
     "vault": "https://localhost:8200",
     "kvEngineName": "my-kv-engine",
+    "quorumSignerEngineName": "my-signer-engine",
     "accountDirectory": "file:///path/to/accts",
     "unlock": ["1a31744b4a6ee9f3c3d1550beb56d53d2a4fa454"],
     "authentication": {
@@ -44,9 +45,9 @@ Based on this config, Quorum will look for [`quorum-account-plugin-hashicorp-vau
 | Field | Description |
 | --- | --- |
 | `vault` | Vault server URL |
-| `kvEngineName` | Name of an enabled Vault KV v2 secret engine to use for account storage |
+| <span style="white-space:nowrap">`kvEngineName`</span><br/>*or*<br/><span style="white-space:nowrap">`quorumSignerEngineName`</span> | Name of an enabled [Vault KV v2 secret engine](https://www.vaultproject.io/docs/secrets/kv/kv-v2/) to use for account storage<br/>*or*<br/>Name of an enabled [`quorum-signer` secret engine](https://github.com/consensys/quorum-signer-plugin-for-hashicorp-vault) to use for account storage |
 | `accountDirectory` | Absolute `file://` URL of the account directory.  See [accountDirectory](#accountdirectory) |
-| `unlock` | (Optional) List of accounts to retrieve from Vault at startup and store in memory |
+| `unlock` | (Optional) List of accounts to retrieve from Vault at startup and store in memory. *Cannot be set if `quorumSignerEngineName` is set.* |
 | `authentication` | See [authentication](#authentication) |
 | `tls` | (Optional) See [tls](#tls) |
 
