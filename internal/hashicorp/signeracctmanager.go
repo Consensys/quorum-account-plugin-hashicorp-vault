@@ -84,7 +84,7 @@ func (a *signerAccountManager) UnlockAndSign(acctAddr util.Address, toSign []byt
 
 func (a *signerAccountManager) TimedUnlock(_ util.Address, _ time.Duration) error {
 	log.Print("[DEBUG] unsupported account manager operation: TimedUnlock")
-	return errors.New("unlocking accounts is not necessary when using quorum-signer secret engine")
+	return nil
 }
 
 func (a *signerAccountManager) Lock(_ util.Address) {
