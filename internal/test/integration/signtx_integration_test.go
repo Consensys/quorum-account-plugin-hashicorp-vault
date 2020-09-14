@@ -268,7 +268,7 @@ func Test_Signer_SignTransaction(t *testing.T) {
 	require.Equal(t, wantSig, signResp["raw"])
 }
 
-func Test_Signer_PersonalSignTransaction_NotAllowed(t *testing.T) {
+func Test_Signer_PersonalSignTransaction(t *testing.T) {
 	dirs := prepareDirs(t, testDirName, t.Name())
 
 	vaultPluginConf := createVaultSignerPluginConfig(t, dirs.testout)
@@ -324,6 +324,11 @@ func Test_Signer_PersonalSignTransaction_NotAllowed(t *testing.T) {
 		"nonce":    "0x0",
 	}
 
+	wantSig := "0xf84c800101808083aaaaaa1ba0c9a5a5d650054f774166502a9ea3b9582302e9d2ccc086501c4735cc781d290aa05cc50d82e1112b1a08a5d9054a45b653f76935de3f015a6177adb56b344d5e04"
 	err = c.RPCCall(&signResp, "personal_signTransaction", toSign, "")
-	require.EqualError(t, err, "rpc error: code = Internal desc = not supported when using quorum-signer secret engine")
+	require.NoError(t, err)
+
+	fmt.Println(signResp)
+
+	require.Equal(t, wantSig, signResp["raw"])
 }

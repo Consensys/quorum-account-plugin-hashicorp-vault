@@ -252,5 +252,5 @@ func Test_Signer_UnlockAccount_NotAllowed(t *testing.T) {
 
 	var unlockResp interface{}
 	err = c.RPCCall(&unlockResp, "personal_unlockAccount", acctAddr, "", 0)
-	require.EqualError(t, err, "rpc error: code = Internal desc = not supported when using quorum-signer secret engine")
+	require.EqualError(t, err, "rpc error: code = Internal desc = unlocking accounts is not necessary when using quorum-signer secret engine")
 }

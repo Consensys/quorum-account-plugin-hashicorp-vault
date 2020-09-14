@@ -12,8 +12,6 @@ import (
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
 
-var unsupportedErr = errors.New("not supported when using quorum-signer secret engine")
-
 func newSignerAccountManager(config config.VaultClient) (*signerAccountManager, error) {
 	client, err := newVaultClient(config)
 	if err != nil {
@@ -80,14 +78,13 @@ func (a *signerAccountManager) Sign(acctAddr util.Address, toSign []byte) ([]byt
 	return sig, nil
 }
 
-func (a *signerAccountManager) UnlockAndSign(_ util.Address, _ []byte) ([]byte, error) {
-	log.Print("[DEBUG] unsupported account manager operation: UnlockAndSign")
-	return nil, unsupportedErr
+func (a *signerAccountManager) UnlockAndSign(acctAddr util.Address, toSign []byte) ([]byte, error) {
+	return a.Sign(acctAddr, toSign)
 }
 
 func (a *signerAccountManager) TimedUnlock(_ util.Address, _ time.Duration) error {
 	log.Print("[DEBUG] unsupported account manager operation: TimedUnlock")
-	return unsupportedErr
+	return errors.New("unlocking accounts is not necessary when using quorum-signer secret engine")
 }
 
 func (a *signerAccountManager) Lock(_ util.Address) {

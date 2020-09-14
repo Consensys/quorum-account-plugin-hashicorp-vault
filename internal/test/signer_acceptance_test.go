@@ -212,7 +212,7 @@ func TestPlugin_Signer_Sign_UnknownAccount(t *testing.T) {
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
 }
 
-func TestPlugin_Signer_UnlockAndSign_NotSupported(t *testing.T) {
+func TestPlugin_Signer_UnlockAndSign(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -224,13 +224,41 @@ func TestPlugin_Signer_UnlockAndSign_NotSupported(t *testing.T) {
 
 	// sign hash
 	acctAddr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
+
+	toSign := []byte{188, 76, 145, 93, 105, 137, 107, 25, 143, 2, 146, 167, 35, 115, 162, 189, 205, 13, 82, 188, 203, 252, 236, 17, 217, 200, 76, 15, 255, 113, 176, 188}
+	wantSig, err := hex.DecodeString(mockedSig)
+	require.NoError(t, err)
+
+	resp, err := ctx.AccountManager.UnlockAndSign(context.Background(), &proto.UnlockAndSignRequest{
+		Address:    acctAddr,
+		ToSign:     toSign,
+		Passphrase: "",
+	})
+	require.NoError(t, err)
+	require.Equal(t, wantSig, resp.Sig)
+}
+
+func TestPlugin_Signer_UnlockAndSign_UnknownAccount(t *testing.T) {
+	ctx := new(ITContext)
+	defer ctx.Cleanup()
+
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+	defer testutil.UnsetAll()
+
+	setupPluginSignerAndVaultAndFiles(t, ctx)
+
+	// sign hash
+	acctAddr, _ := hex.DecodeString("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
+
 	toSign := []byte{188, 76, 145, 93, 105, 137, 107, 25, 143, 2, 146, 167, 35, 115, 162, 189, 205, 13, 82, 188, 203, 252, 236, 17, 217, 200, 76, 15, 255, 113, 176, 188}
 
 	_, err := ctx.AccountManager.UnlockAndSign(context.Background(), &proto.UnlockAndSignRequest{
-		Address: acctAddr,
-		ToSign:  toSign,
+		Address:    acctAddr,
+		ToSign:     toSign,
+		Passphrase: "",
 	})
-	require.EqualError(t, err, "rpc error: code = Internal desc = not supported when using quorum-signer secret engine")
+	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
 }
 
 func TestPlugin_Signer_Unlock_NotSupported(t *testing.T) {
@@ -248,7 +276,7 @@ func TestPlugin_Signer_Unlock_NotSupported(t *testing.T) {
 		Address:  addr,
 		Duration: 0,
 	})
-	require.EqualError(t, err, "rpc error: code = Internal desc = not supported when using quorum-signer secret engine")
+	require.EqualError(t, err, "rpc error: code = Internal desc = unlocking accounts is not necessary when using quorum-signer secret engine")
 }
 
 func TestPlugin_Signer_Lock_NotSupported_NoOp(t *testing.T) {
