@@ -2,11 +2,12 @@ package integration
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"log"
 	"os"
 	"os/exec"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type vault struct {

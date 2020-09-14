@@ -3,13 +3,14 @@ package integration
 import (
 	"bytes"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"io"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type quorum struct {

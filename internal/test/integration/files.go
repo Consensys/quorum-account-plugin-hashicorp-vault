@@ -2,13 +2,14 @@ package integration
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 var testDirName = strconv.FormatInt(time.Now().UnixNano(), 10)

@@ -5,12 +5,13 @@ package integration
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_CLI_KV_ImportAccount_NewPath_ValidOverwriteProtection(t *testing.T) {

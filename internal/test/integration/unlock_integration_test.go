@@ -4,9 +4,10 @@ package integration
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_KV_UnlockAccount(t *testing.T) {
