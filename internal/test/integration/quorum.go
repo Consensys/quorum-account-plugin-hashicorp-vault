@@ -76,6 +76,43 @@ func (b *quorumBuilder) build(t *testing.T, testout, datadir, pluginsConf string
 	return quorum{cmd: cmd}
 }
 
+func (b *quorumBuilder) buildWithClef(t *testing.T, testout, datadir, clefIPC string) quorum {
+	args := []string{
+		"--allow-insecure-unlock",
+		"--nodiscover",
+		"--verbosity",
+		"5",
+		"--networkid",
+		"10",
+		"--raft",
+		"--raftjoinexisting",
+		"1",
+		"--datadir",
+		datadir,
+		"--ws",
+		"--wsapi",
+		"eth,personal,plugin@account",
+		"--signer",
+		clefIPC,
+	}
+
+	log.Printf("preparing to start: geth %v", strings.Join(args, " "))
+
+	cmd := exec.Command("geth", args...)
+
+	outfile := fmt.Sprintf("%v/quorum.out", testout)
+	log.Printf("quorum log file: path=%v", outfile)
+	out, err := os.Create(outfile)
+	require.NoError(t, err)
+
+	cmd.Stdout = out
+	cmd.Stderr = out
+
+	cmd.Env = b.env
+
+	return quorum{cmd: cmd}
+}
+
 func (b *quorumBuilder) buildAccountPluginCLICmd(t *testing.T, subCmd, importKey, testout, pluginsConf, newAccountConf string) (quorum, *bytes.Buffer) {
 	args := []string{
 		"account",
