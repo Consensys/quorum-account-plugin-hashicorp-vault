@@ -1,6 +1,8 @@
 package integration
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
@@ -46,7 +48,10 @@ func prepareDirs(t *testing.T, suiteName string, testName string) dirs {
 	err = os.Mkdir(currentTestout, 0700)
 	require.NoError(t, err)
 
-	datadir := fmt.Sprintf("/tmp/datadir/%v/%v", suiteName, testName)
+	hash := sha256.Sum256([]byte(testName))
+
+	// we have to hash the testName when creating the dataDir as IPC paths cannot exceed 104 chars
+	datadir := fmt.Sprintf("/tmp/datadir/%v/%v", suiteName, hex.EncodeToString(hash[:20]))
 	log.Printf("using quorum datadir: path=%v", datadir)
 
 	return dirs{

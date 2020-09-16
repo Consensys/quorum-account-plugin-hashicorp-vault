@@ -5,6 +5,7 @@ package integration
 import (
 	"fmt"
 	"github.com/stretchr/testify/require"
+	"net/http"
 	"testing"
 )
 
@@ -333,8 +334,6 @@ func Test_KV_Clef_Sign(t *testing.T) {
 
 	c := createWSQuorumClient(t, "ws://localhost:8546")
 
-	var resp map[string]string
-
 	// create account
 	newAccountConfigJson := `{
 	   "secretName": "myAcct",
@@ -342,18 +341,17 @@ func Test_KV_Clef_Sign(t *testing.T) {
 			"currentVersion": 0
 		}
 	}`
-	newAccountConfig, err := jsonUnmarshal(newAccountConfigJson)
-	require.NoError(t, err)
 
 	rawKey := "7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28"
 	addr := "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526"
 
-	err = c.RPCCall(&resp, "plugin@account_importRawKey", rawKey, newAccountConfig)
-	require.NoError(t, err)
+	paramsJSON := fmt.Sprintf(`["%v", %v]`, rawKey, newAccountConfigJson)
 
-	var unlockResp interface{}
-	err = c.RPCCall(&unlockResp, "personal_unlockAccount", addr, "", 0)
+	req := NewRPCRequest(t, "plugin@account_importRawKey", paramsJSON)
+	resp, err := req.Do("http://localhost:8550")
+
 	require.NoError(t, err)
+	require.Equal(t, 200, resp.(*http.Response).StatusCode)
 
 	var signResp string
 

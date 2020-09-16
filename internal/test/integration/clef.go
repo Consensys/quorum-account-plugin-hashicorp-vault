@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"strings"
@@ -51,9 +52,14 @@ func (b *clefBuilder) addEnv(key, value string) *clefBuilder {
 }
 
 func (b *clefBuilder) build(t *testing.T, testout, datadir, pluginsConf string) clef {
+	// random, empty, keystore so default keystore is not used
+	stdKeystore := fmt.Sprintf("/tmp/%v", rand.Int())
+
 	args := []string{
 		"--ipcpath",
 		datadir,
+		"--keystore",
+		stdKeystore,
 		"--plugins",
 		fmt.Sprintf("file://%v", pluginsConf),
 		"--plugins.skipverify",
