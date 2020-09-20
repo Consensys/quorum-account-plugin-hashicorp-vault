@@ -25,7 +25,11 @@ fixfmt: tools
 	@goimports -w `find . -name '*.go' | grep -v vendor | grep -v proto`
 
 test: tools
-	GOFLAGS="-mod=readonly" go test ./...
+	gotestsum
+
+itest: clean tools build zip
+	 gotestsum -- github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags integration
+	 gotestsum -- github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags clefintegration
 
 dist-local: clean build zip
 	@[ "${PLUGIN_DEST_PATH}" ] || ( echo "Please provide PLUGIN_DEST_PATH env variable" ; exit 1)
@@ -40,8 +44,8 @@ dist: clean build zip
 build: checkfmt
 	@mkdir -p ${OUTPUT_DIR}/dist
 	@echo Output to ${OUTPUT_DIR}/dist
-	@CGO_ENABLED=0 GOFLAGS="-mod=readonly" go run -ldflags=${GEN_LD_FLAGS} ./internal/metadata/gen.go
-	@GOFLAGS="-mod=readonly" go build \
+	@CGO_ENABLED=0 go run -ldflags=${GEN_LD_FLAGS} ./internal/metadata/gen.go
+	go build \
 		-ldflags='$(BUILD_LD_FLAGS)' \
 		-o "${OUTPUT_DIR}/dist/${EXECUTABLE}" \
 		.
@@ -73,12 +77,13 @@ build-alpine-docker:
 	zip -j -FS -q /shared/linux/${EXECUTABLE}-${VERSION}.zip /shared/*.json /shared/linux/*
 	shasum -a 256 /shared/linux/${EXECUTABLE}-${VERSION}.zip | awk '{print $$1}' > /shared/linux/${EXECUTABLE}-${VERSION}.zip.sha256sum
 
-tools: goimports
+tools: goimports gotestsum
 
 goimports:
-ifeq (, $(shell which goimports))
-	@GO111MODULE=off go get -u golang.org/x/tools/cmd/goimports
-endif
+	go get -u golang.org/x/tools/cmd/goimports
+
+gotestsum:
+	go get -u gotest.tools/gotestsum
 
 clean:
 	@rm -rf ${OUTPUT_DIR}

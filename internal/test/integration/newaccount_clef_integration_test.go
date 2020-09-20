@@ -1,4 +1,4 @@
-// +build integration
+// +build clefintegration
 
 package integration
 

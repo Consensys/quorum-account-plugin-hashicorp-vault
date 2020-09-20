@@ -2,7 +2,8 @@ module github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault
 
 go 1.13
 
-replace github.com/consensys/quorum-go-utils => /Users/chrishounsom/quorum-go-utils
+// Checkout QuorumEngineering/quorum-go-utils and update the RHS of the replace statement
+//replace github.com/consensys/quorum-go-utils => /Users/chrishounsom/quorum-go-utils
 
 require (
 	github.com/consensys/quorum-go-utils v0.0.0
