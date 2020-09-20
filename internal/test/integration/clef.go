@@ -56,6 +56,8 @@ func (b *clefBuilder) build(t *testing.T, testout, datadir, pluginsConf string) 
 	stdKeystore := fmt.Sprintf("/tmp/%v", rand.Int())
 
 	args := []string{
+		"--auditlog",
+		testout,
 		"--ipcpath",
 		datadir,
 		"--keystore",
