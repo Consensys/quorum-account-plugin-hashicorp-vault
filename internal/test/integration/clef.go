@@ -2,7 +2,6 @@ package integration
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"io"
 	"log"
 	"math/rand"
@@ -11,11 +10,13 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 type clef struct {
 	cmd   *exec.Cmd
-	stdin io.WriteCloser
+	stdio stdioPipes
 }
 
 func (c *clef) start(t *testing.T) func() {
@@ -32,18 +33,19 @@ func (c *clef) start(t *testing.T) func() {
 
 // ok sends ok to the cmd's stdin
 func (c *clef) ok(t *testing.T) {
-	_, err := io.WriteString(c.stdin, "ok\n")
+	_, err := io.WriteString(c.stdio.stdinPipe, "ok\n")
 	require.NoError(t, err)
 }
 
 // y sends y to the cmd's stdin
 func (c *clef) y(t *testing.T) {
-	_, err := io.WriteString(c.stdin, "y\n")
+	_, err := io.WriteString(c.stdio.stdinPipe, "y\n")
 	require.NoError(t, err)
 }
 
 type clefBuilder struct {
-	env []string
+	env  []string
+	args []string
 }
 
 func (b *clefBuilder) addEnv(key, value string) *clefBuilder {
@@ -51,13 +53,19 @@ func (b *clefBuilder) addEnv(key, value string) *clefBuilder {
 	return b
 }
 
+func (b *clefBuilder) stdioUI() *clefBuilder {
+	b.args = append(b.args, "--stdio-ui")
+	return b
+}
+
 func (b *clefBuilder) build(t *testing.T, testout, datadir, pluginsConf string) clef {
 	// random, empty, keystore so default keystore is not used
 	stdKeystore := fmt.Sprintf("/tmp/%v", rand.Int())
 
-	args := []string{
+	args := b.args
+	args = append(args,
 		"--auditlog",
-		testout,
+		fmt.Sprintf("%v/clefaudit.log", testout),
 		"--ipcpath",
 		datadir,
 		"--keystore",
@@ -65,7 +73,7 @@ func (b *clefBuilder) build(t *testing.T, testout, datadir, pluginsConf string) 
 		"--plugins",
 		fmt.Sprintf("file://%v", pluginsConf),
 		"--plugins.skipverify",
-	}
+	)
 
 	log.Printf("preparing to start: clef %v", strings.Join(args, " "))
 
@@ -76,15 +84,45 @@ func (b *clefBuilder) build(t *testing.T, testout, datadir, pluginsConf string) 
 	out, err := os.Create(outfile)
 	require.NoError(t, err)
 
-	cmd.Stdout = out
-	cmd.Stderr = out
+	var stdioui bool
+	for _, arg := range args {
+		if arg == "--stdio-ui" {
+			stdioui = true
+		}
+	}
 
 	cmd.Env = b.env
 
-	stdin, err := cmd.StdinPipe()
-	require.NoError(t, err)
+	var stdio stdioPipes
 
-	return clef{cmd: cmd, stdin: stdin}
+	if stdioui {
+		stdinPipe, err := cmd.StdinPipe()
+		require.NoError(t, err)
+		stdoutPipe, err := cmd.StdoutPipe()
+		require.NoError(t, err)
+		cmd.Stderr = out
+
+		stdio = stdioPipes{
+			stdinPipe:  stdinPipe,
+			stdoutPipe: stdoutPipe,
+		}
+	} else {
+		stdinPipe, err := cmd.StdinPipe()
+		require.NoError(t, err)
+		cmd.Stdout = out
+		cmd.Stderr = out
+
+		stdio = stdioPipes{
+			stdinPipe: stdinPipe,
+		}
+	}
+
+	return clef{cmd: cmd, stdio: stdio}
+}
+
+type stdioPipes struct {
+	stdinPipe  io.WriteCloser
+	stdoutPipe io.ReadCloser
 }
 
 func waitForClef(t *testing.T, clefIPC string) {

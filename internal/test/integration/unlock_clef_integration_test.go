@@ -1,4 +1,4 @@
-// +build integration
+// +build clefintegration
 
 package integration
 
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_KV_Clef_ImportAccount_NotSupported(t *testing.T) {
+func Test_KV_Clef_UnlockAccount(t *testing.T) {
 	dirs := prepareDirs(t, testDirName, t.Name())
 
 	vaultPluginConf := createVaultKVPluginConfig(t, dirs.testout)
@@ -30,45 +30,49 @@ func Test_KV_Clef_ImportAccount_NotSupported(t *testing.T) {
 	var clefBuilder clefBuilder
 	clef := clefBuilder.
 		addEnv("HASHICORP_TOKEN", "root").
+		stdioUI().
 		build(t, dirs.testout, dirs.datadir, pluginsConf)
 
 	defer clef.start(t)()
 
-	clef.ok(t)
-
 	clefIPC := fmt.Sprintf("%v/clef.ipc", dirs.datadir)
 	waitForClef(t, clefIPC)
+
+	go stdioListener(clef.stdio)
 
 	var quorumBuilder quorumBuilder
 	quorum := quorumBuilder.
 		addEnv("PRIVATE_CONFIG", "ignore").
-		addEnv("HASHICORP_TOKEN", "root").
 		buildWithClef(t, dirs.testout, dirs.datadir, clefIPC)
 
 	defer quorum.start(t)()
 
+	c := createWSQuorumClient(t, "ws://localhost:8546")
+
 	// create account
 	newAccountConfigJson := `{
-	  "secretName": "myAcct",
+	   "secretName": "myAcct",
 		"overwriteProtection": {
 			"currentVersion": 0
 		}
 	}`
 
-	rawKey := "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec"
+	paramsJSON := fmt.Sprintf(`[%v]`, newAccountConfigJson)
 
-	paramsJSON := fmt.Sprintf(`["%v", %v]`, rawKey, newAccountConfigJson)
+	req := NewRPCRequest(t, "plugin@account_newAccount", paramsJSON)
+	resp := req.UnixDo(t, true, clef, clefIPC)
 
-	req := NewRPCRequest(t, "plugin@account_importRawKey", paramsJSON)
-	respErr := req.UnixDoExpectError(t, clef, clefIPC)
+	addr := resp["address"].(string)
 
-	require.Contains(t, respErr, "not supported")
+	var unlockResp interface{}
+	err := c.RPCCall(&unlockResp, "personal_unlockAccount", addr, "", 0)
+	require.EqualError(t, err, "unlock only supported for keystore or plugin wallets")
 }
 
-func Test_Signer_Clef_ImportAccount_NotSupported(t *testing.T) {
+func Test_Signer_Clef_UnlockAccount(t *testing.T) {
 	dirs := prepareDirs(t, testDirName, t.Name())
 
-	vaultPluginConf := createVaultKVPluginConfig(t, dirs.testout)
+	vaultPluginConf := createVaultSignerPluginConfig(t, dirs.testout)
 	pluginsConf := createPluginsConfig(
 		t,
 		dirs.testout,
@@ -79,6 +83,7 @@ func Test_Signer_Clef_ImportAccount_NotSupported(t *testing.T) {
 	var vaultBuilder vaultBuilder
 	vault := vaultBuilder.
 		devMode("root").
+		withPlugins().
 		build(t, dirs.testout)
 
 	defer vault.start(t)()
@@ -86,34 +91,40 @@ func Test_Signer_Clef_ImportAccount_NotSupported(t *testing.T) {
 	var clefBuilder clefBuilder
 	clef := clefBuilder.
 		addEnv("HASHICORP_TOKEN", "root").
+		stdioUI().
 		build(t, dirs.testout, dirs.datadir, pluginsConf)
 
 	defer clef.start(t)()
 
-	clef.ok(t)
-
 	clefIPC := fmt.Sprintf("%v/clef.ipc", dirs.datadir)
 	waitForClef(t, clefIPC)
+
+	go stdioListener(clef.stdio)
 
 	var quorumBuilder quorumBuilder
 	quorum := quorumBuilder.
 		addEnv("PRIVATE_CONFIG", "ignore").
-		addEnv("HASHICORP_TOKEN", "root").
 		buildWithClef(t, dirs.testout, dirs.datadir, clefIPC)
 
 	defer quorum.start(t)()
 
+	c := createWSQuorumClient(t, "ws://localhost:8546")
+
+	enableSignerPlugin(t, "http://localhost:8200", "root")
+
 	// create account
 	newAccountConfigJson := `{
-	  "secretName": "myAcct"
+	   "secretName": "myAcct"
 	}`
 
-	rawKey := "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec"
+	paramsJSON := fmt.Sprintf(`[%v]`, newAccountConfigJson)
 
-	paramsJSON := fmt.Sprintf(`["%v", %v]`, rawKey, newAccountConfigJson)
+	req := NewRPCRequest(t, "plugin@account_newAccount", paramsJSON)
+	resp := req.UnixDo(t, true, clef, clefIPC)
 
-	req := NewRPCRequest(t, "plugin@account_importRawKey", paramsJSON)
-	respErr := req.UnixDoExpectError(t, clef, clefIPC)
+	addr := resp["address"].(string)
 
-	require.Contains(t, respErr, "not supported")
+	var unlockResp interface{}
+	err := c.RPCCall(&unlockResp, "personal_unlockAccount", addr, "", 0)
+	require.EqualError(t, err, "unlock only supported for keystore or plugin wallets")
 }

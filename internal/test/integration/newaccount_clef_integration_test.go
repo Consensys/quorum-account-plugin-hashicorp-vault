@@ -1,13 +1,16 @@
+// +build integration
+
 package integration
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_KV_Clef_CreateAccount_NewPath_ValidOverwriteProtection(t *testing.T) {
@@ -58,7 +61,7 @@ func Test_KV_Clef_CreateAccount_NewPath_ValidOverwriteProtection(t *testing.T) {
 	paramsJSON := fmt.Sprintf(`[%v]`, newAccountConfigJson)
 
 	req := NewRPCRequest(t, "plugin@account_newAccount", paramsJSON)
-	resp := req.UnixDo(t, clef, clefIPC)
+	resp := req.UnixDo(t, false, clef, clefIPC)
 
 	acctAddr := resp["address"].(string)
 	acctURL := resp["url"].(string)
@@ -244,7 +247,7 @@ func Test_KV_Clef_CreateAccount_ExistingPath_ValidOverwriteProtection(t *testing
 	paramsJSON := fmt.Sprintf(`[%v]`, newAccountConfigJson)
 
 	req := NewRPCRequest(t, "plugin@account_newAccount", paramsJSON)
-	resp := req.UnixDo(t, clef, clefIPC)
+	resp := req.UnixDo(t, false, clef, clefIPC)
 
 	// create another account at the same path
 	newAccountConfigJson = `{
@@ -256,7 +259,7 @@ func Test_KV_Clef_CreateAccount_ExistingPath_ValidOverwriteProtection(t *testing
 	paramsJSON = fmt.Sprintf(`[%v]`, newAccountConfigJson)
 
 	req = NewRPCRequest(t, "plugin@account_newAccount", paramsJSON)
-	resp = req.UnixDo(t, clef, clefIPC)
+	resp = req.UnixDo(t, false, clef, clefIPC)
 
 	acctAddr := resp["address"].(string)
 	acctURL := resp["url"].(string)
@@ -374,7 +377,7 @@ func Test_KV_Clef_CreateAccount_ExistingPath_InvalidOverwriteProtection(t *testi
 	paramsJSON := fmt.Sprintf(`[%v]`, newAccountConfigJson)
 
 	req := NewRPCRequest(t, "plugin@account_newAccount", paramsJSON)
-	req.UnixDo(t, clef, clefIPC)
+	req.UnixDo(t, false, clef, clefIPC)
 
 	// create another account at the same path
 	newAccountConfigJson = `{
@@ -447,7 +450,7 @@ func Test_Signer_Clef_CreateAccount_NewPath(t *testing.T) {
 	paramsJSON := fmt.Sprintf(`[%v]`, newAccountConfigJson)
 
 	req := NewRPCRequest(t, "plugin@account_newAccount", paramsJSON)
-	resp := req.UnixDo(t, clef, clefIPC)
+	resp := req.UnixDo(t, false, clef, clefIPC)
 
 	acctAddr := resp["address"].(string)
 	acctURL := resp["url"].(string)
@@ -566,7 +569,7 @@ func Test_Signer_Clef_CreateAccount_ExistingPath_NotAllowed(t *testing.T) {
 	paramsJSON := fmt.Sprintf(`[%v]`, newAccountConfigJson)
 
 	req := NewRPCRequest(t, "plugin@account_newAccount", paramsJSON)
-	req.UnixDo(t, clef, clefIPC)
+	req.UnixDo(t, false, clef, clefIPC)
 
 	// create another account at the same path
 	newAccountConfigJson = `{

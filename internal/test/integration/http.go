@@ -4,13 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"log"
 	"math/rand"
 	"net"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 type Request struct {
@@ -42,17 +43,7 @@ func (r *Request) HTTPDo(url string) (*http.Response, error) {
 	return http.Post(url, "application/json", buf)
 }
 
-//{
-//   		"jsonrpc":"2.0",
-//  		"method":"plugin@account_importRawKey",
-// 			"params":[
-//				"1fe8f1ad4053326db20529257ac9401f2e6c769ef1d736b8c2f5aba5f787c72b",
-//				{"secretName": "myacct","overwriteProtection": {"insecureDisable": true}}
-//			],
-//			"id":1
-//  	}
-
-func (r *Request) UnixDo(t *testing.T, clef clef, unixSocket string) map[string]interface{} {
+func (r *Request) UnixDo(t *testing.T, stdioui bool, clef clef, unixSocket string) map[string]interface{} {
 	c, err := net.Dial("unix", unixSocket)
 	require.NoError(t, err)
 	defer c.Close()
@@ -65,10 +56,12 @@ func (r *Request) UnixDo(t *testing.T, clef clef, unixSocket string) map[string]
 	_, err = c.Write(buf.Bytes())
 	require.NoError(t, err)
 
-	// approve request and wait for response
-	<-time.After(1 * time.Second)
-	clef.y(t)
-	<-time.After(1 * time.Second)
+	if !stdioui {
+		// approve request and wait for response
+		<-time.After(1 * time.Second)
+		clef.y(t)
+		<-time.After(1 * time.Second)
+	}
 
 	log.Print("getting response from unix socket")
 	d := json.NewDecoder(c)
