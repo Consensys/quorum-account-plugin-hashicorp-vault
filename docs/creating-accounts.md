@@ -1,7 +1,5 @@
 # Creating accounts
 
-> The plugin creates the account in memory, writes it to Vault, and zeros the private key.  The plugin never writes the private key to the node's disk.
-
 New accounts can be created and stored directly into the Vault by using the `account` plugin [RPC API](https://docs.goquorum.consensys.net/en/latest/HowTo/ManageKeys/AccountPlugins/#rpc-api) or [CLI](https://docs.goquorum.consensys.net/en/latest/HowTo/ManageKeys/AccountPlugins/#cli).  
 
 A json config must be provided to the API/CLI when creating accounts.  Example:
@@ -20,9 +18,11 @@ A json config must be provided to the API/CLI when creating accounts.  Example:
 | `secretName` | Secret name/path the plugin will store the new account at |
 | <span style="white-space:nowrap">`overwriteProtection.currentVersion`</span><br/>*or*<br/><span style="white-space:nowrap">`overwriteProtection.insecureDisable`</span> | Current integer version of this secret in Vault (`0` if no previous version exists)<br/>*or*<br/>Disable overwrite protection |
 
-## overwriteProtection
+## kv secret engine
 
-### kv secret engine
+The plugin creates the account in memory, writes it to Vault, and zeros the private key.  The plugin never writes the private key to the node's disk.
+
+### overwriteProtection
 
 Typical usage will be to create separate Vault secrets for each account.  However, KV v2 secret engines also support secret versioning. 
 
@@ -42,7 +42,11 @@ The CAS check can be skipped by setting `"insecureDisable": "true"`.
 > vault kv metadata put -max-versions <num> <kvEngineName>/<secretName>
 > ```
 
-### quorum-signer secret engine
+## quorum-signer secret engine
+
+The plugin makes a request to the `quorum-signer` secret-engine to create a new account.  The account private key only exists within the Vault boundary.
+
+### overwriteProtection
 
 The `quorum-signer` secret-engine does not support automatic versioning of secrets.  
 
