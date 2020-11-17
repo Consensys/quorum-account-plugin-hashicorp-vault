@@ -1,6 +1,6 @@
 # Quickstart example: quorum-signer secret engine
 
-The  [quorum-signer-plugin-for-hashicorp-vault](https://github.com/consensys/quorum-signer-plugin-for-hashicorp-vault) is a custom secret engine that allows Quorum data to be signed within Vault (similar to the `transit` built-in secret engine). 
+The  [quorum-signer-plugin-for-hashicorp-vault](https://github.com/consensys/quorum-signer-plugin-for-hashicorp-vault) is a custom secret engine that allows Quorum data to be signed within Vault (similar to the built-in [`transit` secret engine](https://www.vaultproject.io/docs/secrets/transit)). 
 
 This quickstart guide will demonstrate how to:
 
@@ -204,7 +204,7 @@ This quickstart guide will demonstrate how to:
     instance: Geth/v1.9.7-stable-f343ba05(quorum-v2.6.0)/darwin-amd64/go1.13.7
     coinbase: 0x88133acaf18fb9db5a79066e0db5208cd9491cc9
     at block: 0 (Thu, 01 Jan 1970 01:00:00 BST)
-     datadir: /Users/chrishounsom/Desktop/vault-plugin-demo/datadir
+     datadir: /vault-plugin-demo/datadir
      modules: admin:1.0 debug:1.0 eth:1.0 ethash:1.0 miner:1.0 net:1.0 personal:1.0 plugin@account:1.0 raft:1.0 rpc:1.0 txpool:1.0 web3:1.0
     
     > plugin_account.newAccount({"secretName": "anotherdemoacct"})

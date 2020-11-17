@@ -107,7 +107,7 @@ This quickstart guide will demonstrate how to:
         "providers": {
             "account": {
                 "name": "quorum-account-plugin-hashicorp-vault",
-                "version": "0.2.0",
+                "version": "0.x.0",
                 "config": "file:///path/to/plugin.json"
             }
         }
@@ -200,7 +200,7 @@ This quickstart guide will demonstrate how to:
     instance: Geth/v1.9.7-stable-f343ba05(quorum-v2.6.0)/darwin-amd64/go1.13.7
     coinbase: 0x88133acaf18fb9db5a79066e0db5208cd9491cc9
     at block: 0 (Thu, 01 Jan 1970 01:00:00 BST)
-     datadir: /Users/chrishounsom/Desktop/vault-plugin-demo/datadir
+     datadir: /vault-plugin-demo/datadir
      modules: admin:1.0 debug:1.0 eth:1.0 ethash:1.0 miner:1.0 net:1.0 personal:1.0 plugin@account:1.0 raft:1.0 rpc:1.0 txpool:1.0 web3:1.0
     
     > plugin_account.newAccount({"secretName": "anotherdemoacct","overwriteProtection": {"currentVersion": 0}})
