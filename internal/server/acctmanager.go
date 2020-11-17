@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"time"
 
-	util "github.com/consensys/quorum-go-utils/account"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/account"
+	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/config"
+	util "github.com/ConsenSys/quorum-go-utils/account"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

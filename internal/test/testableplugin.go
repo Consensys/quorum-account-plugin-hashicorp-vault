@@ -3,8 +3,8 @@ package test
 import (
 	"context"
 
+	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/server"
 	"github.com/hashicorp/go-plugin"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/server"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto_common"
 	"google.golang.org/grpc"

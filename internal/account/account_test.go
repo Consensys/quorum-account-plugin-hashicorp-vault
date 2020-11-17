@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	util "github.com/consensys/quorum-go-utils/account"
+	util "github.com/ConsenSys/quorum-go-utils/account"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/require"
 )

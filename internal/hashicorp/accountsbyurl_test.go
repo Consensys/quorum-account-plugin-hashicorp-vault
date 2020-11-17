@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"testing"
 
-	util "github.com/consensys/quorum-go-utils/account"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/config"
+	util "github.com/ConsenSys/quorum-go-utils/account"
 	"github.com/stretchr/testify/require"
 )
 

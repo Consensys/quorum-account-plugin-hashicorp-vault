@@ -1,8 +1,8 @@
 package server
 
 import (
+	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/hashicorp"
 	"github.com/hashicorp/go-plugin"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/hashicorp"
 )
 
 type HashicorpPlugin struct {

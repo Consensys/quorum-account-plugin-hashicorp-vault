@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"time"
 
-	util "github.com/consensys/quorum-go-utils/account"
+	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/config"
+	util "github.com/ConsenSys/quorum-go-utils/account"
 	"github.com/hashicorp/vault/api"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
 
 const reauthRetryInterval = 5 * time.Second

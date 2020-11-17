@@ -8,8 +8,8 @@ import (
 	"log"
 	"time"
 
-	util "github.com/consensys/quorum-go-utils/account"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/config"
+	util "github.com/ConsenSys/quorum-go-utils/account"
 )
 
 func newSignerAccountManager(config config.VaultClient) (*signerAccountManager, error) {

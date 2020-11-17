@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	util "github.com/consensys/quorum-go-utils/account"
+	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/config"
+	util "github.com/ConsenSys/quorum-go-utils/account"
+	"github.com/ConsenSys/quorum/crypto/secp256k1"
 	"github.com/hashicorp/vault/api"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
-	"github.com/jpmorganchase/quorum/crypto/secp256k1"
 )
 
 func newKVAccountManager(config config.VaultClient) (*kvAccountManager, error) {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/consensys/quorum-go-utils/client"
+	"github.com/ConsenSys/quorum-go-utils/client"
 )
 
 // createWSQuorumClient attempts to create a new ws client to a Quorum node.
