@@ -28,8 +28,8 @@ test: tools
 	gotestsum
 
 itest: clean tools build zip
-	 gotestsum -- github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags integration
-	 gotestsum -- github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags clefintegration
+	 gotestsum -- github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags integration
+	 gotestsum -- github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags clefintegration
 
 dist-local: clean build zip
 	@[ "${PLUGIN_DEST_PATH}" ] || ( echo "Please provide PLUGIN_DEST_PATH env variable" ; exit 1)
