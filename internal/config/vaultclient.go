@@ -15,16 +15,30 @@ type VaultClientBase struct {
 	TLS              VaultClientTLS
 }
 
+type ClientType int
+
+const (
+	KV ClientType = iota
+	QuorumSigner
+)
+
 type VaultClient struct {
 	VaultClientBase
-	KVEngineName           string // the path of the K/V v2 secret engine.  May be nil. Use SecretEngineName() to get the configured secret engine.
-	QuorumSignerEngineName string // the path of the quorum-signer secret engine. May be nil.  Use SecretEngineName() to get the configured secret engine.
+	KVEngineName           string // the path of the K/V v2 secret engine.  May be nil. Use SecretEngineName to get the configured secret engine.
+	QuorumSignerEngineName string // the path of the quorum-signer secret engine. May be nil.  Use SecretEngineName to get the configured secret engine.
 	Unlock                 []string
+}
+
+func (c VaultClient) Type() ClientType {
+	if c.KVEngineName != "" {
+		return KV
+	}
+	return QuorumSigner
 }
 
 // SecretEngineName returns the name of the configured secret engine
 func (c VaultClient) SecretEngineName() string {
-	if c.KVEngineName != "" {
+	if c.Type() == KV {
 		return c.KVEngineName
 	}
 	return c.QuorumSignerEngineName

@@ -479,7 +479,6 @@ func TestVaultClient_Validate_NoEngineName_Invalid(t *testing.T) {
 		KVEngineName:           "",
 		QuorumSignerEngineName: "",
 	}
-	vaultClient.KVEngineName = ""
 
 	gotErr := vaultClient.Validate()
 	require.EqualError(t, gotErr, wantErrMsg)
@@ -512,8 +511,8 @@ func TestVaultClient_Validate_QuorumSignerEngineName_UnlockInvalid(t *testing.T)
 	vaultClient := VaultClient{
 		VaultClientBase:        validVaultClientBaseConfig(t),
 		QuorumSignerEngineName: "engine",
+		Unlock:                 []string{"acct1"},
 	}
-	vaultClient.Unlock = []string{"acct1"}
 
 	gotErr := vaultClient.Validate()
 	require.EqualError(t, gotErr, wantErrMsg)

@@ -18,19 +18,19 @@ import (
 	"github.com/hashicorp/vault/api"
 )
 
-func newKVAccountManager(config config.VaultClient) (*kvAccountManager, error) {
-	client, err := newVaultClient(config)
+func newKVAccountManager(conf config.VaultClient) (*kvAccountManager, error) {
+	client, err := newVaultClient(conf)
 	if err != nil {
 		return nil, err
 	}
 
 	a := &kvAccountManager{
 		client:       client,
-		kvEngineName: config.KVEngineName,
+		kvEngineName: conf.SecretEngineName(),
 		unlocked:     make(map[string]*lockableKey),
 	}
 
-	for _, toUnlock := range config.Unlock {
+	for _, toUnlock := range conf.Unlock {
 		addr, err := util.NewAddressFromHexString(toUnlock)
 		if err != nil {
 			log.Printf("[INFO] unable to unlock %v, err = %v", toUnlock, err)

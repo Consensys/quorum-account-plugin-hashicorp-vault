@@ -12,15 +12,15 @@ import (
 	util "github.com/ConsenSys/quorum-go-utils/account"
 )
 
-func newSignerAccountManager(config config.VaultClient) (*signerAccountManager, error) {
-	client, err := newVaultClient(config)
+func newSignerAccountManager(conf config.VaultClient) (*signerAccountManager, error) {
+	client, err := newVaultClient(conf)
 	if err != nil {
 		return nil, err
 	}
 
 	a := &signerAccountManager{
 		client:           client,
-		signerEngineName: config.QuorumSignerEngineName,
+		signerEngineName: conf.SecretEngineName(),
 	}
 
 	return a, nil

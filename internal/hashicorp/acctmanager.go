@@ -27,11 +27,11 @@ type AccountManager interface {
 }
 
 // NewAccountManager creates a new AccountManager.  The implementation created is determined by the config provided.
-func NewAccountManager(config config.VaultClient) (AccountManager, error) {
-	if config.KVEngineName != "" {
-		return newKVAccountManager(config)
+func NewAccountManager(conf config.VaultClient) (AccountManager, error) {
+	if conf.Type() == config.KV {
+		return newKVAccountManager(conf)
 	}
-	return newSignerAccountManager(config)
+	return newSignerAccountManager(conf)
 }
 
 func writeAccountFile(path string, data config.AccountFile) error {
