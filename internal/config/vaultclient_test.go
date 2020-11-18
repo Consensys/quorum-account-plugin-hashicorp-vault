@@ -20,6 +20,7 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 			"0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526"
 		],
 		"authentication": {
+			"token": "env://MY_TOKEN",
 			"roleId": "env://MY_ROLE_ID",
 			"secretId": "env://MY_SECRET_ID",
 			"approlePath": "my-role"
@@ -43,8 +44,8 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 			},
 			Authentication: VaultClientAuthentication{
 				Token: &EnvironmentVariable{
-					Scheme: "",
-					Host:   "",
+					Scheme: "env",
+					Host:   "MY_TOKEN",
 				},
 				RoleId: &EnvironmentVariable{
 					Scheme: "env",
@@ -98,6 +99,7 @@ func TestVaultClient_UnmarshalJSON_AddsTrailingSlashToAcctDir(t *testing.T) {
 			"0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526"
 		],
 		"authentication": {
+			"token": "env://MY_TOKEN",
 			"roleId": "env://MY_ROLE_ID",
 			"secretId": "env://MY_SECRET_ID",
 			"approlePath": "my-role"
@@ -121,8 +123,8 @@ func TestVaultClient_UnmarshalJSON_AddsTrailingSlashToAcctDir(t *testing.T) {
 			},
 			Authentication: VaultClientAuthentication{
 				Token: &EnvironmentVariable{
-					Scheme: "",
-					Host:   "",
+					Scheme: "env",
+					Host:   "MY_TOKEN",
 				},
 				RoleId: &EnvironmentVariable{
 					Scheme: "env",
