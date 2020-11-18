@@ -2,7 +2,6 @@ package hashicorp
 
 import (
 	"crypto/ecdsa"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/config"
 	util "github.com/ConsenSys/quorum-go-utils/account"
-	"github.com/ConsenSys/quorum/crypto/secp256k1"
 	"github.com/hashicorp/vault/api"
 )
 
@@ -56,7 +54,7 @@ type lockableKey struct {
 }
 
 func (k *lockableKey) zero() {
-	zeroKey(k.key)
+	util.ZeroKey(k.key)
 }
 
 func (a *kvAccountManager) Status() (string, error) {
@@ -95,7 +93,7 @@ func (a *kvAccountManager) Sign(acctAddr util.Address, toSign []byte) ([]byte, e
 	if !ok {
 		return nil, errors.New("account locked")
 	}
-	return sign(toSign, lockable.key)
+	return util.Sign(toSign, lockable.key)
 }
 
 func (a *kvAccountManager) UnlockAndSign(acctAddr util.Address, toSign []byte) ([]byte, error) {
@@ -112,7 +110,7 @@ func (a *kvAccountManager) UnlockAndSign(acctAddr util.Address, toSign []byte) (
 		defer a.Lock(acctAddr)
 		lockable, _ = a.unlocked[acctAddr.ToHexString()]
 	}
-	return sign(toSign, lockable.key)
+	return util.Sign(toSign, lockable.key)
 }
 
 func (a *kvAccountManager) TimedUnlock(acctAddr util.Address, duration time.Duration) error {
@@ -200,17 +198,17 @@ func (a *kvAccountManager) Lock(acctAddr util.Address) {
 }
 
 func (a *kvAccountManager) NewAccount(conf config.NewAccount) (util.Account, error) {
-	key, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
+	key, err := util.GenerateKey()
 	if err != nil {
 		return util.Account{}, err
 	}
-	defer zeroKey(key)
+	defer util.ZeroKey(key)
 
 	return a.writeToVaultAndFile(key, conf)
 }
 
 func (a *kvAccountManager) ImportPrivateKey(key *ecdsa.PrivateKey, conf config.NewAccount) (util.Account, error) {
-	defer zeroKey(key)
+	defer util.ZeroKey(key)
 	return a.writeToVaultAndFile(key, conf)
 }
 
@@ -318,27 +316,4 @@ func (a *kvAccountManager) writeToFile(addrHex string, secretVersion int64, conf
 	}
 
 	return fileData, nil
-}
-
-func sign(toSign []byte, key *ecdsa.PrivateKey) ([]byte, error) {
-	keyByt, err := util.PrivateKeyToBytes(key)
-	if err != nil {
-		return nil, err
-	}
-	defer zero(keyByt)
-
-	return secp256k1.Sign(toSign, keyByt)
-}
-
-func zeroKey(key *ecdsa.PrivateKey) {
-	b := key.D.Bits()
-	for i := range b {
-		b[i] = 0
-	}
-}
-
-func zero(byt []byte) {
-	for i := range byt {
-		byt[i] = 0
-	}
 }

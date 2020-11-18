@@ -29,12 +29,7 @@ func (p *HashicorpPlugin) Init(_ context.Context, req *proto_common.PluginInitia
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	var (
-		am  hashicorp.AccountManager
-		err error
-	)
-
-	am, err = hashicorp.NewAccountManager(conf)
+	am, err := hashicorp.NewAccountManager(conf)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
