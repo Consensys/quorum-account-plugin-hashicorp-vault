@@ -4,7 +4,6 @@ go 1.13
 
 require (
 	github.com/ConsenSys/quorum-go-utils v0.0.0-20201118131506-d67a2071c8b0
-	github.com/ConsenSys/quorum/crypto/secp256k1 v0.0.0-20201109194625-1ecd42625e8e
 	github.com/frankban/quicktest v1.7.2 // indirect
 	github.com/google/go-cmp v0.5.2 // indirect
 	github.com/hashicorp/go-plugin v1.0.1
@@ -16,7 +15,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/crypto v0.0.0-20201117144127-c1f2f97bffc9 // indirect
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
-	golang.org/x/sys v0.0.0-20201118182958-a01c418693c7 // indirect
+	golang.org/x/sys v0.0.0-20201119102817-f84b799fce68 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/genproto v0.0.0-20200218151345-dad8c97a84f5 // indirect
