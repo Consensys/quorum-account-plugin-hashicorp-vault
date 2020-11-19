@@ -190,7 +190,7 @@ This quickstart guide will demonstrate how to:
         --networkid 10 \
         --raft \
         --raftjoinexisting 1 \
-        --datadir datadir
+        --datadir datadir \
         --rpc \
         --rpcapi eth,debug,admin,net,web3,plugin@account \
         --plugins file:///path/to/quorum.json \
