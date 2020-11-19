@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -32,6 +33,28 @@ func NewAccountManager(conf config.VaultClient) (AccountManager, error) {
 		return newKVAccountManager(conf)
 	}
 	return newSignerAccountManager(conf)
+}
+
+// writeToFile writes to a temporary hidden file first then renames once complete so that the write appears atomic.  This will be useful if implementing a watcher on the directory
+func writeToFile(addrHex string, secretVersion int64, conf config.NewAccount, accountDirectory *url.URL) (config.AccountFile, error) {
+	now := time.Now().UTC()
+	nowISO8601 := now.Format("2006-01-02T15-04-05.000000000Z")
+	filename := fmt.Sprintf("UTC--%v--%v", nowISO8601, addrHex)
+
+	fileURL, err := accountDirectory.Parse(filename)
+	if err != nil {
+		return config.AccountFile{}, err
+	}
+	filePath := fileURL.Path
+	log.Printf("[DEBUG] writing to file %v", filePath)
+
+	fileData := conf.AccountFile(fileURL.String(), addrHex, secretVersion)
+
+	if err := writeAccountFile(filePath, fileData); err != nil {
+		return config.AccountFile{}, err
+	}
+
+	return fileData, nil
 }
 
 func writeAccountFile(path string, data config.AccountFile) error {

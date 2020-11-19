@@ -70,12 +70,7 @@ func (a *signerAccountManager) Sign(acctAddr util.Address, toSign []byte) ([]byt
 		return nil, errors.New("no/invalid signature returned from Vault")
 	}
 
-	sig, err := hex.DecodeString(sigHex)
-	if err != nil {
-		return nil, err
-	}
-
-	return sig, nil
+	return hex.DecodeString(sigHex)
 }
 
 func (a *signerAccountManager) UnlockAndSign(acctAddr util.Address, toSign []byte) ([]byte, error) {
@@ -88,7 +83,7 @@ func (a *signerAccountManager) TimedUnlock(_ util.Address, _ time.Duration) erro
 }
 
 func (a *signerAccountManager) Lock(_ util.Address) {
-	log.Print("[DEBUG] unsupported account manager operation: UnlockAndSign")
+	log.Print("[DEBUG] unsupported account manager operation: Lock")
 }
 
 func (a *signerAccountManager) NewAccount(conf config.NewAccount) (util.Account, error) {
@@ -98,7 +93,7 @@ func (a *signerAccountManager) NewAccount(conf config.NewAccount) (util.Account,
 }
 
 func (a *signerAccountManager) ImportPrivateKey(privateKeyECDSA *ecdsa.PrivateKey, conf config.NewAccount) (util.Account, error) {
-	defer zeroKey(privateKeyECDSA)
+	defer util.ZeroKey(privateKeyECDSA)
 
 	addr, err := util.PrivateKeyToAddress(privateKeyECDSA)
 	if err != nil {
@@ -146,7 +141,7 @@ func (a *signerAccountManager) createInVaultAndWriteToFile(conf config.NewAccoun
 	// write to file
 	log.Print("[DEBUG] Writing new account data to file in account config directory")
 
-	fileData, err := a.writeToFile(addrHex, conf)
+	fileData, err := writeToFile(addrHex, 0, conf, a.client.accountDirectory) // versioning not supported so use 0 as this corresponds to latest in the Vault API
 	if err != nil {
 		return util.Account{}, fmt.Errorf("unable to write new account config file, err: %v", err)
 	}
@@ -165,27 +160,4 @@ func (a *signerAccountManager) createInVaultAndWriteToFile(conf config.NewAccoun
 		Address: addr,
 		URL:     accountURL,
 	}, nil
-}
-
-func (a *signerAccountManager) writeToFile(addrHex string, conf config.NewAccount) (config.AccountFile, error) {
-	now := time.Now().UTC()
-	nowISO8601 := now.Format("2006-01-02T15-04-05.000000000Z")
-	filename := fmt.Sprintf("UTC--%v--%v", nowISO8601, addrHex)
-
-	fileURL, err := a.client.accountDirectory.Parse(filename)
-	if err != nil {
-		return config.AccountFile{}, err
-	}
-	filePath := fileURL.Path
-	log.Printf("[DEBUG] writing to file %v", filePath)
-
-	var secretVersion int64 = 0 // versioning not supported so use 0 as this corresponds to latest in the Vault API
-
-	fileData := conf.AccountFile(fileURL.String(), addrHex, secretVersion)
-
-	if err := writeAccountFile(filePath, fileData); err != nil {
-		return config.AccountFile{}, err
-	}
-
-	return fileData, nil
 }

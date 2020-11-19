@@ -243,7 +243,7 @@ func (a *kvAccountManager) writeToVaultAndFile(key *ecdsa.PrivateKey, conf confi
 	log.Printf("[DEBUG] New secret version number = %v", secretVersion)
 
 	log.Println("[DEBUG] Writing new account data to file in account config directory")
-	fileData, err := a.writeToFile(addrHex, secretVersion, conf)
+	fileData, err := writeToFile(addrHex, secretVersion, conf, a.client.accountDirectory)
 	if err != nil {
 		return util.Account{}, fmt.Errorf("unable to write new account config file, err: %v", err)
 	}
@@ -294,26 +294,4 @@ func (a *kvAccountManager) getVersionFromResponse(resp *api.Secret) (int64, erro
 		return 0, fmt.Errorf("invalid version information returned from Vault, %v", err)
 	}
 	return secretVersion, nil
-}
-
-// writeToFile writes to a temporary hidden file first then renames once complete so that the write appears atomic.  This will be useful if implementing a watcher on the directory
-func (a *kvAccountManager) writeToFile(addrHex string, secretVersion int64, conf config.NewAccount) (config.AccountFile, error) {
-	now := time.Now().UTC()
-	nowISO8601 := now.Format("2006-01-02T15-04-05.000000000Z")
-	filename := fmt.Sprintf("UTC--%v--%v", nowISO8601, addrHex)
-
-	fileURL, err := a.client.accountDirectory.Parse(filename)
-	if err != nil {
-		return config.AccountFile{}, err
-	}
-	filePath := fileURL.Path
-	log.Printf("[DEBUG] writing to file %v", filePath)
-
-	fileData := conf.AccountFile(fileURL.String(), addrHex, secretVersion)
-
-	if err := writeAccountFile(filePath, fileData); err != nil {
-		return config.AccountFile{}, err
-	}
-
-	return fileData, nil
 }
