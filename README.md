@@ -46,10 +46,10 @@ See [docs/faq](docs/faq.md) for additional info on various items.
 
 ## Run tests
 ```shell
-go test ./...
+make test
 
 # run integration tests (vault, quorum and clef must be on PATH)
-go test github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags integration
+make itest
 ```
 
 ## Further reading
