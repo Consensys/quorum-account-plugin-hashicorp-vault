@@ -16,11 +16,11 @@ import (
 )
 
 const (
-	CA_CERT     = "testdata/tls/caRoot.pem"
-	CLIENT_CERT = "testdata/tls/quorum-client-chain.pem"
-	CLIENT_KEY  = "testdata/tls/quorum-client.key"
-	SERVER_CERT = "testdata/tls/localhost-with-san-chain.pem"
-	SERVER_KEY  = "testdata/tls/localhost-with-san.key"
+	CA_CERT     = "testdata/tls/ca-root.cert.pem"
+	CLIENT_CERT = "testdata/tls/client-ca-chain.cert.pem"
+	CLIENT_KEY  = "testdata/tls/client.key.pem"
+	SERVER_CERT = "testdata/tls/server-localhost-with-san-ca-chain.cert.pem"
+	SERVER_KEY  = "testdata/tls/server-localhost-with-san.key.pem"
 
 	AUTH_TOKEN = "authToken"
 	CAS_VALUE  = 5
