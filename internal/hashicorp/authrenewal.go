@@ -4,8 +4,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/hashicorp/vault/api"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
 
 type renewable struct {

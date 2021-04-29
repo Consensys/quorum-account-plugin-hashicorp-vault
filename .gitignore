@@ -1,2 +1,2 @@
-/quorum-plugin-account-store-hashicorp
-/.idea/
+*.iml
+build
