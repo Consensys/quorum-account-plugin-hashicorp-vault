@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/url"
 
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/account"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/config"
 )
 
 type accountsByURL map[*url.URL]config.AccountFile

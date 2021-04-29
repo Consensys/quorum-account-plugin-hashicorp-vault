@@ -15,9 +15,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/account"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/hashicorp/vault/api"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/jpmorganchase/quorum/crypto/secp256k1"
 )
 

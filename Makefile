@@ -10,6 +10,7 @@ GEN_LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X
 BUILD_LD_FLAGS=-s -w $(extraldflags)
 DOCKER_GEN_LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
 -X main.Executable=${EXECUTABLE} -X main.Version=${VERSION} -X main.OutputDir=/shared"
+OS_ARCH := "$(shell go env GOOS)-$(shell go env GOARCH)"
 
 .PHONY: ${OUTPUT_DIR}
 
@@ -30,7 +31,7 @@ test: tools
 dist-local: clean build zip
 	@[ "${PLUGIN_DEST_PATH}" ] || ( echo "Please provide PLUGIN_DEST_PATH env variable" ; exit 1)
 	@mkdir -p ${PLUGIN_DEST_PATH}
-	@cp ${OUTPUT_DIR}/dist/${PACKAGE}-${VERSION}.zip ${PLUGIN_DEST_PATH}/${PACKAGE}-${VERSION}.zip
+	@cp ${OUTPUT_DIR}/dist/${PACKAGE}-${VERSION}-${OS_ARCH}.zip ${PLUGIN_DEST_PATH}/${PACKAGE}-${VERSION}-${OS_ARCH}.zip
 
 dist: clean build zip
 	@echo Done!
@@ -47,8 +48,8 @@ build: checkfmt
 		.
 
 zip: build
-	@zip -j -FS -q ${OUTPUT_DIR}/dist/${PACKAGE}-${VERSION}.zip ${OUTPUT_DIR}/*.json ${OUTPUT_DIR}/dist/*
-	@shasum -a 256 ${OUTPUT_DIR}/dist/${PACKAGE}-${VERSION}.zip | awk '{print $$1}' > ${OUTPUT_DIR}/dist/${EXECUTABLE}-${VERSION}.zip.sha256sum
+	@zip -j -FS -q ${OUTPUT_DIR}/dist/${PACKAGE}-${VERSION}-${OS_ARCH}.zip ${OUTPUT_DIR}/*.json ${OUTPUT_DIR}/dist/*
+	@shasum -a 256 ${OUTPUT_DIR}/dist/${PACKAGE}-${VERSION}-${OS_ARCH}.zip | awk '{print $$1}' > ${OUTPUT_DIR}/dist/${EXECUTABLE}-${VERSION}-${OS_ARCH}-sha256.checksum
 
 # use this to build an alpine linux dist - for locally running dev changes in the acceptance tests
 build-alpine: checkfmt

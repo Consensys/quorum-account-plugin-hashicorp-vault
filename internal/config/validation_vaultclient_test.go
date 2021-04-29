@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/testutil"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 

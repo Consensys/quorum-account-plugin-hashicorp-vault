@@ -1,6 +1,6 @@
-module github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault
+module github.com/consensys/quorum-account-plugin-hashicorp-vault
 
-go 1.13
+go 1.15
 
 require (
 	github.com/frankban/quicktest v1.7.2 // indirect
