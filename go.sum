@@ -73,8 +73,8 @@ github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d h1:kJCB4vdITiW1eC1
 github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
 github.com/jpmorganchase/quorum-account-plugin-sdk-go v0.0.0-20200714175524-662195b38a5e h1:aE+TcHdEop381e8gMBWw/7Nw5aOdXdVmVrVP7ZrKrq4=
 github.com/jpmorganchase/quorum-account-plugin-sdk-go v0.0.0-20200714175524-662195b38a5e/go.mod h1:clocsx5vZHANnLM+SmcJJDKY6VVxxcdRUCKe5Y+roQ0=
-github.com/jpmorganchase/quorum/crypto/secp256k1 v0.0.0-20200714153126-36cff89fd85a h1:jzEyJJLemDeq8Po+0Qg3dAqLTcUy1yx6Cb64k15Bgy0=
-github.com/jpmorganchase/quorum/crypto/secp256k1 v0.0.0-20200714153126-36cff89fd85a/go.mod h1:w+wA+9W4bxqH3Jg8upYxYo8MYlQL0UOXJfKVSr+45Ok=
+github.com/consensys/goquorum-crypto-secp256k1 v0.0.1 h1:KPtzF+ofcmPpaxJwaZ1dl3rApzXHusqhIynrQW6k1Ig=
+github.com/consensys/goquorum-crypto-secp256k1 v0.0.1/go.mod h1:h92U1VyX3glU/L9OHOinriUvy4GHGsvtlUifVvrQRdE=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pretty v0.2.0 h1:s5hAObm+yFO5uHYt5dYjxi2rXrsnmRpJx4OYvIWUaQs=

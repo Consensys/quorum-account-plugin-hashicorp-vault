@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/vault/api v1.0.4
 	github.com/hashicorp/vault/sdk v0.1.13
 	github.com/jpmorganchase/quorum-account-plugin-sdk-go v0.0.0-20200714175524-662195b38a5e
-	github.com/jpmorganchase/quorum/crypto/secp256k1 v0.0.0-20200714153126-36cff89fd85a
+	github.com/consensys/goquorum-crypto-secp256k1 v0.0.1
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/pierrec/lz4 v2.4.1+incompatible // indirect
 	github.com/stretchr/testify v1.4.0
