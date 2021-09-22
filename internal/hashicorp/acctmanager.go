@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
+	secp256k1 "github.com/consensys/goquorum-crypto-secp256k1"
 	"github.com/hashicorp/vault/api"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
 	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
-	"github.com/jpmorganchase/quorum/crypto/secp256k1"
 )
 
 func NewAccountManager(config config.VaultClient) (AccountManager, error) {
