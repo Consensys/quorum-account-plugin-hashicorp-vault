@@ -31,7 +31,7 @@ jobs:
     name: Notify Slack
     needs:
       - build
-    if: always()
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - name: Prepare Slack message
