@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/config"
-	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/testutil"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/testutil"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto_common"
 	"github.com/stretchr/testify/require"
