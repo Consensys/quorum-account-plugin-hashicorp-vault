@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/config"
-	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/hashicorp"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/hashicorp"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto_common"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

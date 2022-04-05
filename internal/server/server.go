@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/hashicorp"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/hashicorp"
 	"github.com/hashicorp/go-plugin"
 )
 

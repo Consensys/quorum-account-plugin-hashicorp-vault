@@ -1,6 +1,6 @@
-module github.com/ConsenSys/quorum-account-plugin-hashicorp-vault
+module github.com/consensys/quorum-account-plugin-hashicorp-vault
 
-go 1.13
+go 1.15
 
 require (
 	github.com/ConsenSys/quorum-go-utils v0.0.0-20201118131506-d67a2071c8b0

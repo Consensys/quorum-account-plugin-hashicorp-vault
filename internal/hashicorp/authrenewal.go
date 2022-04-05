@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/hashicorp/vault/api"
 )
 

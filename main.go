@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/server"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/server"
 	"github.com/hashicorp/go-plugin"
 )
 

@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/stretchr/testify/require"
 )
 

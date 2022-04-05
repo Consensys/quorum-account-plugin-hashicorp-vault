@@ -8,6 +8,11 @@ VERSION := "0.2.0-SNAPSHOT"
 GEN_LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
 -X main.Executable=${EXECUTABLE} -X main.Version=${VERSION} -X main.OutputDir=${OUTPUT_DIR}"
 BUILD_LD_FLAGS=-s -w $(extraldflags)
+DOCKER_GEN_LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
+-X main.Executable=${EXECUTABLE} -X main.Version=${VERSION} -X main.OutputDir=/shared"
+OS_ARCH := "$(shell go env GOOS)-$(shell go env GOARCH)"
+
+.PHONY: ${OUTPUT_DIR}
 
 default: clean test build zip
 	@echo Done!
@@ -37,8 +42,8 @@ build: checkfmt
 		.
 
 zip: build
-	@zip -j -FS -q ${OUTPUT_DIR}/dist/${PACKAGE}-${VERSION}.zip ${OUTPUT_DIR}/*.json ${OUTPUT_DIR}/dist/*
-	@shasum -a 256 ${OUTPUT_DIR}/dist/${PACKAGE}-${VERSION}.zip | awk '{print $$1}' > ${OUTPUT_DIR}/dist/${EXECUTABLE}-${VERSION}.zip.sha256sum
+	@zip -j -FS -q ${OUTPUT_DIR}/dist/${PACKAGE}-${VERSION}-${OS_ARCH}.zip ${OUTPUT_DIR}/*.json ${OUTPUT_DIR}/dist/*
+	@shasum -a 256 ${OUTPUT_DIR}/dist/${PACKAGE}-${VERSION}-${OS_ARCH}.zip | awk '{print $$1}' > ${OUTPUT_DIR}/dist/${EXECUTABLE}-${VERSION}-${OS_ARCH}-sha256.checksum
 
 tools: goimports gotestsum
 
