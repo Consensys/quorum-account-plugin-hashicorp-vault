@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/ConsenSys/quorum-go-utils v0.0.0-20201118131506-d67a2071c8b0
+	github.com/consensys/goquorum-crypto-secp256k1 v0.0.2
 	github.com/frankban/quicktest v1.7.2 // indirect
 	github.com/google/go-cmp v0.5.2 // indirect
 	github.com/hashicorp/go-plugin v1.0.1

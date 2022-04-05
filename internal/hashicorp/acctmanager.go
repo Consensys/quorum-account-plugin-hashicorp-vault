@@ -11,8 +11,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/config"
+	secp256k1 "github.com/consensys/goquorum-crypto-secp256k1"
+	"github.com/hashicorp/vault/api"
 	util "github.com/ConsenSys/quorum-go-utils/account"
+	"github.com/ConsenSys/quorum-account-plugin-hashicorp-vault/internal/config"
 )
 
 type AccountManager interface {
