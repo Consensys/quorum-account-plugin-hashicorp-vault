@@ -128,7 +128,7 @@ func Test_KV_Clef_CreateAccount_NewPath_ValidOverwriteProtection(t *testing.T) {
 					URL:     wantWalletURL,
 				},
 			},
-			Status: "ok [version=6.0.0]",
+			Status: "ok [version=6.1.0]",
 			URL:    wantWalletURL,
 		},
 	}
@@ -517,7 +517,7 @@ func Test_Signer_Clef_CreateAccount_NewPath(t *testing.T) {
 					URL:     wantWalletURL,
 				},
 			},
-			Status: "ok [version=6.0.0]",
+			Status: "ok [version=6.1.0]",
 			URL:    wantWalletURL,
 		},
 	}
