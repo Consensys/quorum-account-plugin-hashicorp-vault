@@ -53,8 +53,7 @@ func Test_CLI_KV_ImportAccount_NewPath_ValidOverwriteProtection(t *testing.T) {
 		buildAccountPluginCLICmd(t, "import", rawKeyFile, dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	out := outBuf.String()
 
@@ -139,8 +138,7 @@ func Test_CLI_KV_ImportAccount_NewPath_InvalidOverwriteProtection(t *testing.T) 
 		buildAccountPluginCLICmd(t, "import", rawKeyFile, dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	out := outBuf.String()
 
@@ -189,8 +187,7 @@ func Test_CLI_KV_ImportAccount_ExistingPath_ValidOverwriteProtection(t *testing.
 		buildAccountPluginCLICmd(t, "new", "", dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	// create another account
 	rawKey := "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec"
@@ -212,8 +209,7 @@ func Test_CLI_KV_ImportAccount_ExistingPath_ValidOverwriteProtection(t *testing.
 		buildAccountPluginCLICmd(t, "import", rawKeyFile, dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	out := outBuf.String()
 
@@ -292,8 +288,7 @@ func Test_CLI_KV_ImportAccount_ExistingPath_InvalidOverwriteProtection(t *testin
 		buildAccountPluginCLICmd(t, "new", "", dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	// create another account
 	rawKey := "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec"
@@ -314,8 +309,7 @@ func Test_CLI_KV_ImportAccount_ExistingPath_InvalidOverwriteProtection(t *testin
 		buildAccountPluginCLICmd(t, "import", rawKeyFile, dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	out := outBuf.String()
 
@@ -372,8 +366,7 @@ func Test_CLI_Signer_ImportAccount_NewPath(t *testing.T) {
 		buildAccountPluginCLICmd(t, "import", rawKeyFile, dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	out := outBuf.String()
 
@@ -452,8 +445,7 @@ func Test_CLI_Signer_ImportAccount_ExistingPath_NotAllowed(t *testing.T) {
 		buildAccountPluginCLICmd(t, "new", "", dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	// create another account
 	rawKey := "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec"
@@ -471,8 +463,7 @@ func Test_CLI_Signer_ImportAccount_ExistingPath_NotAllowed(t *testing.T) {
 		buildAccountPluginCLICmd(t, "import", rawKeyFile, dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(10 * time.Second)
+	quorum.wait(t)
 
 	out := outBuf.String()
 

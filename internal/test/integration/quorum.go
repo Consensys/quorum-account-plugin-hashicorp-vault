@@ -22,11 +22,18 @@ func (q *quorum) start(t *testing.T) func() {
 	require.NoError(t, err)
 
 	interrupt := func() {
-		err := q.cmd.Process.Signal(os.Interrupt)
-		require.NoError(t, err)
+		if q.cmd.ProcessState == nil {
+			err := q.cmd.Process.Signal(os.Interrupt)
+			require.NoError(t, err)
+		}
 	}
 
 	return interrupt
+}
+
+func (q *quorum) wait(_ *testing.T) {
+	err := q.cmd.Wait()
+	fmt.Printf("quorum exited, err=%v\n", err)
 }
 
 type quorumBuilder struct {

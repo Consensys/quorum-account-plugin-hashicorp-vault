@@ -46,8 +46,7 @@ func Test_CLI_KV_CreateAccount_NewPath_ValidOverwriteProtection(t *testing.T) {
 		buildAccountPluginCLICmd(t, "new", "", dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	out := outBuf.String()
 
@@ -125,8 +124,7 @@ func Test_CLI_KV_CreateAccount_NewPath_InvalidOverwriteProtection(t *testing.T) 
 		buildAccountPluginCLICmd(t, "new", "", dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	out := outBuf.String()
 
@@ -175,8 +173,7 @@ func Test_CLI_KV_CreateAccount_ExistingPath_ValidOverwriteProtection(t *testing.
 		buildAccountPluginCLICmd(t, "new", "", dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	// create another account
 	newAccountConfigJson = `{
@@ -191,8 +188,7 @@ func Test_CLI_KV_CreateAccount_ExistingPath_ValidOverwriteProtection(t *testing.
 		buildAccountPluginCLICmd(t, "new", "", dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	out := outBuf.String()
 
@@ -270,8 +266,7 @@ func Test_CLI_KV_CreateAccount_ExistingPath_InvalidOverwriteProtection(t *testin
 		buildAccountPluginCLICmd(t, "new", "", dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	// create another account
 	newAccountConfigJson = `{
@@ -286,8 +281,7 @@ func Test_CLI_KV_CreateAccount_ExistingPath_InvalidOverwriteProtection(t *testin
 		buildAccountPluginCLICmd(t, "new", "", dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	out := outBuf.String()
 
@@ -337,8 +331,7 @@ func Test_CLI_Signer_CreateAccount_NewPath(t *testing.T) {
 		buildAccountPluginCLICmd(t, "new", "", dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 
 	out := outBuf.String()
 
@@ -416,8 +409,7 @@ func Test_CLI_Signer_CreateAccount_ExistingPath_NotAllowed(t *testing.T) {
 		buildAccountPluginCLICmd(t, "new", "", dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(2 * time.Second)
+	quorum.wait(t)
 	out := outBuf.String()
 
 	require.NotContains(t, out, "rpc error: code = Internal desc = unable to create new account in Vault")
@@ -428,8 +420,7 @@ func Test_CLI_Signer_CreateAccount_ExistingPath_NotAllowed(t *testing.T) {
 		buildAccountPluginCLICmd(t, "new", "", dirs.testout, pluginsConf, newAccountConfigJson)
 
 	defer quorum.start(t)()
-
-	<-time.After(5 * time.Second) // the vault CLI client will retry 3 times so we need a long wait to ensure those have completed
+	quorum.wait(t)
 	out = outBuf.String()
 
 	require.Contains(t, out, "rpc error: code = Internal desc = unable to create new account in Vault")
