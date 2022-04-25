@@ -51,7 +51,7 @@ func prepareDirs(t *testing.T, suiteName string, testName string) dirs {
 	hash := sha256.Sum256([]byte(testName))
 
 	// we have to hash the testName when creating the dataDir as IPC paths cannot exceed 104 chars
-	datadir := fmt.Sprintf("/tmp/datadir/%v/%v", suiteName, hex.EncodeToString(hash[:20]))
+	datadir := fmt.Sprintf("/tmp/acct-plugin-tests/datadir/%v/%v", suiteName, hex.EncodeToString(hash[:20]))
 	log.Printf("using quorum datadir: path=%v", datadir)
 
 	return dirs{

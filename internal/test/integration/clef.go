@@ -60,7 +60,7 @@ func (b *clefBuilder) stdioUI() *clefBuilder {
 
 func (b *clefBuilder) build(t *testing.T, testout, datadir, pluginsConf string) clef {
 	// random, empty, keystore so default keystore is not used
-	stdKeystore := fmt.Sprintf("/tmp/%v", rand.Int())
+	stdKeystore := fmt.Sprintf("/tmp/acct-plugin-tests/%v", rand.Int())
 
 	args := b.args
 	args = append(args,

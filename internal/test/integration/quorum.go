@@ -33,7 +33,7 @@ func (q *quorum) start(t *testing.T) func() {
 
 func (q *quorum) wait(_ *testing.T) {
 	err := q.cmd.Wait()
-	fmt.Printf("quorum exited, err=%v\n", err)
+	log.Printf("quorum exited, err=%v\n", err)
 }
 
 type quorumBuilder struct {

@@ -154,7 +154,7 @@ func (b *clefBuilder) stdioUI() *clefBuilder {
 
 func (b *clefBuilder) build(testout, datadir, pluginsConf string) clef {
 	// random, empty, keystore so default keystore is not used
-	stdKeystore := fmt.Sprintf("/tmp/%v", rand.Int())
+	stdKeystore := fmt.Sprintf("/tmp/acct-plugin-tests/%v", rand.Int())
 
 	args := b.args
 	args = append(args,
@@ -290,7 +290,7 @@ func prepareDirs(suiteName string) dirs {
 	//}
 
 	// we have to hash the testName when creating the dataDir as IPC paths cannot exceed 104 chars
-	datadir := fmt.Sprintf("/tmp/datadir/%v", suiteName)
+	datadir := fmt.Sprintf("/tmp/acct-plugin-tests/datadir/%v", suiteName)
 
 	return dirs{
 		testout: testout,
