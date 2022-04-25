@@ -50,7 +50,7 @@ func (b *vaultBuilder) build(t *testing.T, testout string) vault {
 		b.devArgs...,
 	)
 
-	outfile := fmt.Sprintf("%v/vault.out", testout)
+	outfile := fmt.Sprintf("%v/vault.log", testout)
 	log.Printf("vault log file: path=%v", outfile)
 	out, err := os.Create(outfile)
 	require.NoError(t, err)

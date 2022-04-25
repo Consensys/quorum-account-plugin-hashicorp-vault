@@ -79,7 +79,7 @@ func (b *clefBuilder) build(t *testing.T, testout, datadir, pluginsConf string) 
 
 	cmd := exec.Command("clef", args...)
 
-	outfile := fmt.Sprintf("%v/clef.out", testout)
+	outfile := fmt.Sprintf("%v/clef.log", testout)
 	log.Printf("clef log file: path=%v", outfile)
 	out, err := os.Create(outfile)
 	require.NoError(t, err)

@@ -21,6 +21,10 @@ func (q *quorum) start(t *testing.T) func() {
 	err := q.cmd.Start()
 	require.NoError(t, err)
 
+	//q.cmd.
+	//
+	//"registered account plugin with account backend"
+
 	interrupt := func() {
 		if q.cmd.ProcessState == nil {
 			err := q.cmd.Process.Signal(os.Interrupt)
@@ -70,7 +74,7 @@ func (b *quorumBuilder) build(t *testing.T, testout, datadir, pluginsConf string
 
 	cmd := exec.Command("geth", args...)
 
-	outfile := fmt.Sprintf("%v/quorum.out", testout)
+	outfile := fmt.Sprintf("%v/quorum.log", testout)
 	log.Printf("quorum log file: path=%v", outfile)
 	out, err := os.Create(outfile)
 	require.NoError(t, err)
@@ -107,7 +111,7 @@ func (b *quorumBuilder) buildWithClef(t *testing.T, testout, datadir, clefIPC st
 
 	cmd := exec.Command("geth", args...)
 
-	outfile := fmt.Sprintf("%v/quorum.out", testout)
+	outfile := fmt.Sprintf("%v/quorum.log", testout)
 	log.Printf("quorum log file: path=%v", outfile)
 	out, err := os.Create(outfile)
 	require.NoError(t, err)
@@ -137,7 +141,7 @@ func (b *quorumBuilder) buildAccountPluginCLICmd(t *testing.T, subCmd, importKey
 
 	cmd := exec.Command("geth", args...)
 
-	outfile := fmt.Sprintf("%v/quorum.out", testout)
+	outfile := fmt.Sprintf("%v/quorum.log", testout)
 	log.Printf("quorum log file: path=%v", outfile)
 	out, err := os.Create(outfile)
 	require.NoError(t, err)
