@@ -14,15 +14,13 @@ func createWSQuorumClient(t *testing.T, wsURL string) *client.QuorumClient {
 	var (
 		c           *client.QuorumClient
 		err         error
-		maxAttempts = 10
+		maxAttempts = 20
 		attempt     = 0
-		waitPeriod  = time.Second
+		waitPeriod  = 500 * time.Millisecond
 	)
 
 	for {
 		attempt++
-		<-time.After(waitPeriod)
-
 		log.Printf("checking Quorum RPC server is up: attempt %v/%v", attempt, maxAttempts)
 		c, err = client.NewQuorumClient(wsURL)
 		if err == nil {
@@ -34,6 +32,7 @@ func createWSQuorumClient(t *testing.T, wsURL string) *client.QuorumClient {
 		if attempt == maxAttempts {
 			t.Fatal("Quorum RPC server retries exceeded")
 		}
+		<-time.After(waitPeriod)
 	}
 	return c
 }

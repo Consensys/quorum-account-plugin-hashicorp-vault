@@ -128,14 +128,12 @@ type stdioPipes struct {
 func waitForClef(t *testing.T, clefIPC string) {
 	var (
 		attempt     = 0
-		maxAttempts = 10
-		waitPeriod  = time.Second
+		maxAttempts = 20
+		waitPeriod  = 500 * time.Millisecond
 	)
 
 	for {
 		attempt++
-		<-time.After(waitPeriod)
-
 		log.Printf("checking Clef IPC server is up: attempt %v/%v", attempt, maxAttempts)
 
 		if _, err := os.Stat(clefIPC); err == nil {
@@ -150,5 +148,6 @@ func waitForClef(t *testing.T, clefIPC string) {
 		if attempt == maxAttempts {
 			t.Fatal("Clef IPC server retries exceeded")
 		}
+		<-time.After(waitPeriod)
 	}
 }
