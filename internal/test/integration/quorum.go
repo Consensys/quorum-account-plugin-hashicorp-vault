@@ -58,7 +58,7 @@ func (q *quorum) start(t *testing.T) func() {
 	err := q.cmd.Start()
 	require.NoError(t, err)
 
-	waitForLog("registered account plugin with account backend", 5*time.Second)
+	waitForLog("registered account plugin with account backend", 10*time.Second)
 
 	interrupt := func() {
 		if q.cmd.ProcessState == nil {
