@@ -78,6 +78,9 @@ func Test_KV_UnlockAccount(t *testing.T) {
 	err = c.RPCCall(&unlockResp, "personal_unlockAccount", acctAddr, "", 0)
 	require.NoError(t, err)
 
+	// wait for the account to be unlocked and quorum to update
+	time.Sleep(100 * time.Millisecond)
+
 	err = c.RPCCall(&personalListWalletsResp, "personal_listWallets")
 	require.NoError(t, err)
 	require.Len(t, personalListWalletsResp, 1)
@@ -164,6 +167,9 @@ func Test_KV_TimedUnlockAccount(t *testing.T) {
 	var unlockResp interface{}
 	err = c.RPCCall(&unlockResp, "personal_unlockAccount", acctAddr, "", 5)
 	require.NoError(t, err)
+
+	// wait for the account to be unlocked and quorum to update
+	time.Sleep(100 * time.Millisecond)
 
 	err = c.RPCCall(&personalListWalletsResp, "personal_listWallets")
 	require.NoError(t, err)

@@ -58,6 +58,9 @@ func Test_KV_Sign(t *testing.T) {
 	err = c.RPCCall(&unlockResp, "personal_unlockAccount", addr, "", 0)
 	require.NoError(t, err)
 
+	// wait for the account to be unlocked and quorum to update
+	time.Sleep(100 * time.Millisecond)
+
 	var signResp string
 
 	toSign := "0xaaaaaa"
