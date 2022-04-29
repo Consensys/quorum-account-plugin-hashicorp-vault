@@ -4,22 +4,23 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
 type VaultClientBuilder struct {
-	vaultUrl      string
-	kvEngineName  string
-	acctDir       string
-	unlock        []string
-	tokenUrl      string
-	roleIdUrl     string
-	secretIdUrl   string
-	approlePath   string
-	caCertUrl     string
-	clientCertUrl string
-	clientKeyUrl  string
+	vaultUrl         string
+	kvEngineName     string
+	signerEngineName string
+	acctDir          string
+	unlock           []string
+	tokenUrl         string
+	roleIdUrl        string
+	secretIdUrl      string
+	approlePath      string
+	caCertUrl        string
+	clientCertUrl    string
+	clientKeyUrl     string
 }
 
 func (b *VaultClientBuilder) WithVaultUrl(s string) *VaultClientBuilder {
@@ -29,6 +30,11 @@ func (b *VaultClientBuilder) WithVaultUrl(s string) *VaultClientBuilder {
 
 func (b *VaultClientBuilder) WithKVEngineName(s string) *VaultClientBuilder {
 	b.kvEngineName = s
+	return b
+}
+
+func (b *VaultClientBuilder) WithSignerEngineName(s string) *VaultClientBuilder {
+	b.signerEngineName = s
 	return b
 }
 
@@ -132,20 +138,23 @@ func (b *VaultClientBuilder) Build(t *testing.T) config.VaultClient {
 	}
 
 	return config.VaultClient{
-		Vault:            vault,
-		KVEngineName:     b.kvEngineName,
-		AccountDirectory: acctDir,
-		Unlock:           b.unlock,
-		Authentication: config.VaultClientAuthentication{
-			Token:       &tokenEnv,
-			RoleId:      &roleIdEnv,
-			SecretId:    &secretIdEnv,
-			ApprolePath: b.approlePath,
+		VaultClientBase: config.VaultClientBase{
+			Vault:            vault,
+			AccountDirectory: acctDir,
+			Authentication: config.VaultClientAuthentication{
+				Token:       &tokenEnv,
+				RoleId:      &roleIdEnv,
+				SecretId:    &secretIdEnv,
+				ApprolePath: b.approlePath,
+			},
+			TLS: config.VaultClientTLS{
+				CaCert:     caCert,
+				ClientCert: clientCert,
+				ClientKey:  clientKey,
+			},
 		},
-		TLS: config.VaultClientTLS{
-			CaCert:     caCert,
-			ClientCert: clientCert,
-			ClientKey:  clientKey,
-		},
+		KVEngineName:           b.kvEngineName,
+		QuorumSignerEngineName: b.signerEngineName,
+		Unlock:                 b.unlock,
 	}
 }

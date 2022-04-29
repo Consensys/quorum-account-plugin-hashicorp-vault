@@ -20,6 +20,9 @@ bcc328f4679fcc781d983da1c8be3d3baa6e5ae5    dfe8b73d2771380d3f36bd78ce537715e812
 ```
 
 ## What are locked/unlocked accounts?
+
+> Accounts stored in a `quorum-signer` secret engine cannot be unlocked
+
 Accounts can be:
 
 * locked: The plugin does not have the private key (it exists only in Vault)

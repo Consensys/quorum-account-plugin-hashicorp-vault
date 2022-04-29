@@ -12,13 +12,15 @@ import (
 func TestVaultClient_UnmarshalJSON(t *testing.T) {
 	b := []byte(`{
 		"vault": "http://vault:1111",
-	    "kvEngineName": "engine",
+	    "kvEngineName": "kv-engine",
+		"quorumSignerEngineName": "signer-engine",
 		"accountDirectory": "file:///path/to/dir/",
 		"unlock": [
 			"0x4d6d744b6da435b5bbdde2526dc20e9a41cb72e5",
 			"0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526"
 		],
 		"authentication": {
+			"token": "env://MY_TOKEN",
 			"roleId": "env://MY_ROLE_ID",
 			"secretId": "env://MY_SECRET_ID",
 			"approlePath": "my-role"
@@ -31,47 +33,50 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 	}`)
 
 	want := VaultClient{
-		Vault: &url.URL{
-			Scheme: "http",
-			Host:   "vault:1111",
+		VaultClientBase: VaultClientBase{
+			Vault: &url.URL{
+				Scheme: "http",
+				Host:   "vault:1111",
+			},
+			AccountDirectory: &url.URL{
+				Scheme: "file",
+				Path:   "/path/to/dir/",
+			},
+			Authentication: VaultClientAuthentication{
+				Token: &EnvironmentVariable{
+					Scheme: "env",
+					Host:   "MY_TOKEN",
+				},
+				RoleId: &EnvironmentVariable{
+					Scheme: "env",
+					Host:   "MY_ROLE_ID",
+				},
+				SecretId: &EnvironmentVariable{
+					Scheme: "env",
+					Host:   "MY_SECRET_ID",
+				},
+				ApprolePath: "my-role",
+			},
+			TLS: VaultClientTLS{
+				CaCert: &url.URL{
+					Scheme: "file",
+					Path:   "/path/to/ca.pem",
+				},
+				ClientCert: &url.URL{
+					Scheme: "file",
+					Path:   "/path/to/client.pem",
+				},
+				ClientKey: &url.URL{
+					Scheme: "file",
+					Path:   "/path/to/client.key",
+				},
+			},
 		},
-		KVEngineName: "engine",
-		AccountDirectory: &url.URL{
-			Scheme: "file",
-			Path:   "/path/to/dir/",
-		},
+		KVEngineName:           "kv-engine",
+		QuorumSignerEngineName: "signer-engine",
 		Unlock: []string{
 			"0x4d6d744b6da435b5bbdde2526dc20e9a41cb72e5",
 			"0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526",
-		},
-		Authentication: VaultClientAuthentication{
-			Token: &EnvironmentVariable{
-				Scheme: "",
-				Host:   "",
-			},
-			RoleId: &EnvironmentVariable{
-				Scheme: "env",
-				Host:   "MY_ROLE_ID",
-			},
-			SecretId: &EnvironmentVariable{
-				Scheme: "env",
-				Host:   "MY_SECRET_ID",
-			},
-			ApprolePath: "my-role",
-		},
-		TLS: VaultClientTLS{
-			CaCert: &url.URL{
-				Scheme: "file",
-				Path:   "/path/to/ca.pem",
-			},
-			ClientCert: &url.URL{
-				Scheme: "file",
-				Path:   "/path/to/client.pem",
-			},
-			ClientKey: &url.URL{
-				Scheme: "file",
-				Path:   "/path/to/client.key",
-			},
 		},
 	}
 
@@ -80,23 +85,21 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 	err := json.Unmarshal(b, &got)
 
 	require.NoError(t, err)
-	require.Equal(t, want.Vault, got.Vault)
-	require.Equal(t, want.AccountDirectory, got.AccountDirectory)
-	require.Equal(t, want.Unlock, got.Unlock)
-	require.EqualValues(t, want.Authentication, got.Authentication)
-	require.Equal(t, want.TLS, got.TLS)
+	require.EqualValues(t, want, got)
 }
 
 func TestVaultClient_UnmarshalJSON_AddsTrailingSlashToAcctDir(t *testing.T) {
 	b := []byte(`{
 		"vault": "http://vault:1111",
-		"kvEngineName": "engine",
+		"kvEngineName": "kv-engine",
+		"quorumSignerEngineName": "signer-engine",
 		"accountDirectory": "file:///path/to/dir",
 		"unlock": [
 			"0x4d6d744b6da435b5bbdde2526dc20e9a41cb72e5",
 			"0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526"
 		],
 		"authentication": {
+			"token": "env://MY_TOKEN",
 			"roleId": "env://MY_ROLE_ID",
 			"secretId": "env://MY_SECRET_ID",
 			"approlePath": "my-role"
@@ -109,47 +112,50 @@ func TestVaultClient_UnmarshalJSON_AddsTrailingSlashToAcctDir(t *testing.T) {
 	}`)
 
 	want := VaultClient{
-		Vault: &url.URL{
-			Scheme: "http",
-			Host:   "vault:1111",
+		VaultClientBase: VaultClientBase{
+			Vault: &url.URL{
+				Scheme: "http",
+				Host:   "vault:1111",
+			},
+			AccountDirectory: &url.URL{
+				Scheme: "file",
+				Path:   "/path/to/dir/",
+			},
+			Authentication: VaultClientAuthentication{
+				Token: &EnvironmentVariable{
+					Scheme: "env",
+					Host:   "MY_TOKEN",
+				},
+				RoleId: &EnvironmentVariable{
+					Scheme: "env",
+					Host:   "MY_ROLE_ID",
+				},
+				SecretId: &EnvironmentVariable{
+					Scheme: "env",
+					Host:   "MY_SECRET_ID",
+				},
+				ApprolePath: "my-role",
+			},
+			TLS: VaultClientTLS{
+				CaCert: &url.URL{
+					Scheme: "file",
+					Path:   "/path/to/ca.pem",
+				},
+				ClientCert: &url.URL{
+					Scheme: "file",
+					Path:   "/path/to/client.pem",
+				},
+				ClientKey: &url.URL{
+					Scheme: "file",
+					Path:   "/path/to/client.key",
+				},
+			},
 		},
-		KVEngineName: "engine",
-		AccountDirectory: &url.URL{
-			Scheme: "file",
-			Path:   "/path/to/dir/",
-		},
+		KVEngineName:           "kv-engine",
+		QuorumSignerEngineName: "signer-engine",
 		Unlock: []string{
 			"0x4d6d744b6da435b5bbdde2526dc20e9a41cb72e5",
 			"0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526",
-		},
-		Authentication: VaultClientAuthentication{
-			Token: &EnvironmentVariable{
-				Scheme: "",
-				Host:   "",
-			},
-			RoleId: &EnvironmentVariable{
-				Scheme: "env",
-				Host:   "MY_ROLE_ID",
-			},
-			SecretId: &EnvironmentVariable{
-				Scheme: "env",
-				Host:   "MY_SECRET_ID",
-			},
-			ApprolePath: "my-role",
-		},
-		TLS: VaultClientTLS{
-			CaCert: &url.URL{
-				Scheme: "file",
-				Path:   "/path/to/ca.pem",
-			},
-			ClientCert: &url.URL{
-				Scheme: "file",
-				Path:   "/path/to/client.pem",
-			},
-			ClientKey: &url.URL{
-				Scheme: "file",
-				Path:   "/path/to/client.key",
-			},
 		},
 	}
 
@@ -158,11 +164,7 @@ func TestVaultClient_UnmarshalJSON_AddsTrailingSlashToAcctDir(t *testing.T) {
 	err := json.Unmarshal(b, &got)
 
 	require.NoError(t, err)
-	require.Equal(t, want.Vault, got.Vault)
-	require.Equal(t, want.AccountDirectory, got.AccountDirectory)
-	require.Equal(t, want.Unlock, got.Unlock)
-	require.EqualValues(t, want.Authentication, got.Authentication)
-	require.Equal(t, want.TLS, got.TLS)
+	require.EqualValues(t, want, got)
 }
 
 func TestEnvironmentVariable_IsSet(t *testing.T) {

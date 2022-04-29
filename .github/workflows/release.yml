@@ -11,15 +11,16 @@ jobs:
         os: ["ubuntu-latest", "macos-latest"]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Setup Go 1.13
-        uses: actions/setup-go@v1
+      - name: Setup Go 1.16
+        uses: actions/setup-go@v2
         with:
-          go-version: 1.13
+          go-version: 1.16
       - name: Check out project files
         uses: actions/checkout@v2
       - name: Extract version metadata
         id: meta
         run: |
+          echo "::set-output name=os_arch::$(go env GOOS)-$(go env GOARCH)"
           echo "::set-output name=version::${GITHUB_REF##*/}"
           echo "::set-output name=version_short::${GITHUB_REF##*/v}"
       - name: Create macos dist
@@ -34,205 +35,45 @@ jobs:
           make VERSION=${{ steps.meta.outputs.version_short }} extraldflags='-linkmode external -extldflags "-static"'
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
-        if: success()
         with:
-          name: ${{ matrix.os }}-artifacts
-          path: build
-  create:
-    name: Create a new version in Bintray
-    runs-on: ubuntu-latest
+          name: ${{ steps.meta.outputs.os_arch }}
+          path: build/dist/*.*
+  deploy:
+    name: Deploy to Cloudsmith
     needs:
       - build
-    steps:
-      - name: Setup jfrog CLI
-        uses: jfrog/setup-jfrog-cli@v1
-      - name: Download linux artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: ubuntu-latest-artifacts
-          path: ubuntu-latest-artifacts
-      - name: Extract metadata
-        id: meta
-        run: |
-          echo "::set-output name=package::$(cat ubuntu-latest-artifacts/plugin-meta.json | jq -r .name)"
-          echo "::set-output name=version::${GITHUB_REF##*/}"
-          echo "::set-output name=version_short::${GITHUB_REF##*/v}"
-      - name: Prepare ${{ steps.meta.outputs.package }}@${{ steps.meta.outputs.version }} in Bintray
-        run: |
-          CHECK_PACKAGE="${{ secrets.BINTRAY_ORGANIZATION }}/${{ secrets.BINTRAY_REPOSITORY }}/${{ steps.meta.outputs.package }}"
-          CHECK_VERSION="$CHECK_PACKAGE/${{ steps.meta.outputs.version }}"
-          echo "Checking $CHECK_PACKAGE"
-          jfrog bt package-show --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} $CHECK_PACKAGE
-          echo "Checking $CHECK_VERSION"
-          jfrog bt version-show --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} $CHECK_VERSION && x=0 || x=1
-          if [ $x -eq 0 ]; then
-            echo "$CHECK_VERSION already exists"
-          else
-            jfrog bt version-create --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} \
-                  --vcs-tag ${{ steps.meta.outputs.version }} --released $(date -u +"%Y-%m-%dT%H:%M:%SZ") \
-                  $CHECK_VERSION
-          fi
-  deploy:
-    name: Deploy ${{ matrix.arch }} dist to Bintray
     runs-on: ubuntu-latest
-    needs:
-      - create
-    strategy:
-      matrix:
-        os: ["ubuntu-latest", "macos-latest"]
-        include:
-          # include variables for the corresponding arch - used when uploading to bintray
-          - os: "ubuntu-latest"
-            arch: "linux-amd64"
-          - os: "macos-latest"
-            arch: "darwin-amd64"
     steps:
-      - name: Setup jfrog CLI
-        uses: jfrog/setup-jfrog-cli@v1
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
-          name: ${{ matrix.os }}-artifacts
-          path: ${{ matrix.os }}-artifacts
-      - name: Extract metadata
+          path: ${{ runner.temp }}/dist
+      - name: Extract version metadata
+        working-directory: ${{ env.DIST_DIR }}
         id: meta
         run: |
-          echo "::set-output name=package::$(cat ${{ matrix.os }}-artifacts/plugin-meta.json | jq -r .name)"
-          echo "::set-output name=version::${GITHUB_REF##*/}"
+          dist_dir=${{ runner.temp }}/dist
+          cd $dist_dir
+          os_arch=()
+          for f in */; do
+            os_arch+=(${f%/})
+          done
+          cp ${dist_dir}/**/* ${dist_dir}/
+          echo "::set-output name=dist_dir::${dist_dir}"
+          echo "::set-output name=os_arch::${os_arch[@]}"
           echo "::set-output name=version_short::${GITHUB_REF##*/v}"
-      - name: Upload artifacts to Bintray
-        run: |
-          jfrog bt upload --key ${{ secrets.BINTRAY_API_KEY }} --user ${{ secrets.BINTRAY_USER }} --publish --override \
-                "${{ matrix.os }}-artifacts/dist/${{ steps.meta.outputs.package }}-${{ steps.meta.outputs.version_short }}.*" \
-                ${{ secrets.BINTRAY_ORGANIZATION }}/${{ secrets.BINTRAY_REPOSITORY }}/${{ steps.meta.outputs.package }}/${{ steps.meta.outputs.version }} \
-                ${{ steps.meta.outputs.package }}/${{ steps.meta.outputs.version }}/${{ matrix.arch }}/
-  notify:
-    name: Notify Slack
-    needs:
-      - build
-      - deploy
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Prepare Slack message
-        id: status
-        uses: actions/github-script@0.8.0
+      - name: Setup Cloudsmith Maven
+        uses: actions/setup-java@v2
         with:
-          script: |
-            ////////////////////////////////////
-            // retrieve workflow run data
-            ////////////////////////////////////
-            console.log("get workflow run")
-            const wf_run = await github.actions.getWorkflowRun({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                run_id: ${{ github.run_id }}
-            })
-            console.log(wf_run.data)
-            console.log("get jobs for workflow run:", wf_run.data.jobs_url)
-            const jobs_response = await github.request(wf_run.data.jobs_url)
-            ////////////////////////////////////
-            // build slack notification message
-            ////////////////////////////////////
-            // some utility functions
-            var date_diff_func = function(start, end) {
-                var duration = end - start
-                // format the duration
-                var delta = duration / 1000
-                var days = Math.floor(delta / 86400)
-                delta -= days * 86400
-                var hours = Math.floor(delta / 3600) % 24
-                delta -= hours * 3600
-                var minutes = Math.floor(delta / 60) % 60
-                delta -= minutes * 60
-                var seconds = Math.floor(delta % 60)
-                var format_func = function(v, text, check) {
-                    if (v <= 0 && check) {
-                        return ""
-                    } else {
-                        return v + text
-                    }
-                }
-                return format_func(days, "d", true) + format_func(hours, "h", true) + format_func(minutes, "m", true) + format_func(seconds, "s", false)
-            }
-            var status_icon_func = function(s) {
-                switch (s) {
-                case "w_success":
-                    return ":white_check_mark:"
-                case "w_failure":
-                    return ":no_entry:"
-                case "w_cancelled":
-                    return ":warning:"
-                case "success":
-                    return "\u2713"
-                case "failure":
-                    return "\u2717"
-                default:
-                    return "\u20e0"
-                }
-            }
-            const commit = "${{ github.sha }}".substr(0, 6)
-            var pr = ""
-            for (p of wf_run.data.pull_requests) {
-              pr += ",<"+ p.url + "|#" + p.number + ">"
-            }
-            if (pr != "") {
-              pr = "for " + pr.substr(1)
-            }
-            // build the message
-            var fields = []
-            var is_wf_success = true
-            var is_wf_failure = false
-            for (j of jobs_response.data.jobs) {
-                console.log(j.name, ":", j.status, j.conclusion, j.started_at, j.completed_at)
-                // ignore the current job running this script
-                if (j.status != "completed") {
-                    continue
-                }
-                if (j.conclusion != "success") {
-                  is_wf_success = false
-                }
-                if (j.conclusion == "failure") {
-                  is_wf_failure = true
-                }
-                fields.push({
-                    type: "mrkdwn",
-                    text: status_icon_func(j.conclusion) + " <" + j.html_url + "|" + j.name + ">\n  \u21b3 completed in " + date_diff_func(new Date(j.started_at), new Date(j.completed_at))
-                })
-            }
-            var workflow_status = "w_cancelled"
-            if (is_wf_success) {
-              workflow_status = "w_success"
-            } else if (is_wf_failure) {
-              workflow_status = "w_failure"
-            }
-            var slack_msg = {
-                blocks: [
-                    {
-                        type: "section",
-                        text: {
-                            type: "mrkdwn",
-                            text: "<https://github.com/${{ github.repository }}|*${{ github.repository }}*>\nfrom *${{ github.ref }}@" + commit + "*"
-                        }
-                    },
-                    {
-                        type: "section",
-                        text: {
-                            type: "mrkdwn",
-                            text: status_icon_func(workflow_status) + " *${{ github.workflow }}* " + pr + "\nWorkflow run <" + wf_run.data.html_url + "|#${{ github.run_number }}> completed in " + date_diff_func(new Date(wf_run.data.created_at), new Date(wf_run.data.updated_at))
-                        }
-                    },
-                    {
-                        type: "divider"
-                    },
-                    {
-                        type: "section",
-                        fields: fields
-                    }
-                ]
-            }
-            return slack_msg
-      - name: Send to Slack
-        if: success()
-        run: |
-          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL}} -H "Content-type: application/json" --data '${{ steps.status.outputs.result }}'
+          distribution: 'adopt'
+          java-version: '11'
+          server-id: cloudsmith # this server id is in the generated pom.xml used to run `mvn deploy`
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+      - name: Upload to Cloudsmith
+        run: |-
+          curl -1sLf 'https://artifacts.consensys.net/public/quorum-go-plugins/raw/names/utils/versions/latest/uploader.sh' \
+            | bash -s ${{ steps.meta.outputs.dist_dir }} quorum-account-plugin-hashicorp-vault ${{ steps.meta.outputs.version_short }} ${{ steps.meta.outputs.os_arch }}
+        env:
+          MAVEN_USERNAME: '${{ secrets.CLOUDSMITH_USERNAME }}'
+          MAVEN_PASSWORD: '${{ secrets.CLOUDSMITH_API_KEY }}'

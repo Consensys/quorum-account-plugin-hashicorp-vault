@@ -47,7 +47,7 @@ func TestAccountFileJSON_AccountURL(t *testing.T) {
 
 	want, _ := url.Parse("http://vault:1111/v1/engine/data/path?version=10")
 
-	got, err := conf.AccountURL(vaultUrl, "engine")
+	got, err := conf.AccountURL(vaultUrl, "engine", "data")
 
 	require.NoError(t, err)
 	require.Equal(t, want, got)

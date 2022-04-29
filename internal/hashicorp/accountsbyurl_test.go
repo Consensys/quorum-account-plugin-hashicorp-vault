@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	util "github.com/ConsenSys/quorum-go-utils/account"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,7 +23,7 @@ func TestAccountsByURL_HasAccountWithAddress_True(t *testing.T) {
 	}
 
 	byt, _ := hex.DecodeString("2ea32174140e8f9b24aaf4a066a7dc2dcb6c4166")
-	var toFind account.Address
+	var toFind util.Address
 	copy(toFind[:], byt)
 
 	got := a.HasAccountWithAddress(toFind)
@@ -53,7 +53,7 @@ func TestAccountsByURL_HasAccountWithAddress_MultipleAccounts_True(t *testing.T)
 	}
 
 	byt, _ := hex.DecodeString("2ea32174140e8f9b24aaf4a066a7dc2dcb6c4166")
-	var toFind account.Address
+	var toFind util.Address
 	copy(toFind[:], byt)
 
 	got := a.HasAccountWithAddress(toFind)
@@ -83,7 +83,7 @@ func TestAccountsByURL_HasAccountWithAddress_DuplicateAccounts_True(t *testing.T
 	}
 
 	byt, _ := hex.DecodeString("2ea32174140e8f9b24aaf4a066a7dc2dcb6c4166")
-	var toFind account.Address
+	var toFind util.Address
 	copy(toFind[:], byt)
 
 	got := a.HasAccountWithAddress(toFind)
@@ -104,7 +104,7 @@ func TestAccountsByURL_HasAccountWithAddress_False(t *testing.T) {
 	}
 
 	byt, _ := hex.DecodeString("2ea32174140e8f9b24aaf4a066a7dc2dcb6c4166")
-	var toFind account.Address
+	var toFind util.Address
 	copy(toFind[:], byt)
 
 	got := a.HasAccountWithAddress(toFind)
@@ -125,7 +125,7 @@ func TestAccountsByURL_GetAccountWithAddress(t *testing.T) {
 	}
 
 	byt, _ := hex.DecodeString("2ea32174140e8f9b24aaf4a066a7dc2dcb6c4166")
-	var toFind account.Address
+	var toFind util.Address
 	copy(toFind[:], byt)
 
 	got, err := a.GetAccountWithAddress(toFind)
@@ -155,7 +155,7 @@ func TestAccountsByURL_GetAccountWithAddress_MultipleAccounts(t *testing.T) {
 	}
 
 	byt, _ := hex.DecodeString("2ea32174140e8f9b24aaf4a066a7dc2dcb6c4166")
-	var toFind account.Address
+	var toFind util.Address
 	copy(toFind[:], byt)
 
 	got, err := a.GetAccountWithAddress(toFind)
@@ -185,7 +185,7 @@ func TestAccountsByURL_HasAccountWithAddress_DuplicateAccounts_Error(t *testing.
 	}
 
 	byt, _ := hex.DecodeString("2ea32174140e8f9b24aaf4a066a7dc2dcb6c4166")
-	var toFind account.Address
+	var toFind util.Address
 	copy(toFind[:], byt)
 
 	_, err := a.GetAccountWithAddress(toFind)
@@ -206,7 +206,7 @@ func TestAccountsByURL_HasAccountWithAddress_NotFound_Error(t *testing.T) {
 	}
 
 	byt, _ := hex.DecodeString("2ea32174140e8f9b24aaf4a066a7dc2dcb6c4166")
-	var toFind account.Address
+	var toFind util.Address
 	copy(toFind[:], byt)
 
 	_, err := a.GetAccountWithAddress(toFind)

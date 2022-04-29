@@ -10,16 +10,17 @@ import (
 	"path/filepath"
 	"time"
 
+	util "github.com/ConsenSys/quorum-go-utils/account"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/hashicorp/vault/api"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
 )
 
 const reauthRetryInterval = 5 * time.Second
 
 type vaultClient struct {
 	*api.Client
-	kvEngineName     string
+	secretEngineName string
+	readEndpoint     string // the secret engine endpoint used to read/GET accounts - used when constructing the account URL
 	accountDirectory *url.URL
 	accts            accountsByURL
 }
@@ -45,7 +46,8 @@ func newVaultClient(conf config.VaultClient) (*vaultClient, error) {
 
 	vaultClient := &vaultClient{
 		Client:           c,
-		kvEngineName:     conf.KVEngineName,
+		secretEngineName: conf.SecretEngineName(),
+		readEndpoint:     conf.ReadEndpoint(),
 		accountDirectory: conf.AccountDirectory,
 	}
 
@@ -137,7 +139,7 @@ func (c *vaultClient) loadAccounts() (map[*url.URL]config.AccountFile, error) {
 			return fmt.Errorf("unable to unmarshal contents of %v, err: %v", path, err)
 		}
 
-		acctURL, err := conf.AccountURL(c.Address(), c.kvEngineName)
+		acctURL, err := conf.AccountURL(c.Address(), c.secretEngineName, c.readEndpoint)
 		if err != nil {
 			return fmt.Errorf("unable to parse account URL for %v, err: %v", path, err)
 		}
@@ -164,10 +166,30 @@ func (c *vaultClient) loadAccounts() (map[*url.URL]config.AccountFile, error) {
 	return result, nil
 }
 
-func (c *vaultClient) hasAccount(acctAddr account.Address) bool {
+func (c *vaultClient) hasAccount(acctAddr util.Address) bool {
 	return c.accts.HasAccountWithAddress(acctAddr)
 }
 
-func (c *vaultClient) getAccount(acctAddr account.Address) (config.AccountFile, error) {
+func (c *vaultClient) getAccountFile(acctAddr util.Address) (config.AccountFile, error) {
 	return c.accts.GetAccountWithAddress(acctAddr)
+}
+
+func (c *vaultClient) getAccounts() ([]util.Account, error) {
+	var (
+		w     = c.accts
+		accts = make([]util.Account, 0, len(w))
+		acct  util.Account
+	)
+	for url, conf := range w {
+		addr, err := util.NewAddressFromHexString(conf.Contents.Address)
+		if err != nil {
+			return []util.Account{}, err
+		}
+		acct = util.Account{
+			Address: addr,
+			URL:     url,
+		}
+		accts = append(accts, acct)
+	}
+	return accts, nil
 }

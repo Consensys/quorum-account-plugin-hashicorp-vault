@@ -4,8 +4,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/server"
 	"github.com/hashicorp/go-plugin"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/server"
 )
 
 const defaultProtocolVersion = 1

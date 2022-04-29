@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/testutil"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,15 +15,14 @@ func envVar(t *testing.T, envVarURL string) *EnvironmentVariable {
 	return &env
 }
 
-func minimumValidClientConfig(t *testing.T) VaultClient {
+func validVaultClientBaseConfig(t *testing.T) VaultClientBase {
 	var token EnvironmentVariable
 	vault, _ := url.Parse("http://vault:1111")
 	accountDirectory, _ := url.Parse("file:///path/to/dir")
 	emptyUrl, _ := url.Parse("")
 
-	return VaultClient{
+	return VaultClientBase{
 		Vault:            vault,
-		KVEngineName:     "engine",
 		AccountDirectory: accountDirectory,
 		Authentication: VaultClientAuthentication{
 			Token:       &token,
@@ -39,18 +38,16 @@ func minimumValidClientConfig(t *testing.T) VaultClient {
 	}
 }
 
-func TestVaultClient_Validate_MinimumValidConfig(t *testing.T) {
+func TestVaultClientBase_Validate_validVaultClientBase(t *testing.T) {
 	defer testutil.UnsetAll()
 	testutil.SetRoleID()
 	testutil.SetSecretID()
 
-	vaultClient := minimumValidClientConfig(t)
-
-	err := vaultClient.Validate()
+	err := validVaultClientBaseConfig(t).Validate()
 	require.NoError(t, err)
 }
 
-func TestVaultClient_Validate_VaultUrl_Valid(t *testing.T) {
+func TestVaultClientBase_Validate_VaultUrl_Valid(t *testing.T) {
 	defer testutil.UnsetAll()
 	testutil.SetRoleID()
 	testutil.SetSecretID()
@@ -62,8 +59,7 @@ func TestVaultClient_Validate_VaultUrl_Valid(t *testing.T) {
 	}
 	for _, u := range vaultUrls {
 		t.Run(u, func(t *testing.T) {
-			vaultClient := minimumValidClientConfig(t)
-
+			vaultClient := validVaultClientBaseConfig(t)
 			vaultURL, err := url.Parse(u)
 			require.NoError(t, err)
 			vaultClient.Vault = vaultURL
@@ -74,7 +70,7 @@ func TestVaultClient_Validate_VaultUrl_Valid(t *testing.T) {
 	}
 }
 
-func TestVaultClient_Validate_VaultUrl_Invalid(t *testing.T) {
+func TestVaultClientBase_Validate_VaultUrl_Invalid(t *testing.T) {
 	wantErrMsg := "vault must be a valid HTTP/HTTPS url"
 
 	vaultUrls := []string{
@@ -83,7 +79,7 @@ func TestVaultClient_Validate_VaultUrl_Invalid(t *testing.T) {
 	}
 	for _, u := range vaultUrls {
 		t.Run(u, func(t *testing.T) {
-			vaultClient := minimumValidClientConfig(t)
+			vaultClient := validVaultClientBaseConfig(t)
 
 			vaultURL, err := url.Parse(u)
 			require.NoError(t, err)
@@ -95,22 +91,12 @@ func TestVaultClient_Validate_VaultUrl_Invalid(t *testing.T) {
 	}
 }
 
-func TestVaultClient_Validate_KVEngineName_Invalid(t *testing.T) {
-	wantErrMsg := "kvEngineName must be set"
-
-	vaultClient := minimumValidClientConfig(t)
-	vaultClient.KVEngineName = ""
-
-	gotErr := vaultClient.Validate()
-	require.EqualError(t, gotErr, wantErrMsg)
-}
-
-func TestVaultClient_Validate_AccountDirectory_Valid(t *testing.T) {
+func TestVaultClientBase_Validate_AccountDirectory_Valid(t *testing.T) {
 	defer testutil.UnsetAll()
 	testutil.SetRoleID()
 	testutil.SetSecretID()
 
-	vaultClient := minimumValidClientConfig(t)
+	vaultClient := validVaultClientBaseConfig(t)
 
 	acctDir, err := url.Parse("file:///absolute/path/to/dir")
 	require.NoError(t, err)
@@ -120,7 +106,7 @@ func TestVaultClient_Validate_AccountDirectory_Valid(t *testing.T) {
 	require.NoError(t, gotErr)
 }
 
-func TestVaultClient_Validate_AccountDirectory_Invalid(t *testing.T) {
+func TestVaultClientBase_Validate_AccountDirectory_Invalid(t *testing.T) {
 	wantErrMsg := "accountDirectory must be a valid absolute file url"
 
 	acctDirUrls := []string{
@@ -134,7 +120,7 @@ func TestVaultClient_Validate_AccountDirectory_Invalid(t *testing.T) {
 	}
 	for _, u := range acctDirUrls {
 		t.Run(u, func(t *testing.T) {
-			vaultClient := minimumValidClientConfig(t)
+			vaultClient := validVaultClientBaseConfig(t)
 
 			acctDir, err := url.Parse(u)
 			require.NoError(t, err)
@@ -146,17 +132,17 @@ func TestVaultClient_Validate_AccountDirectory_Invalid(t *testing.T) {
 	}
 }
 
-func TestVaultClient_Validate_AccountDirectory_NilInvalid(t *testing.T) {
+func TestVaultClientBase_Validate_AccountDirectory_NilInvalid(t *testing.T) {
 	wantErrMsg := "accountDirectory must be a valid absolute file url"
 
-	vaultClient := minimumValidClientConfig(t)
+	vaultClient := validVaultClientBaseConfig(t)
 	vaultClient.AccountDirectory = nil
 
 	gotErr := vaultClient.Validate()
 	require.EqualError(t, gotErr, wantErrMsg)
 }
 
-func TestVaultClient_Validate_Authentication_Valid(t *testing.T) {
+func TestVaultClientBase_Validate_Authentication_Valid(t *testing.T) {
 	var auths = map[string]struct {
 		tokenUrl    string
 		roleIdUrl   string
@@ -200,7 +186,7 @@ func TestVaultClient_Validate_Authentication_Valid(t *testing.T) {
 				setEnvFunc()
 			}
 
-			vaultClient := minimumValidClientConfig(t)
+			vaultClient := validVaultClientBaseConfig(t)
 
 			vaultClient.Authentication.Token = envVar(t, tt.tokenUrl)
 			vaultClient.Authentication.RoleId = envVar(t, tt.roleIdUrl)
@@ -216,7 +202,7 @@ func TestVaultClient_Validate_Authentication_Valid(t *testing.T) {
 	}
 }
 
-func TestVaultClient_Validate_Authentication_Invalid(t *testing.T) {
+func TestVaultClientBase_Validate_Authentication_Invalid(t *testing.T) {
 	wantErrMsg := "authentication must contain roleId, secretId and approlePath OR only token, and the given environment variables must be set"
 
 	var auths = map[string]struct {
@@ -304,7 +290,7 @@ func TestVaultClient_Validate_Authentication_Invalid(t *testing.T) {
 				setEnvFunc()
 			}
 
-			vaultClient := minimumValidClientConfig(t)
+			vaultClient := validVaultClientBaseConfig(t)
 
 			vaultClient.Authentication.Token = envVar(t, tt.tokenUrl)
 			vaultClient.Authentication.RoleId = envVar(t, tt.roleIdUrl)
@@ -320,7 +306,7 @@ func TestVaultClient_Validate_Authentication_Invalid(t *testing.T) {
 	}
 }
 
-func TestVaultClient_Validate_TLS_Valid(t *testing.T) {
+func TestVaultClientBase_Validate_TLS_Valid(t *testing.T) {
 	defer testutil.UnsetAll()
 	testutil.SetRoleID()
 	testutil.SetSecretID()
@@ -353,7 +339,7 @@ func TestVaultClient_Validate_TLS_Valid(t *testing.T) {
 			clientCert, _ := url.Parse(tt.clientCert)
 			clientKey, _ := url.Parse(tt.clientKey)
 
-			vaultClient := minimumValidClientConfig(t)
+			vaultClient := validVaultClientBaseConfig(t)
 
 			vaultClient.TLS.CaCert = caCert
 			vaultClient.TLS.ClientCert = clientCert
@@ -365,7 +351,7 @@ func TestVaultClient_Validate_TLS_Valid(t *testing.T) {
 	}
 }
 
-func TestVaultClient_Validate_TLS_Invalid(t *testing.T) {
+func TestVaultClientBase_Validate_TLS_Invalid(t *testing.T) {
 	defer testutil.UnsetAll()
 	testutil.SetRoleID()
 	testutil.SetSecretID()
@@ -449,7 +435,7 @@ func TestVaultClient_Validate_TLS_Invalid(t *testing.T) {
 				clientKey, _ = url.Parse(tt.clientKey)
 			}
 
-			vaultClient := minimumValidClientConfig(t)
+			vaultClient := validVaultClientBaseConfig(t)
 
 			vaultClient.TLS.CaCert = caCert
 			vaultClient.TLS.ClientCert = clientCert
@@ -460,4 +446,74 @@ func TestVaultClient_Validate_TLS_Invalid(t *testing.T) {
 			require.EqualError(t, gotErr, tt.wantErr)
 		})
 	}
+}
+
+func TestVaultClient_Validate_UsesVaultClientBase(t *testing.T) {
+	defer testutil.UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+
+	wantErrMsg := "vault must be a valid HTTP/HTTPS url"
+
+	vaultClient := VaultClient{
+		VaultClientBase: validVaultClientBaseConfig(t),
+		KVEngineName:    "engine",
+	}
+
+	// make one of the base fields invalid
+	vaultClient.Vault, _ = url.Parse("")
+
+	gotErr := vaultClient.Validate()
+	require.EqualError(t, gotErr, wantErrMsg)
+}
+
+func TestVaultClient_Validate_NoEngineName_Invalid(t *testing.T) {
+	defer testutil.UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+
+	wantErrMsg := "either kvEngineName or quorumSignerEngineName must be set"
+
+	vaultClient := VaultClient{
+		VaultClientBase:        validVaultClientBaseConfig(t),
+		KVEngineName:           "",
+		QuorumSignerEngineName: "",
+	}
+
+	gotErr := vaultClient.Validate()
+	require.EqualError(t, gotErr, wantErrMsg)
+}
+
+func TestVaultClient_Validate_MoreThanOneEngineName_Invalid(t *testing.T) {
+	defer testutil.UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+
+	wantErrMsg := "either kvEngineName or quorumSignerEngineName must be set"
+
+	vaultClient := VaultClient{
+		VaultClientBase:        validVaultClientBaseConfig(t),
+		KVEngineName:           "engine",
+		QuorumSignerEngineName: "engine",
+	}
+
+	gotErr := vaultClient.Validate()
+	require.EqualError(t, gotErr, wantErrMsg)
+}
+
+func TestVaultClient_Validate_QuorumSignerEngineName_UnlockInvalid(t *testing.T) {
+	defer testutil.UnsetAll()
+	testutil.SetRoleID()
+	testutil.SetSecretID()
+
+	wantErrMsg := "unlock is not supported when using quorumSignerEngine"
+
+	vaultClient := VaultClient{
+		VaultClientBase:        validVaultClientBaseConfig(t),
+		QuorumSignerEngineName: "engine",
+		Unlock:                 []string{"acct1"},
+	}
+
+	gotErr := vaultClient.Validate()
+	require.EqualError(t, gotErr, wantErrMsg)
 }

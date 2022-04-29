@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/account"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
+	util "github.com/ConsenSys/quorum-go-utils/account"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/account"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/config"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -47,7 +48,7 @@ func (p *HashicorpPlugin) Accounts(_ context.Context, _ *proto.AccountsRequest) 
 	}
 	protoAccts := make([]*proto.Account, 0, len(accts))
 	for _, a := range accts {
-		protoAccts = append(protoAccts, a.ToProtoAccount())
+		protoAccts = append(protoAccts, account.ToProto(a))
 	}
 
 	return &proto.AccountsResponse{Accounts: protoAccts}, nil
@@ -57,7 +58,7 @@ func (p *HashicorpPlugin) Contains(_ context.Context, req *proto.ContainsRequest
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	addr, err := account.NewAddress(req.Address)
+	addr, err := util.NewAddress(req.Address)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -70,7 +71,7 @@ func (p *HashicorpPlugin) Sign(_ context.Context, req *proto.SignRequest) (*prot
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	addr, err := account.NewAddress(req.Address)
+	addr, err := util.NewAddress(req.Address)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -85,7 +86,7 @@ func (p *HashicorpPlugin) UnlockAndSign(_ context.Context, req *proto.UnlockAndS
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	addr, err := account.NewAddress(req.Address)
+	addr, err := util.NewAddress(req.Address)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -100,7 +101,7 @@ func (p *HashicorpPlugin) TimedUnlock(_ context.Context, req *proto.TimedUnlockR
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	addr, err := account.NewAddress(req.Address)
+	addr, err := util.NewAddress(req.Address)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -114,7 +115,7 @@ func (p *HashicorpPlugin) Lock(_ context.Context, req *proto.LockRequest) (*prot
 	if !p.isInitialized() {
 		return nil, status.Error(codes.Unavailable, "not configured")
 	}
-	addr, err := account.NewAddress(req.Address)
+	addr, err := util.NewAddress(req.Address)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -138,7 +139,7 @@ func (p *HashicorpPlugin) NewAccount(_ context.Context, req *proto.NewAccountReq
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 	return &proto.NewAccountResponse{
-		Account: acct.ToProtoAccount(),
+		Account: account.ToProto(acct),
 	}, nil
 }
 
@@ -153,7 +154,7 @@ func (p *HashicorpPlugin) ImportRawKey(_ context.Context, req *proto.ImportRawKe
 	if err := conf.Validate(); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	privateKey, err := account.NewKeyFromHexString(req.RawKey)
+	privateKey, err := util.NewKeyFromHexString(req.RawKey)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -162,6 +163,6 @@ func (p *HashicorpPlugin) ImportRawKey(_ context.Context, req *proto.ImportRawKe
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &proto.ImportRawKeyResponse{
-		Account: acct.ToProtoAccount(),
+		Account: account.ToProto(acct),
 	}, nil
 }

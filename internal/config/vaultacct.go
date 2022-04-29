@@ -21,12 +21,12 @@ type vaultAccountJSON struct {
 	SecretVersion int64
 }
 
-func (c *AccountFileJSON) AccountURL(vaultURL, kvEngineName string) (*url.URL, error) {
+func (c *AccountFileJSON) AccountURL(vaultURL, secretEngineName, apiEndpoint string) (*url.URL, error) {
 	u, err := url.Parse(vaultURL)
 	if err != nil {
 		return nil, err
 	}
-	acctUrl, err := u.Parse(fmt.Sprintf("v1/%v/data/%v?version=%v", kvEngineName, c.VaultAccount.SecretName, c.VaultAccount.SecretVersion))
+	acctUrl, err := u.Parse(fmt.Sprintf("v1/%v/%v/%v?version=%v", secretEngineName, apiEndpoint, c.VaultAccount.SecretName, c.VaultAccount.SecretVersion))
 	if err != nil {
 		return nil, err
 	}

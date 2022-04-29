@@ -50,10 +50,11 @@ func (b *VaultBuilder) WithLoginHandler(approlePath string) *VaultBuilder {
 
 type HandlerData struct {
 	SecretEnginePath, SecretPath, AcctAddrResponse, PrivKeyResponse string
+	SignerResponse, SignerKeyToImport, SignerCreatedAccount         string
 	SecretVersion                                                   int
 }
 
-func (b *VaultBuilder) WithHandler(t *testing.T, d HandlerData) *VaultBuilder {
+func (b *VaultBuilder) WithKVHandler(t *testing.T, d HandlerData) *VaultBuilder {
 	if b.handlers == nil {
 		b.handlers = make(map[string]http.HandlerFunc)
 	}
@@ -82,7 +83,32 @@ func (b *VaultBuilder) WithHandler(t *testing.T, d HandlerData) *VaultBuilder {
 	return b
 }
 
-func (b *VaultBuilder) WithAccountCreationHandler(t *testing.T, d HandlerData) *VaultBuilder {
+func (b *VaultBuilder) WithSignerHandler(t *testing.T, d HandlerData) *VaultBuilder {
+	if b.handlers == nil {
+		b.handlers = make(map[string]http.HandlerFunc)
+	}
+	path := fmt.Sprintf("/v1/%v/sign/%v", d.SecretEnginePath, d.SecretPath)
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		// check plugin has correctly authenticated the request
+		header := map[string][]string(r.Header)
+		requestTokens := header[consts.AuthHeaderName]
+		require.Equal(t, AUTH_TOKEN, requestTokens[0])
+
+		vaultResponse := &api.Secret{
+			Data: map[string]interface{}{
+				"sig": d.SignerResponse,
+			},
+		}
+		b, _ := json.Marshal(vaultResponse)
+		_, _ = w.Write(b)
+	}
+
+	b.handlers[path] = handler
+	return b
+}
+
+func (b *VaultBuilder) WithKVAccountCreationHandler(t *testing.T, d HandlerData) *VaultBuilder {
 	if b.handlers == nil {
 		b.handlers = make(map[string]http.HandlerFunc)
 	}
@@ -121,6 +147,88 @@ func (b *VaultBuilder) WithAccountCreationHandler(t *testing.T, d HandlerData) *
 			// create response which contains new secret version
 			vaultResponse.Data = map[string]interface{}{
 				"version": CAS_VALUE + 1,
+			}
+
+		case http.MethodGet: // account retrieval
+			http.Error(w, "retrieval of created account not implemented by mock server", http.StatusNotImplemented)
+			return
+		}
+
+		b, _ := json.Marshal(vaultResponse)
+		_, _ = w.Write(b)
+	}
+
+	b.handlers[path] = handler
+	return b
+}
+
+func (b *VaultBuilder) WithSignerAccountCreationHandler(t *testing.T, d HandlerData) *VaultBuilder {
+	if b.handlers == nil {
+		b.handlers = make(map[string]http.HandlerFunc)
+	}
+	path := fmt.Sprintf("/v1/%v/accounts/%v", d.SecretEnginePath, d.SecretPath)
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		// check plugin has correctly authenticated the request
+		header := map[string][]string(r.Header)
+		requestTokens := header[consts.AuthHeaderName]
+		require.Equal(t, AUTH_TOKEN, requestTokens[0])
+
+		vaultResponse := new(api.Secret)
+
+		switch r.Method {
+		case http.MethodPut: // account creation
+			b, err := ioutil.ReadAll(r.Body)
+			require.NoError(t, err)
+			body := make(map[string]interface{})
+			require.NoError(t, json.Unmarshal(b, &body))
+
+			require.Len(t, body, 0)
+
+			vaultResponse.Data = map[string]interface{}{
+				"addr": d.SignerCreatedAccount,
+			}
+
+		case http.MethodGet: // account retrieval
+			http.Error(w, "retrieval of created account not implemented by mock server", http.StatusNotImplemented)
+			return
+		}
+
+		b, _ := json.Marshal(vaultResponse)
+		_, _ = w.Write(b)
+	}
+
+	b.handlers[path] = handler
+	return b
+}
+
+func (b *VaultBuilder) WithSignerAccountImportHandler(t *testing.T, d HandlerData) *VaultBuilder {
+	if b.handlers == nil {
+		b.handlers = make(map[string]http.HandlerFunc)
+	}
+	path := fmt.Sprintf("/v1/%v/accounts/%v", d.SecretEnginePath, d.SecretPath)
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		// check plugin has correctly authenticated the request
+		header := map[string][]string(r.Header)
+		requestTokens := header[consts.AuthHeaderName]
+		require.Equal(t, AUTH_TOKEN, requestTokens[0])
+
+		vaultResponse := new(api.Secret)
+
+		switch r.Method {
+		case http.MethodPut: // account creation
+			b, err := ioutil.ReadAll(r.Body)
+			require.NoError(t, err)
+			body := make(map[string]interface{})
+			require.NoError(t, json.Unmarshal(b, &body))
+
+			require.Len(t, body, 1)
+			data := body["import"].(string)
+			require.Equal(t, d.SignerKeyToImport, data)
+
+			vaultResponse.Data = map[string]interface{}{
+				"addr": d.SignerCreatedAccount,
 			}
 
 		case http.MethodGet: // account retrieval

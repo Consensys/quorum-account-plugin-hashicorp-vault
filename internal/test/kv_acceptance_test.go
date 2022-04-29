@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/config"
-	"github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault/internal/testutil"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/config"
+	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/testutil"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto"
 	"github.com/jpmorganchase/quorum-account-plugin-sdk-go/proto_common"
 	"github.com/stretchr/testify/require"
 )
 
-func setupPluginAndVaultAndFiles(t *testing.T, ctx *ITContext, args ...map[string]string) {
+func setupPluginKVAndVaultAndFiles(t *testing.T, ctx *ITContext, args ...map[string]string) {
 	err := ctx.StartPlugin(t)
 	require.NoError(t, err)
 
@@ -38,14 +38,14 @@ func setupPluginAndVaultAndFiles(t *testing.T, ctx *ITContext, args ...map[strin
 	var vaultBuilder VaultBuilder
 	vaultBuilder.
 		WithLoginHandler("myapprole").
-		WithHandler(t, HandlerData{
+		WithKVHandler(t, HandlerData{
 			SecretEnginePath: "engine",
 			SecretPath:       "myAcct",
 			SecretVersion:    2,
 			AcctAddrResponse: "dc99ddec13457de6c0f6bb8e6cf3955c86f55526",
 			PrivKeyResponse:  "7af58d8bd863ce3fce9508a57dff50a2655663a1411b6634cea6246398380b28",
 		}).
-		WithAccountCreationHandler(t, HandlerData{
+		WithKVAccountCreationHandler(t, HandlerData{
 			SecretEnginePath: "engine",
 			SecretPath:       "newAcct",
 		}).
@@ -84,28 +84,7 @@ func setupPluginAndVaultAndFiles(t *testing.T, ctx *ITContext, args ...map[strin
 	require.NoError(t, err)
 }
 
-func TestPlugin_Init_InvalidPluginConfig(t *testing.T) {
-	ctx := new(ITContext)
-	defer ctx.Cleanup()
-
-	err := ctx.StartPlugin(t)
-	require.NoError(t, err)
-
-	noVaultUrlConf := `{
-	"accountDirectory": "/path/to/dir",
-	"authentication": {
-		"token": "env://TOKEN"
-	}
-}`
-
-	_, err = ctx.AccountManager.Init(context.Background(), &proto_common.PluginInitialization_Request{
-		RawConfiguration: []byte(noVaultUrlConf),
-	})
-
-	require.EqualError(t, err, "rpc error: code = InvalidArgument desc = vault must be a valid HTTP/HTTPS url")
-}
-
-func TestPlugin_Status_AccountLockedByDefault(t *testing.T) {
+func TestPlugin_KV_Status_AccountLockedByDefault(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -113,7 +92,7 @@ func TestPlugin_Status_AccountLockedByDefault(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// status
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
@@ -122,7 +101,7 @@ func TestPlugin_Status_AccountLockedByDefault(t *testing.T) {
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 }
 
-func TestPlugin_Accounts(t *testing.T) {
+func TestPlugin_KV_Accounts(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -130,7 +109,7 @@ func TestPlugin_Accounts(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// accounts
 	resp, err := ctx.AccountManager.Accounts(context.Background(), &proto.AccountsRequest{})
@@ -146,7 +125,7 @@ func TestPlugin_Accounts(t *testing.T) {
 	require.Equal(t, want, *resp.Accounts[0])
 }
 
-func TestPlugin_Contains_IsContained(t *testing.T) {
+func TestPlugin_KV_Contains_IsContained(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -154,7 +133,7 @@ func TestPlugin_Contains_IsContained(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// contains
 	toFind, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -164,7 +143,7 @@ func TestPlugin_Contains_IsContained(t *testing.T) {
 	require.True(t, resp.IsContained)
 }
 
-func TestPlugin_Contains_IsNotContained(t *testing.T) {
+func TestPlugin_KV_Contains_IsNotContained(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -172,7 +151,7 @@ func TestPlugin_Contains_IsNotContained(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// contains
 	toFind, _ := hex.DecodeString("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
@@ -182,7 +161,7 @@ func TestPlugin_Contains_IsNotContained(t *testing.T) {
 	require.False(t, resp.IsContained)
 }
 
-func TestPlugin_Sign(t *testing.T) {
+func TestPlugin_KV_Sign(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -190,7 +169,7 @@ func TestPlugin_Sign(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// sign hash
 	acctAddr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -212,7 +191,7 @@ func TestPlugin_Sign(t *testing.T) {
 	require.Equal(t, wantSig, resp.Sig)
 }
 
-func TestPlugin_Sign_Locked(t *testing.T) {
+func TestPlugin_KV_Sign_Locked(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -220,7 +199,7 @@ func TestPlugin_Sign_Locked(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// sign hash
 	acctAddr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -234,7 +213,7 @@ func TestPlugin_Sign_Locked(t *testing.T) {
 	require.EqualError(t, err, "rpc error: code = Internal desc = account locked")
 }
 
-func TestPlugin_Sign_UnknownAccount(t *testing.T) {
+func TestPlugin_KV_Sign_UnknownAccount(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -242,7 +221,7 @@ func TestPlugin_Sign_UnknownAccount(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// sign hash
 	acctAddr, _ := hex.DecodeString("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
@@ -256,7 +235,7 @@ func TestPlugin_Sign_UnknownAccount(t *testing.T) {
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
 }
 
-func TestPlugin_UnlockAndSign_Locked(t *testing.T) {
+func TestPlugin_KV_UnlockAndSign_Locked(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -264,7 +243,7 @@ func TestPlugin_UnlockAndSign_Locked(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// sign hash
 	acctAddr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -288,7 +267,7 @@ func TestPlugin_UnlockAndSign_Locked(t *testing.T) {
 	require.Equal(t, "0 unlocked account(s)", statusResp.Status)
 }
 
-func TestPlugin_UnlockAndSign_AlreadyUnlocked(t *testing.T) {
+func TestPlugin_KV_UnlockAndSign_AlreadyUnlocked(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -296,7 +275,7 @@ func TestPlugin_UnlockAndSign_AlreadyUnlocked(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// sign hash
 	acctAddr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -326,7 +305,7 @@ func TestPlugin_UnlockAndSign_AlreadyUnlocked(t *testing.T) {
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", statusResp.Status)
 }
 
-func TestPlugin_UnlockAndSign_UnknownAccount(t *testing.T) {
+func TestPlugin_KV_UnlockAndSign_UnknownAccount(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -334,7 +313,7 @@ func TestPlugin_UnlockAndSign_UnknownAccount(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// sign hash
 	acctAddr, _ := hex.DecodeString("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
@@ -348,7 +327,7 @@ func TestPlugin_UnlockAndSign_UnknownAccount(t *testing.T) {
 	require.EqualError(t, err, "rpc error: code = Internal desc = unknown account")
 }
 
-func TestPlugin_Unlock(t *testing.T) {
+func TestPlugin_KV_Unlock(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -356,7 +335,7 @@ func TestPlugin_Unlock(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// timed unlock
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
@@ -381,7 +360,7 @@ func TestPlugin_Unlock(t *testing.T) {
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 }
 
-func TestPlugin_TimedUnlock(t *testing.T) {
+func TestPlugin_KV_TimedUnlock(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -389,7 +368,7 @@ func TestPlugin_TimedUnlock(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// timed unlock
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
@@ -414,7 +393,7 @@ func TestPlugin_TimedUnlock(t *testing.T) {
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 }
 
-func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
+func TestPlugin_KV_TimedUnlock_Cancel(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -422,7 +401,7 @@ func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// timed unlock
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
@@ -453,7 +432,7 @@ func TestPlugin_TimedUnlock_Cancel(t *testing.T) {
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 }
 
-func TestPlugin_TimedUnlock_Extend(t *testing.T) {
+func TestPlugin_KV_TimedUnlock_Extend(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -461,7 +440,7 @@ func TestPlugin_TimedUnlock_Extend(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// timed unlock
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
@@ -495,7 +474,7 @@ func TestPlugin_TimedUnlock_Extend(t *testing.T) {
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 }
 
-func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
+func TestPlugin_KV_TimedUnlock_Shorten(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -503,7 +482,7 @@ func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// timed unlock
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
@@ -535,7 +514,7 @@ func TestPlugin_TimedUnlock_Shorten(t *testing.T) {
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 }
 
-func TestPlugin_UnlockAtStartup(t *testing.T) {
+func TestPlugin_KV_UnlockAtStartup(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -543,14 +522,14 @@ func TestPlugin_UnlockAtStartup(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx, map[string]string{"unlock": "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526,UnknownAcctShouldNotCauseError"})
+	setupPluginKVAndVaultAndFiles(t, ctx, map[string]string{"unlock": "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526,UnknownAcctShouldNotCauseError"})
 
 	resp, err := ctx.AccountManager.Status(context.Background(), &proto.StatusRequest{})
 	require.NoError(t, err)
 	require.Equal(t, "1 unlocked account(s): [0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526]", resp.Status)
 }
 
-func TestPlugin_Lock(t *testing.T) {
+func TestPlugin_KV_Lock(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -558,7 +537,7 @@ func TestPlugin_Lock(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// lock
 	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -582,7 +561,7 @@ func TestPlugin_Lock(t *testing.T) {
 	require.Equal(t, "0 unlocked account(s)", resp.Status)
 }
 
-func TestPlugin_Lock_MultipleTimes(t *testing.T) {
+func TestPlugin_KV_Lock_MultipleTimes(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -590,7 +569,7 @@ func TestPlugin_Lock_MultipleTimes(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// lock
 	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -605,7 +584,7 @@ func TestPlugin_Lock_MultipleTimes(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestPlugin_Lock_CancelsTimedUnlock(t *testing.T) {
+func TestPlugin_KV_Lock_CancelsTimedUnlock(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -613,7 +592,7 @@ func TestPlugin_Lock_CancelsTimedUnlock(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// lock
 	addr, _ := hex.DecodeString("dc99ddec13457de6c0f6bb8e6cf3955c86f55526")
@@ -640,7 +619,7 @@ func TestPlugin_Lock_CancelsTimedUnlock(t *testing.T) {
 	time.Sleep(2 * time.Second)
 }
 
-func TestPlugin_Lock_UnknownAccount(t *testing.T) {
+func TestPlugin_KV_Lock_UnknownAccount(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -648,7 +627,7 @@ func TestPlugin_Lock_UnknownAccount(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// lock
 	addr, _ := hex.DecodeString("4d6d744b6da435b5bbdde2526dc20e9a41cb72e5")
@@ -658,7 +637,7 @@ func TestPlugin_Lock_UnknownAccount(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestPlugin_NewAccount(t *testing.T) {
+func TestPlugin_KV_NewAccount(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -666,7 +645,7 @@ func TestPlugin_NewAccount(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
@@ -714,7 +693,7 @@ func TestPlugin_NewAccount(t *testing.T) {
 	require.Equal(t, int64(6), gotContents.VaultAccount.SecretVersion)
 }
 
-func TestPlugin_NewAccount_IncorrectCASValue(t *testing.T) {
+func TestPlugin_KV_NewAccount_IncorrectCASValue(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -722,7 +701,7 @@ func TestPlugin_NewAccount_IncorrectCASValue(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
@@ -739,7 +718,7 @@ func TestPlugin_NewAccount_IncorrectCASValue(t *testing.T) {
 	require.Contains(t, err.Error(), "invalid CAS value") // response from mock Vault server
 }
 
-func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
+func TestPlugin_KV_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -747,7 +726,7 @@ func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
@@ -770,7 +749,7 @@ func TestPlugin_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 	require.True(t, containsResp.IsContained)
 }
 
-func TestPlugin_ImportRawKey(t *testing.T) {
+func TestPlugin_KV_ImportRawKey(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -778,7 +757,7 @@ func TestPlugin_ImportRawKey(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
@@ -831,7 +810,7 @@ func TestPlugin_ImportRawKey(t *testing.T) {
 	require.Equal(t, int64(6), gotContents.VaultAccount.SecretVersion)
 }
 
-func TestPlugin_ImportRawKey_IncorrectCASValue(t *testing.T) {
+func TestPlugin_KV_ImportRawKey_IncorrectCASValue(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -839,7 +818,7 @@ func TestPlugin_ImportRawKey_IncorrectCASValue(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
@@ -861,7 +840,7 @@ func TestPlugin_ImportRawKey_IncorrectCASValue(t *testing.T) {
 	require.Contains(t, err.Error(), "invalid CAS value") // response from mock Vault server
 }
 
-func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
+func TestPlugin_KV_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -869,7 +848,7 @@ func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
@@ -898,7 +877,7 @@ func TestPlugin_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 	require.True(t, containsResp.IsContained)
 }
 
-func TestPlugin_ImportRawKey_ErrorIfAccountExists(t *testing.T) {
+func TestPlugin_KV_ImportRawKey_ErrorIfAccountExists(t *testing.T) {
 	ctx := new(ITContext)
 	defer ctx.Cleanup()
 
@@ -906,7 +885,7 @@ func TestPlugin_ImportRawKey_ErrorIfAccountExists(t *testing.T) {
 	testutil.SetSecretID()
 	defer testutil.UnsetAll()
 
-	setupPluginAndVaultAndFiles(t, ctx)
+	setupPluginKVAndVaultAndFiles(t, ctx)
 
 	// new account
 	newAcctConfTemplate := `{
