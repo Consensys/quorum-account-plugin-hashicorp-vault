@@ -49,18 +49,22 @@ jobs:
         with:
           path: ${{ runner.temp }}/dist
       - name: Extract version metadata
-        working-directory: ${{ env.DIST_DIR }}
+        working-directory: ${{ runner.temp }}/dist
         id: meta
         run: |
           dist_dir=${{ runner.temp }}/dist
           cd $dist_dir
-          os_arch=()
-          for f in */; do
-            os_arch+=(${f%/})
-          done
+          ## this can be used to dynamically determine the os_arch suffixes for built distros which may be useful in the 
+          ## future- however, for now we will simply hardcode the os_arch suffixes passed to the uploader.sh script so 
+          ## we can be sure of what is being released (uploader.sh checks the existance of the specified os_arch files 
+          ## before publishing)
+          # os_arch=()
+          # for f in */; do
+          #   os_arch+=(${f%/})
+          # done
           cp ${dist_dir}/**/* ${dist_dir}/
           echo "::set-output name=dist_dir::${dist_dir}"
-          echo "::set-output name=os_arch::${os_arch[@]}"
+          # echo "::set-output name=os_arch::${os_arch[@]}"
           echo "::set-output name=version_short::${GITHUB_REF##*/v}"
       - name: Setup Cloudsmith Maven
         uses: actions/setup-java@v2
@@ -73,7 +77,7 @@ jobs:
       - name: Upload to Cloudsmith
         run: |-
           curl -1sLf 'https://artifacts.consensys.net/public/quorum-go-plugins/raw/names/utils/versions/latest/uploader.sh' \
-            | bash -s ${{ steps.meta.outputs.dist_dir }} quorum-account-plugin-hashicorp-vault ${{ steps.meta.outputs.version_short }} ${{ steps.meta.outputs.os_arch }}
+            | bash -s ${{ steps.meta.outputs.dist_dir }} quorum-account-plugin-hashicorp-vault ${{ steps.meta.outputs.version_short }} linux-amd64 darwin-amd64
         env:
           MAVEN_USERNAME: '${{ secrets.CLOUDSMITH_USERNAME }}'
           MAVEN_PASSWORD: '${{ secrets.CLOUDSMITH_API_KEY }}'
