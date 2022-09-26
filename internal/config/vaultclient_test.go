@@ -23,7 +23,7 @@ func TestVaultClient_UnmarshalJSON(t *testing.T) {
 			"token": "env://MY_TOKEN",
 			"roleId": "env://MY_ROLE_ID",
 			"secretId": "env://MY_SECRET_ID",
-			"approlePath": "env://MY_ROLE"
+			"approlePath": "env://MY_APPROLE_PATH"
 		},
 		"tls": {
 			"caCert": "file:///path/to/ca.pem",
