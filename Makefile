@@ -54,8 +54,8 @@ goimports:
 gotestsum:
 	go get -u gotest.tools/gotestsum
 	which gotestsum; true
-	@echo $PATH
-	export PATH=$PATH:$(go env GOPATH)/bin
+	@echo ${PATH}
+	export PATH=${PATH}:$(go env GOPATH)/bin
 	which gotestsum; true
 
 clean:
