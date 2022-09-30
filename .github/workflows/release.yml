@@ -26,13 +26,11 @@ jobs:
       - name: Create macos dist
         if: ${{ matrix.os == 'macos-latest' }}
         run: |
-          go env GOPATH
           export PATH=$PATH:$(go env GOPATH)/bin
           make VERSION=${{ steps.meta.outputs.version_short }}
       - name: Create portable linux dist
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
-          go env GOPATH
           export PATH=$PATH:$(go env GOPATH)/bin
           make VERSION=${{ steps.meta.outputs.version_short }} extraldflags='-linkmode external -extldflags "-static"'
       - name: Upload artifacts
