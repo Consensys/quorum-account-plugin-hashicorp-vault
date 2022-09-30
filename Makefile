@@ -48,10 +48,10 @@ zip: build
 tools: goimports gotestsum
 
 goimports:
-	go get -u golang.org/x/tools/cmd/goimports
+	go install golang.org/x/tools/cmd/goimports
 
 gotestsum:
-	go get -u gotest.tools/gotestsum
+	go install gotest.tools/gotestsum
 
 clean:
 	@rm -rf ${OUTPUT_DIR}
