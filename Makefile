@@ -48,6 +48,7 @@ zip: build
 tools: goimports gotestsum
 
 goimports:
+	go mod download golang.org/x/tools
 	go update -u golang.org/x/tools/cmd/goimports
 
 gotestsum:
