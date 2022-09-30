@@ -50,19 +50,9 @@ tools: goimports gotestsum
 goimports:
 	go mod download golang.org/x/tools
 	go install golang.org/x/tools/cmd/goimports@latest
-	which goimports; true
-	@echo ${PATH}
-	export PATH=${PATH}:$(go env GOPATH)/bin
-	@echo ${PATH}
-	which goimports; true
 
 gotestsum:
 	go install gotest.tools/gotestsum@latest
-	which gotestsum; true
-	@echo ${PATH}
-	export PATH=${PATH}:$(go env GOPATH)/bin
-	@echo ${PATH}
-	which gotestsum; true
 
 clean:
 	@rm -rf ${OUTPUT_DIR}
