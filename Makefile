@@ -53,10 +53,10 @@ goimports:
 
 gotestsum:
 	go get -u gotest.tools/gotestsum
-	which gotestsum
+	which gotestsum; true
 	@echo $PATH
 	export PATH=$PATH:$(go env GOPATH)/bin
-	which gotestsum
+	which gotestsum; true
 
 clean:
 	@rm -rf ${OUTPUT_DIR}
