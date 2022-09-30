@@ -53,6 +53,8 @@ goimports:
 
 gotestsum:
 	go get -u gotest.tools/gotestsum
+	which gotestsum
+	echo $PATH
 
 clean:
 	@rm -rf ${OUTPUT_DIR}
