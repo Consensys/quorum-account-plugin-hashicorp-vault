@@ -49,7 +49,7 @@ tools: goimports gotestsum
 
 goimports:
 	go mod download golang.org/x/tools
-	go get -u golang.org/x/tools/cmd/goimports
+	go install golang.org/x/tools/cmd/goimports@latest
 	which goimports; true
 	@echo ${PATH}
 	export PATH=${PATH}:$(go env GOPATH)/bin
@@ -57,7 +57,7 @@ goimports:
 	which goimports; true
 
 gotestsum:
-	go get -u gotest.tools/gotestsum
+	go install gotest.tools/gotestsum@latest
 	which gotestsum; true
 	@echo ${PATH}
 	export PATH=${PATH}:$(go env GOPATH)/bin
