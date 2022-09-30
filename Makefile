@@ -49,10 +49,10 @@ tools: goimports gotestsum
 
 goimports:
 	go mod download golang.org/x/tools
-	go update -u golang.org/x/tools/cmd/goimports
+	go get -u golang.org/x/tools/cmd/goimports
 
 gotestsum:
-	go update -u gotest.tools/gotestsum
+	go get -u gotest.tools/gotestsum
 
 clean:
 	@rm -rf ${OUTPUT_DIR}
