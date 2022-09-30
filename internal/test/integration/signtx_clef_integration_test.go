@@ -1,3 +1,4 @@
+//go:build clefintegration
 // +build clefintegration
 
 package integration
