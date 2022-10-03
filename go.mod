@@ -1,4 +1,4 @@
-module github.com/ConsenSys/quorum-account-plugin-hashicorp-vault
+module github.com/consensys/quorum-account-plugin-hashicorp-vault
 
 go 1.18
 
@@ -15,6 +15,7 @@ require (
 require (
 	github.com/ConsenSys/quorum/crypto/secp256k1 v0.0.0-20201109194625-1ecd42625e8e // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/frankban/quicktest v1.14.3 // indirect
 	github.com/golang/mock v1.3.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
@@ -47,6 +48,7 @@ require (
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/square/go-jose.v2 v2.3.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
