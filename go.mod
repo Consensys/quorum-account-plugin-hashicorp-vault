@@ -1,4 +1,4 @@
-module github.com/consensys/quorum-account-plugin-hashicorp-vault
+module github.com/ConsenSys/quorum-account-plugin-hashicorp-vault
 
 go 1.18
 
@@ -8,16 +8,15 @@ require (
 	github.com/hashicorp/vault/api v1.0.4
 	github.com/hashicorp/vault/sdk v0.1.13
 	github.com/jpmorganchase/quorum-account-plugin-sdk-go v0.0.0-20201013091638-8d6ab53641ae
-	github.com/stretchr/testify v1.6.1
-	google.golang.org/grpc v1.27.1
+	github.com/stretchr/testify v1.7.0
+	google.golang.org/grpc v1.41.0
 )
 
 require (
 	github.com/ConsenSys/quorum/crypto/secp256k1 v0.0.0-20201109194625-1ecd42625e8e // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/frankban/quicktest v1.7.2 // indirect
 	github.com/golang/mock v1.3.1 // indirect
-	github.com/golang/protobuf v1.3.3 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
@@ -31,7 +30,6 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
-	github.com/kr/pretty v0.2.0 // indirect
 	github.com/machinebox/graphql v0.2.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.0.0 // indirect
@@ -47,8 +45,8 @@ require (
 	golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
-	google.golang.org/genproto v0.0.0-20200218151345-dad8c97a84f5 // indirect
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
+	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
+	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.3.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
