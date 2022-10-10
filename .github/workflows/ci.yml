@@ -44,7 +44,7 @@ jobs:
       - name: Checkout quorum
         uses: actions/checkout@v2
         with:
-          repository: baptiste-b-pegasys/quorum
+          repository: ConsenSys/quorum
           path: quorum
       - name: Build quorum-signer Vault plugin
         run: |
