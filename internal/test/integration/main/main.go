@@ -18,7 +18,7 @@ import (
 
 var testDirName = strconv.FormatInt(time.Now().UnixNano(), 10)
 var distDir = getEnvOrFallback("PLUGIN_DIST", "/Users/chris/Work/quorum-account-plugin-hashicorp-vault/build/dist")
-var distVersion = getEnvOrFallback("PLUGIN_VERSION", "0.2.0-SNAPSHOT")
+var distVersion = getEnvOrFallback("PLUGIN_VERSION", "0.2.1-SNAPSHOT")
 
 func getEnvOrFallback(env, fallback string) string {
 	if val, ok := os.LookupEnv(env); ok {
