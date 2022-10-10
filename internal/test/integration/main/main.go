@@ -31,7 +31,8 @@ func getEnvOrFallback(env, fallback string) string {
 func main() {
 	dirs := prepareDirs(testDirName)
 
-	vaultPluginConf := createVaultKVPluginConfig(dirs.testout)
+	vaultPluginConf := createVaultSignerPluginConfig(dirs.testout)
+	//vaultPluginConf := createVaultKVPluginConfig(dirs.testout)
 	pluginsConf := createPluginsConfig(
 		dirs.testout,
 		distDir,
