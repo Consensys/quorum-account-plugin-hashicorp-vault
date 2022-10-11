@@ -5,8 +5,8 @@ RUN apt update && \
 
 RUN mkdir -p /src
 
-RUN wget https://releases.hashicorp.com/vault/1.6.0/vault_1.6.0_linux_amd64.zip -O /tmp/vault_1.6.0_linux_amd64.zip && \
-      unzip /tmp/vault_1.6.0_linux_amd64.zip -d /usr/local/bin/
+RUN wget https://releases.hashicorp.com/vault/1.11.4/vault_1.11.4_linux_amd64.zip -O /tmp/vault_1.11.4_linux_amd64.zip && \
+      unzip /tmp/vault_1.11.4_linux_amd64.zip -d /usr/local/bin/
 
 RUN git clone https://github.com/ConsenSys/quorum-signer-plugin-for-hashicorp-vault.git /src/quorum-signer-plugin-for-hashicorp-vault && \
     cd /src/quorum-signer-plugin-for-hashicorp-vault && \

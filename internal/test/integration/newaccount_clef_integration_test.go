@@ -62,10 +62,13 @@ func Test_KV_Clef_CreateAccount_NewPath_ValidOverwriteProtection(t *testing.T) {
 	paramsJSON := fmt.Sprintf(`[%v]`, newAccountConfigJson)
 
 	req := NewRPCRequest(t, "plugin@account_newAccount", paramsJSON)
-	resp := req.UnixDo(t, false, clef, clefIPC)
+	response, err := req.HTTPDo(t, clef, "http://localhost:8550")
+	require.NoError(t, err)
 
-	acctAddr := resp["address"].(string)
-	acctURL := resp["url"].(string)
+	//response := req.UnixDo(t, false, clef, clefIPC)
+
+	acctAddr := response["address"].(string)
+	acctURL := response["url"].(string)
 
 	wantURL := fmt.Sprintf("http://%v/v1/%v/data/%v?version=%v", "localhost:8200", "secret", "myAcct", 1)
 	require.Equal(t, wantURL, acctURL)

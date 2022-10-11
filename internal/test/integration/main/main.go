@@ -156,6 +156,8 @@ func (b *clefBuilder) build(testout, datadir, pluginsConf string) clef {
 	// random, empty, keystore so default keystore is not used
 	stdKeystore := fmt.Sprintf("/tmp/acct-plugin-tests/%v", rand.Int())
 
+	_ = os.Mkdir(stdKeystore, os.ModePerm)
+
 	args := b.args
 	args = append(args,
 		"--auditlog",

@@ -35,12 +35,31 @@ func NewRPCRequest(t *testing.T, method string, paramsJSON string) Request {
 	}
 }
 
-func (r *Request) HTTPDo(url string) (*http.Response, error) {
+func (r *Request) HTTPDo(t *testing.T, clef clef, url string) (map[string]interface{}, error) {
 	buf := new(bytes.Buffer)
 	if err := json.NewEncoder(buf).Encode(r); err != nil {
 		return nil, err
 	}
-	return http.Post(url, "application/json", buf)
+
+	log.Print("sending request over http", "url", url, "request", r)
+	response, err := http.Post(url, "application/json", buf)
+
+	//// approve request and wait for response
+	<-time.After(1 * time.Second)
+	clef.y(t)
+	<-time.After(1 * time.Second)
+
+	log.Print("getting response from http request")
+	d := json.NewDecoder(response.Body)
+	var resp map[string]interface{}
+
+	err = d.Decode(&resp)
+	require.NoError(t, err)
+
+	result, ok := resp["result"]
+	require.True(t, ok, "clef response does not contain result data {}", resp["error"])
+
+	return result.(map[string]interface{}), nil
 }
 
 func (r *Request) UnixDo(t *testing.T, stdioui bool, clef clef, unixSocket string) map[string]interface{} {
@@ -50,6 +69,9 @@ func (r *Request) UnixDo(t *testing.T, stdioui bool, clef clef, unixSocket strin
 
 	buf := new(bytes.Buffer)
 	err = json.NewEncoder(buf).Encode(r)
+	if err != nil {
+		log.Fatal(err)
+	}
 	require.NoError(t, err)
 
 	log.Print("sending request over unix socket")
@@ -71,7 +93,7 @@ func (r *Request) UnixDo(t *testing.T, stdioui bool, clef clef, unixSocket strin
 	require.NoError(t, err)
 
 	result, ok := resp["result"]
-	require.True(t, ok, "clef response does not contain result data")
+	require.True(t, ok, "clef response does not contain result data {}", resp["error"])
 
 	return result.(map[string]interface{})
 }
@@ -98,8 +120,13 @@ func (r *Request) UnixDoExpectError(t *testing.T, clef clef, unixSocket string) 
 
 	// TODO(cjh) need more robust solution here - multiple scans & timeout if deadlock ?
 	scanner := bufio.NewScanner(c)
+	log.Print("Clef SCAN > ")
+
 	scanner.Scan()
+	log.Print("Clef TEXT > ")
+
 	clefOut := scanner.Text()
+	log.Print("Clef response > ", "clefout", clefOut)
 
 	return clefOut
 }

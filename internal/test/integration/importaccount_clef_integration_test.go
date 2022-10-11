@@ -5,6 +5,7 @@ package integration
 
 import (
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -59,7 +60,7 @@ func Test_KV_Clef_ImportAccount_NotSupported(t *testing.T) {
 	rawKey := "a0379af19f0b55b0f384f83c95f668ba600b78f487f6414f2d22339273891eec"
 
 	paramsJSON := fmt.Sprintf(`["%v", %v]`, rawKey, newAccountConfigJson)
-
+	log.Printf(paramsJSON)
 	req := NewRPCRequest(t, "plugin@account_importRawKey", paramsJSON)
 	respErr := req.UnixDoExpectError(t, clef, clefIPC)
 
