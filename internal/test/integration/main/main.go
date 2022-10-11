@@ -85,6 +85,9 @@ func stdioListener(stdio stdioPipes) {
 		}
 
 		jsonResp, err := json.Marshal(resp)
+		if err != nil {
+			panic(err)
+		}
 
 		n, err := stdio.stdinPipe.Write(jsonResp)
 		if err != nil {
