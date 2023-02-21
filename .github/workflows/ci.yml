@@ -83,7 +83,7 @@ jobs:
       - name: Run itests
         env:
           PLUGIN_DIST: ${{ github.workspace }}/main/build/dist
-          PLUGIN_VERSION: 0.2.1-SNAPSHOT
+          PLUGIN_VERSION: 0.2.2-SNAPSHOT
           VAULT_SIGNER_DIR: ${{ github.workspace }}/quorum-signer/build
           VAULT_SIGNER_NAME: quorum-signer-0.2.2-SNAPSHOT
           VAULT_API_ADDR: http://localhost:8200
