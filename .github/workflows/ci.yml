@@ -41,6 +41,7 @@ jobs:
         with:
           repository: ConsenSys/quorum-signer-plugin-for-hashicorp-vault
           path: quorum-signer
+          ref: 'v0.1.2'
       - name: Checkout quorum
         uses: actions/checkout@v2
         with:
@@ -85,7 +86,7 @@ jobs:
           PLUGIN_DIST: ${{ github.workspace }}/main/build/dist
           PLUGIN_VERSION: 0.2.1-SNAPSHOT
           VAULT_SIGNER_DIR: ${{ github.workspace }}/quorum-signer/build
-          VAULT_SIGNER_NAME: quorum-signer-0.2.2-SNAPSHOT
+          VAULT_SIGNER_NAME: quorum-signer-0.1.2-SNAPSHOT
         run: |
           set -x
           geth version
