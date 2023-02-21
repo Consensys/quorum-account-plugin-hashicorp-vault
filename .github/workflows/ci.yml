@@ -12,10 +12,10 @@ jobs:
         os: ["ubuntu-latest", "macos-latest"]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Setup Go 1.16
+      - name: Setup Go 1.17
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16
+          go-version: 1.17
       - name: Check out project files
         uses: actions/checkout@v2
       - name: Build
@@ -28,10 +28,10 @@ jobs:
         os: ["ubuntu-latest", "macos-latest"]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Setup Go 1.16
+      - name: Setup Go 1.17
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16
+          go-version: 1.17
       - name: Checkout project files
         uses: actions/checkout@v2
         with:
