@@ -40,7 +40,8 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: ConsenSys/quorum-signer-plugin-for-hashicorp-vault
-          path: quorum-signer-plugin-for-hashicorp-vault
+          path: quorum-signer
+          ref: v0.2.0
       - name: Checkout quorum
         uses: actions/checkout@v2
         with:
@@ -48,10 +49,12 @@ jobs:
           path: quorum
       - name: Build quorum-signer Vault plugin
         run: |
-          pushd quorum-signer-plugin-for-hashicorp-vault
+          pushd quorum-signer
           go mod tidy
           make
           ls build
+          go build -o bin/quorum-signer .
+          ls bin
           popd
       - name: Build quorum and clef
         run: |
@@ -84,8 +87,8 @@ jobs:
         env:
           PLUGIN_DIST: ${{ github.workspace }}/main/build/dist
           PLUGIN_VERSION: 0.2.2-SNAPSHOT
-          VAULT_SIGNER_DIR: ${{ github.workspace }}/quorum-signer-plugin-for-hashicorp-vault/build
-          VAULT_SIGNER_NAME: quorum-signer-plugin-for-hashicorp-vault-0.2.2-SNAPSHOT
+          VAULT_SIGNER_DIR: ${{ github.workspace }}/quorum-signer/bin
+          VAULT_SIGNER_NAME: quorum-signer
           #qVAULT_API_ADDR: http://localhost:8200
         run: |
           set -x
