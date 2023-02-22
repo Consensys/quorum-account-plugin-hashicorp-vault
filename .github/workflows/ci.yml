@@ -95,7 +95,7 @@ jobs:
           geth version
           clef -v
           vault -v
-          ls quorum-signer-plugin-for-hashicorp-vault/build
+          ls quorum-signer/build
           set +x
           make -C main itest
       - if: ${{ failure() }}
