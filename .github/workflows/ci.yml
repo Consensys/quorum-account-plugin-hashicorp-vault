@@ -40,8 +40,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: ConsenSys/quorum-signer-plugin-for-hashicorp-vault
-          path: quorum-signer
-          ref: 'v0.1.2'
+          path: quorum-signer-plugin-for-hashicorp-vault
       - name: Checkout quorum
         uses: actions/checkout@v2
         with:
@@ -49,7 +48,7 @@ jobs:
           path: quorum
       - name: Build quorum-signer Vault plugin
         run: |
-          pushd quorum-signer
+          pushd quorum-signer-plugin-for-hashicorp-vault
           go mod tidy
           make
           ls build
