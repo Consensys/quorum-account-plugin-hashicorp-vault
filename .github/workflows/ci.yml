@@ -47,6 +47,7 @@ jobs:
         with:
           repository: ConsenSys/quorum
           path: quorum
+          ref: v22.4.2
       - name: Build quorum-signer Vault plugin
         run: |
           pushd quorum-signer
