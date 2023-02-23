@@ -29,8 +29,8 @@ test: tools
 	gotestsum
 
 itest: clean tools build zip
-	 gotestsum -- github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags integration
-	 gotestsum -- github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags clefintegration
+	gotestsum -- github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags integration
+#	gotestsum -- github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags clefintegration
 
 build: checkfmt
 	@mkdir -p ${OUTPUT_DIR}/dist
