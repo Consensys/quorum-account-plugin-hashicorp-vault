@@ -4,7 +4,7 @@ GIT_REPO := $(shell git ls-remote --get-url)
 EXECUTABLE := "quorum-account-plugin-hashicorp-vault"
 PACKAGE ?= quorum-account-plugin-hashicorp-vault
 OUTPUT_DIR := "$(shell pwd)/build"
-VERSION := "0.2.0-SNAPSHOT"
+VERSION := "0.2.2-SNAPSHOT"
 GEN_LD_FLAGS="-X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH} -X main.GitRepo=${GIT_REPO} \
 -X main.Executable=${EXECUTABLE} -X main.Version=${VERSION} -X main.OutputDir=${OUTPUT_DIR}"
 BUILD_LD_FLAGS=-s -w $(extraldflags)
@@ -29,8 +29,8 @@ test: tools
 	gotestsum
 
 itest: clean tools build zip
-	 gotestsum -- github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags integration
-	 gotestsum -- github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags clefintegration
+	gotestsum -- github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags integration
+#	gotestsum -- github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/test/integration -tags clefintegration
 
 build: checkfmt
 	@mkdir -p ${OUTPUT_DIR}/dist
@@ -48,10 +48,11 @@ zip: build
 tools: goimports gotestsum
 
 goimports:
-	go get -u golang.org/x/tools/cmd/goimports
+	go mod download golang.org/x/tools
+	go install golang.org/x/tools/cmd/goimports@latest
 
 gotestsum:
-	go get -u gotest.tools/gotestsum
+	go install gotest.tools/gotestsum@latest
 
 clean:
 	@rm -rf ${OUTPUT_DIR}

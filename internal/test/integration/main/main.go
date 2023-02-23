@@ -17,8 +17,8 @@ import (
 )
 
 var testDirName = strconv.FormatInt(time.Now().UnixNano(), 10)
-var distDir = getEnvOrFallback("PLUGIN_DIST", "/Users/chris/Work/quorum-account-plugin-hashicorp-vault/build/dist")
-var distVersion = getEnvOrFallback("PLUGIN_VERSION", "0.2.0-SNAPSHOT")
+var distDir = getEnvOrFallback("PLUGIN_DIST", "../quorum-account-plugin-hashicorp-vault/build/dist")
+var distVersion = getEnvOrFallback("PLUGIN_VERSION", "0.2.2-SNAPSHOT")
 
 func getEnvOrFallback(env, fallback string) string {
 	if val, ok := os.LookupEnv(env); ok {
@@ -31,6 +31,7 @@ func getEnvOrFallback(env, fallback string) string {
 func main() {
 	dirs := prepareDirs(testDirName)
 
+	//vaultPluginConf := createVaultSignerPluginConfig(dirs.testout)
 	vaultPluginConf := createVaultKVPluginConfig(dirs.testout)
 	pluginsConf := createPluginsConfig(
 		dirs.testout,
@@ -85,6 +86,9 @@ func stdioListener(stdio stdioPipes) {
 		}
 
 		jsonResp, err := json.Marshal(resp)
+		if err != nil {
+			panic(err)
+		}
 
 		n, err := stdio.stdinPipe.Write(jsonResp)
 		if err != nil {

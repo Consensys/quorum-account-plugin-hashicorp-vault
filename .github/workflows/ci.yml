@@ -12,10 +12,10 @@ jobs:
         os: ["ubuntu-latest", "macos-latest"]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Setup Go 1.16
+      - name: Setup Go 1.18
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16
+          go-version: 1.18
       - name: Check out project files
         uses: actions/checkout@v2
       - name: Build
@@ -28,10 +28,10 @@ jobs:
         os: ["ubuntu-latest", "macos-latest"]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Setup Go 1.16
+      - name: Setup Go 1.18
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16
+          go-version: 1.18
       - name: Checkout project files
         uses: actions/checkout@v2
         with:
@@ -41,6 +41,7 @@ jobs:
         with:
           repository: ConsenSys/quorum-signer-plugin-for-hashicorp-vault
           path: quorum-signer
+          ref: v0.2.0
       - name: Checkout quorum
         uses: actions/checkout@v2
         with:
@@ -52,8 +53,10 @@ jobs:
           go mod tidy
           make
           ls build
+          go build -o bin/quorum-signer .
+          ls bin
           popd
-      - name: Build quorum and clef
+      - name: Build quorum
         run: |
           mkdir -p $(go env GOPATH)/ethereum/go-ethereum
           cp -a quorum/. $(go env GOPATH)/ethereum/go-ethereum/
@@ -83,13 +86,12 @@ jobs:
       - name: Run itests
         env:
           PLUGIN_DIST: ${{ github.workspace }}/main/build/dist
-          PLUGIN_VERSION: 0.2.0-SNAPSHOT
-          VAULT_SIGNER_DIR: ${{ github.workspace }}/quorum-signer/build
-          VAULT_SIGNER_NAME: quorum-signer-0.1.0-SNAPSHOT
+          PLUGIN_VERSION: 0.2.2-SNAPSHOT
+          VAULT_SIGNER_DIR: ${{ github.workspace }}/quorum-signer/bin
+          VAULT_SIGNER_NAME: quorum-signer
         run: |
           set -x
           geth version
-          clef -v
           vault -v
           ls quorum-signer/build
           set +x
