@@ -47,7 +47,6 @@ jobs:
         with:
           repository: ConsenSys/quorum
           path: quorum
-#          ref: v22.4.2
       - name: Build quorum-signer Vault plugin
         run: |
           pushd quorum-signer
@@ -93,7 +92,6 @@ jobs:
         run: |
           set -x
           geth version
-#          clef -v
           vault -v
           ls quorum-signer/build
           set +x
