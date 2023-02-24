@@ -55,7 +55,7 @@ func (c VaultClientAuthentication) validate() error {
 		tokenIsSet       = c.Token.IsSet()
 		roleIdIsSet      = c.RoleId.IsSet()
 		secretIdIsSet    = c.SecretId.IsSet()
-		approlePathIsSet = !(c.ApprolePath == "")
+		approlePathIsSet = c.ApprolePath.IsSet()
 	)
 	if !tokenIsSet && roleIdIsSet && secretIdIsSet && approlePathIsSet {
 		return nil
