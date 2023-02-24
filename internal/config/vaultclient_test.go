@@ -105,7 +105,7 @@ func TestVaultClient_UnmarshalJSON_AddsTrailingSlashToAcctDir(t *testing.T) {
 			"token": "env://MY_TOKEN",
 			"roleId": "env://MY_ROLE_ID",
 			"secretId": "env://MY_SECRET_ID",
-			"approlePath": "my-role"
+			"approlePath": "env://MY_APPROLE_PATH"
 		},
 		"tls": {
 			"caCert": "file:///path/to/ca.pem",

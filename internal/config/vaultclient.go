@@ -182,18 +182,23 @@ func (c vaultClientAuthenticationJSON) vaultClientAuthentication() (VaultClientA
 	if err != nil {
 		return VaultClientAuthentication{}, err
 	}
+	approlePath, err := url.Parse(c.ApprolePath)
+	if err != nil {
+		return VaultClientAuthentication{}, err
+	}
 
 	var (
 		tEnv = EnvironmentVariable(*token)
 		rEnv = EnvironmentVariable(*roleId)
 		sEnv = EnvironmentVariable(*secretId)
+		aEnv = EnvironmentVariable(*approlePath)
 	)
 
 	return VaultClientAuthentication{
 		Token:       &tEnv,
 		RoleId:      &rEnv,
 		SecretId:    &sEnv,
-		ApprolePath: &sEnv,
+		ApprolePath: &aEnv,
 	}, nil
 }
 
