@@ -119,6 +119,13 @@ func (b *VaultClientBuilder) Build(t *testing.T) config.VaultClient {
 		secretIdEnv = config.EnvironmentVariable(*secretId)
 	}
 
+	var approlePathEnv config.EnvironmentVariable
+	if b.secretIdUrl != "" {
+		approlePath, err := url.Parse(b.approlePath)
+		assert.NoError(t, err)
+		approlePathEnv = config.EnvironmentVariable(*approlePath)
+	}
+
 	var caCert *url.URL
 	if b.caCertUrl != "" {
 		caCert, err = url.Parse(b.caCertUrl)
@@ -145,7 +152,7 @@ func (b *VaultClientBuilder) Build(t *testing.T) config.VaultClient {
 				Token:       &tokenEnv,
 				RoleId:      &roleIdEnv,
 				SecretId:    &secretIdEnv,
-				ApprolePath: b.approlePath,
+				ApprolePath: &approlePathEnv,
 			},
 			TLS: config.VaultClientTLS{
 				CaCert:     caCert,
