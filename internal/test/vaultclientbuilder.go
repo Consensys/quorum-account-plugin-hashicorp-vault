@@ -2,6 +2,7 @@ package test
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/consensys/quorum-account-plugin-hashicorp-vault/internal/config"
@@ -120,10 +121,13 @@ func (b *VaultClientBuilder) Build(t *testing.T) config.VaultClient {
 	}
 
 	var approlePathEnv config.EnvironmentVariable
-	if b.secretIdUrl != "" {
-		approlePath, err := url.Parse(b.approlePath)
+	if b.approlePath != "" {
+		// Remove "env:" prefix from the approlePath
+		approlePath := strings.TrimPrefix(b.approlePath, "env:")
+		// Parse the new vaultURL as a URL
+		parsedURL, err := url.Parse(approlePath)
 		assert.NoError(t, err)
-		approlePathEnv = config.EnvironmentVariable(*approlePath)
+		approlePathEnv = config.EnvironmentVariable(*parsedURL)
 	}
 
 	var caCert *url.URL

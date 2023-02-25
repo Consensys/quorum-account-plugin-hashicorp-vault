@@ -32,7 +32,7 @@ Based on this config, Quorum will look for [`quorum-account-plugin-hashicorp-vau
     "authentication": {
         "roleId": "env://HASHICORP_ROLE_ID",
         "secretId": "env://HASHICORP_SECRET_ID",
-        "approlePath": "approle"
+        "approlePath": "env://HASHICORP_APPROLE"
     },
     "tls": {
         "caCert": "file:///path/to/ca.pem",

@@ -165,7 +165,7 @@ func TestVaultClientBase_Validate_Authentication_Valid(t *testing.T) {
 			roleIdUrl:   "",
 			secretIdUrl: "",
 			approlePath: "",
-			setEnvFuncs: []func(){testutil.SetToken, testutil.SetRoleID, testutil.SetSecretID},
+			setEnvFuncs: []func(){testutil.SetToken, testutil.SetRoleID, testutil.SetSecretID, testutil.SetAppRolePath},
 		},
 		"approle": {
 			tokenUrl:    "",
@@ -234,7 +234,7 @@ func TestVaultClientBase_Validate_Authentication_Invalid(t *testing.T) {
 			roleIdUrl:   "env://" + testutil.MY_ROLE_ID,
 			secretIdUrl: "env://" + testutil.MY_SECRET_ID,
 			approlePath: "",
-			setEnvFuncs: []func(){testutil.SetToken, testutil.SetRoleID, testutil.SetSecretID},
+			setEnvFuncs: []func(){testutil.SetToken, testutil.SetRoleID, testutil.SetSecretID, testutil.SetAppRolePath},
 		},
 		"approle_only_role_id": {
 			tokenUrl:    "",
@@ -269,7 +269,7 @@ func TestVaultClientBase_Validate_Authentication_Invalid(t *testing.T) {
 			roleIdUrl:   "",
 			secretIdUrl: "",
 			approlePath: "",
-			setEnvFuncs: []func(){testutil.SetRoleID, testutil.SetSecretID},
+			setEnvFuncs: []func(){testutil.SetRoleID, testutil.SetSecretID, testutil.SetAppRolePath},
 		},
 		"approle_no_env": {
 			tokenUrl:    "",

@@ -37,7 +37,7 @@ func setupPluginKVAndVaultAndFiles(t *testing.T, ctx *ITContext, args ...map[str
 
 	var vaultBuilder VaultBuilder
 	vaultBuilder.
-		WithLoginHandler("myapprole").
+		WithLoginHandler("approle").
 		WithKVHandler(t, HandlerData{
 			SecretEnginePath: "engine",
 			SecretPath:       "myAcct",
@@ -63,7 +63,7 @@ func setupPluginKVAndVaultAndFiles(t *testing.T, ctx *ITContext, args ...map[str
 		WithAccountDirectory(fmt.Sprintf("file://%v/%v", wd, ctx.AccountConfigDirectory)).
 		WithRoleIdUrl("env://" + testutil.MY_ROLE_ID).
 		WithSecretIdUrl("env://" + testutil.MY_SECRET_ID).
-		WithApprolePath("myapprole").
+		WithApprolePath("env://" + testutil.MY_APPROLE_PATH).
 		WithCaCertUrl(fmt.Sprintf("file://%v/%v", wd, CA_CERT)).
 		WithClientCertUrl(fmt.Sprintf("file://%v/%v", wd, CLIENT_CERT)).
 		WithClientKeyUrl(fmt.Sprintf("file://%v/%v", wd, CLIENT_KEY))
@@ -90,6 +90,7 @@ func TestPlugin_KV_Status_AccountLockedByDefault(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -107,6 +108,7 @@ func TestPlugin_KV_Accounts(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -131,6 +133,7 @@ func TestPlugin_KV_Contains_IsContained(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -149,6 +152,7 @@ func TestPlugin_KV_Contains_IsNotContained(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -167,6 +171,7 @@ func TestPlugin_KV_Sign(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -197,6 +202,7 @@ func TestPlugin_KV_Sign_Locked(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -219,6 +225,7 @@ func TestPlugin_KV_Sign_UnknownAccount(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -241,6 +248,7 @@ func TestPlugin_KV_UnlockAndSign_Locked(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -273,6 +281,7 @@ func TestPlugin_KV_UnlockAndSign_AlreadyUnlocked(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -311,6 +320,7 @@ func TestPlugin_KV_UnlockAndSign_UnknownAccount(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -333,6 +343,7 @@ func TestPlugin_KV_Unlock(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -366,6 +377,7 @@ func TestPlugin_KV_TimedUnlock(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -399,6 +411,7 @@ func TestPlugin_KV_TimedUnlock_Cancel(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -438,6 +451,7 @@ func TestPlugin_KV_TimedUnlock_Extend(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -480,6 +494,7 @@ func TestPlugin_KV_TimedUnlock_Shorten(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -520,6 +535,7 @@ func TestPlugin_KV_UnlockAtStartup(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx, map[string]string{"unlock": "0xdc99ddec13457de6c0f6bb8e6cf3955c86f55526,UnknownAcctShouldNotCauseError"})
@@ -535,6 +551,7 @@ func TestPlugin_KV_Lock(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -567,6 +584,7 @@ func TestPlugin_KV_Lock_MultipleTimes(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -590,6 +608,7 @@ func TestPlugin_KV_Lock_CancelsTimedUnlock(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -625,6 +644,7 @@ func TestPlugin_KV_Lock_UnknownAccount(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -643,6 +663,7 @@ func TestPlugin_KV_NewAccount(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -699,6 +720,7 @@ func TestPlugin_KV_NewAccount_IncorrectCASValue(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -724,6 +746,7 @@ func TestPlugin_KV_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -755,6 +778,7 @@ func TestPlugin_KV_ImportRawKey(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -816,6 +840,7 @@ func TestPlugin_KV_ImportRawKey_IncorrectCASValue(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -846,6 +871,7 @@ func TestPlugin_KV_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
@@ -883,6 +909,7 @@ func TestPlugin_KV_ImportRawKey_ErrorIfAccountExists(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginKVAndVaultAndFiles(t, ctx)
