@@ -77,7 +77,7 @@ type VaultClientAuthentication struct {
 	Token       *EnvironmentVariable
 	RoleId      *EnvironmentVariable
 	SecretId    *EnvironmentVariable
-	ApprolePath string
+	ApprolePath *EnvironmentVariable
 }
 
 type VaultClientTLS struct {
@@ -182,18 +182,23 @@ func (c vaultClientAuthenticationJSON) vaultClientAuthentication() (VaultClientA
 	if err != nil {
 		return VaultClientAuthentication{}, err
 	}
+	approlePath, err := url.Parse(c.ApprolePath)
+	if err != nil {
+		return VaultClientAuthentication{}, err
+	}
 
 	var (
 		tEnv = EnvironmentVariable(*token)
 		rEnv = EnvironmentVariable(*roleId)
 		sEnv = EnvironmentVariable(*secretId)
+		aEnv = EnvironmentVariable(*approlePath)
 	)
 
 	return VaultClientAuthentication{
 		Token:       &tEnv,
 		RoleId:      &rEnv,
 		SecretId:    &sEnv,
-		ApprolePath: c.ApprolePath,
+		ApprolePath: &aEnv,
 	}, nil
 }
 
@@ -237,7 +242,7 @@ func (c VaultClientAuthentication) vaultClientAuthenticationJSON() vaultClientAu
 		Token:       c.Token.String(),
 		RoleId:      c.RoleId.String(),
 		SecretId:    c.SecretId.String(),
-		ApprolePath: c.ApprolePath,
+		ApprolePath: c.ApprolePath.String(),
 	}
 }
 

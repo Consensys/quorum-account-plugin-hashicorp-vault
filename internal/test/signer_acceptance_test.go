@@ -40,7 +40,7 @@ func setupPluginSignerAndVaultAndFiles(t *testing.T, ctx *ITContext) {
 
 	var vaultBuilder VaultBuilder
 	vaultBuilder.
-		WithLoginHandler("myapprole").
+		WithLoginHandler("approle").
 		WithSignerHandler(t, HandlerData{
 			SecretEnginePath: "engine",
 			SecretPath:       "myAcct",
@@ -72,7 +72,7 @@ func setupPluginSignerAndVaultAndFiles(t *testing.T, ctx *ITContext) {
 		WithAccountDirectory(fmt.Sprintf("file://%v/%v", wd, ctx.AccountConfigDirectory)).
 		WithRoleIdUrl("env://" + testutil.MY_ROLE_ID).
 		WithSecretIdUrl("env://" + testutil.MY_SECRET_ID).
-		WithApprolePath("myapprole").
+		WithApprolePath("env://" + testutil.MY_APPROLE_PATH).
 		WithCaCertUrl(fmt.Sprintf("file://%v/%v", wd, CA_CERT)).
 		WithClientCertUrl(fmt.Sprintf("file://%v/%v", wd, CLIENT_CERT)).
 		WithClientKeyUrl(fmt.Sprintf("file://%v/%v", wd, CLIENT_KEY))
@@ -94,6 +94,7 @@ func TestPlugin_Signer_Status_OK(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -111,6 +112,7 @@ func TestPlugin_Signer_Accounts(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -135,6 +137,7 @@ func TestPlugin_Signer_Contains_IsContained(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -153,6 +156,7 @@ func TestPlugin_Signer_Contains_IsNotContained(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -171,6 +175,7 @@ func TestPlugin_Signer_Sign(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -196,6 +201,7 @@ func TestPlugin_Signer_Sign_UnknownAccount(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -218,6 +224,7 @@ func TestPlugin_Signer_UnlockAndSign(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -244,6 +251,7 @@ func TestPlugin_Signer_UnlockAndSign_UnknownAccount(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -267,6 +275,7 @@ func TestPlugin_Signer_Unlock_Noop(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -285,6 +294,7 @@ func TestPlugin_Signer_Lock_NotSupported_NoOp(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -304,6 +314,7 @@ func TestPlugin_Signer_NewAccount(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -359,6 +370,7 @@ func TestPlugin_Signer_NewAccount_AddedToAvailableAccounts(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -389,6 +401,7 @@ func TestPlugin_Signer_ImportRawKey(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -449,6 +462,7 @@ func TestPlugin_Signer_ImportRawKey_AddedToAvailableAccounts(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
@@ -485,6 +499,7 @@ func TestPlugin_Signer_ImportRawKey_ErrorIfAccountExists(t *testing.T) {
 
 	testutil.SetRoleID()
 	testutil.SetSecretID()
+	testutil.SetAppRolePath()
 	defer testutil.UnsetAll()
 
 	setupPluginSignerAndVaultAndFiles(t, ctx)
